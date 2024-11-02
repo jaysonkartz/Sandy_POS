@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useState } from 'react';
 import { Input } from "@nextui-org/react";
 
 import { Button } from "@/app/ui/button";
@@ -21,7 +21,7 @@ export default function CreateForm<T>({
   createAction: (state: State, formData: FormData) => State | Promise<State>;
 }) {
   const initialState: State = { message: null };
-  const [formData, formAction] = useActionState(createAction, initialState);
+  const [formData, formAction] = useState(initialState);
 
   return (
     <form action={formAction}>
