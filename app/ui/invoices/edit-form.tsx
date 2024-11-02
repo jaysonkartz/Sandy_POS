@@ -7,7 +7,7 @@ import {
   UserCircleIcon,
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
-import {useFormState} from 'react-dom'
+import { useActionState } from "react";
 
 import { CustomerField, InvoiceForm } from "@/app/lib/definitions";
 import { Button } from "@/app/ui/button";

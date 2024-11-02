@@ -1,96 +1,88 @@
-import Link from "next/link";
-import Image from "next/image";
+'use client';
 
-import EventRowCards from "@/app/ui/home/events_row_cards";
-import {
-  fetchEventsPresentOrFuture,
-  fetchPlansPresentOrFuture,
-} from "@/app/lib/data";
-import PlanRowCards from "@/app/ui/home/plans_row_cards";
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/app/lib/supabase';
 
-import TopBanner from "./ui/home/top_banner";
-import NavLinks from "./ui/customer_dashboard/nav-links";
+interface Category {
+  id: number;
+  title: string;
+  imageUrl: string;
+}
 
-export default async function Page() {
-  const eventData = await fetchEventsPresentOrFuture();
-  const planData = await fetchPlansPresentOrFuture();
+export default function Home() {
+  const router = useRouter();
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  async function fetchCategories() {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*');
+
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  const handleViewProducts = async (categoryId: number) => {
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session) {
+      localStorage.setItem('intendedCategory', categoryId.toString());
+      router.push('/login');
+      return;
+    }
+
+    router.push(`/products/${categoryId}`);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   return (
-    <main>
-      <TopBanner />
-      <div className="flex flex-wrap items-stretch">
-        <NavLinks />
-      </div>
-      <div className="mt-4 flex grow flex-col gap-4">
-        <div className="flex items-center justify-center p-6 md:px-28 md:py-12">
-          <Image
-            alt="Screenshots of the dashboard project showing desktop version"
-            className="hidden md:block"
-            height={760}
-            src="/Full_Temple_Pic.jpg"
-            width={1000}
-          />
-          <Image
-            alt="Screenshot of the dashboard project showing mobile version"
-            className="block md:hidden"
-            height={620}
-            src="/Full_Temple_Pic.jpg"
-            width={560}
-          />
-        </div>
-
-        <p className="text-gray-800 text-justify mx-10">
-          The Jurong West Combined Temple, also known as the Tian Gong Tan Zhao
-          Ling Gong Temple, is currently located at Jurong West St 41. With
-          humble beginnings from a wooden temple erected in 1917, the temple has
-          moved several times before finding its permanent home in 1992 after
-          tireless efforts by villagers and devotees. Dedicated to the worship
-          of the Heavenly Duke (Tian Gong) and Goddess of Mercy (Qian Shou Guan
-          Yin), it hosts other deities including the Lady of the Nine Heavens
-          (Jiu Tian Xuan Nü) and Lords Zhu, Xing, and Li. The temple stands as a
-          sacred site and cultural hub, hosting many festivals open to the
-          public.
-        </p>
-        <p className="text-gray-800 text-justify mx-10">
-          Visitors to the temple can witness a living tradition spanning more
-          than a century, while its serene ambience offers spiritual seekers
-          with a peace of mind. Come join our events and celebrations to
-          experience the rich heritage, vibrant culture, and spiritual energy of
-          this temple!
-        </p>
-        <p className="text-gray-800 text-justify mx-10">
-          裕廊西联合宫, 也称为天公坛昭灵宫,
-          现位于裕廊西41街。该寺庙始建于1917年, 最初是一座木制庙宇,
-          经历了多次搬迁后, 最终在1992年, 经过村民和信徒们不懈的努力,
-          找到了永久的家。寺庙主要供奉天公（玉皇大帝）和千手观音,
-          同时也供奉其他神灵, 如九天玄女以及朱、邢、李大人。如今,
-          这座寺庙既是一个神圣的场所，也是一个文化中心，举办许多向公众开放的节日庆典。
-        </p>
-        <p className="text-gray-800 text-justify mx-10">
-          前来参观的来宾可以见证这一跨越百年的活生生的传统,
-          寺庙宁静的氛围为寻求精神慰藉的人们带来内心的平静。欢迎大家参与我们的活动和庆典,
-          亲身体验这座历史悠久的寺庙所蕴含的丰富文化遗产、充满活力的文化以及强大的精神力量!
-        </p>
-
-        <div>
-          <Link
-            className="flex items-center gap-5 self-start rounded-lg bg-yellow-800 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-yellow-700 md:text-base"
-            href="/events"
+    <div className="container mx-auto p-4">
+      <h1 className="text-3xl font-bold mb-6">Categories</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {categories.map((category) => (
+          <div 
+            key={category.id} 
+            className="border rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow"
           >
-            <h1> On-going & Upcoming Events</h1>
-          </Link>
-          <EventRowCards data={eventData} />
-        </div>
-        <div>
-          <Link
-            className="flex items-center gap-5 self-start rounded-lg bg-yellow-800 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-yellow-700 md:text-base"
-            href="/plans"
-          >
-            <h1> Available Plans</h1>
-          </Link>
-          <PlanRowCards data={planData} />
-        </div>
+            <div className="relative w-full h-48">
+              <img
+                src={category.imageUrl}
+                alt={category.title}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="p-4">
+              <h2 className="text-xl font-semibold mb-2">{category.title}</h2>
+              <button 
+                onClick={() => handleViewProducts(category.id)}
+                className="text-blue-500 hover:text-blue-700"
+              >
+                View Products →
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
-    </main>
+    </div>
   );
 }

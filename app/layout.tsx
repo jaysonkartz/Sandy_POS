@@ -1,15 +1,13 @@
-import "@/app/ui/global.css";
-import { Metadata } from "next";
-import { NextUIProvider } from "@nextui-org/react";
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import './globals.css';
+import TopNav from './components/TopNav';
 
-import { inter } from "@/app/ui/fonts";
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: {
-    template: "%s | Project Bob",
-    default: "Project Bob",
-  },
-  description: "The dashboard application for Project Bob.",
+  title: 'POS',
+  description: 'Your store description',
 };
 
 export default function RootLayout({
@@ -19,14 +17,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} antialiased`}>
-        <NextUIProvider>
-          <div className="flex min-h-screen flex-col p-1 md:p-0">
-            <div className="flex-grow p-6 item-center md:overflow-y-auto md:p-0">
-              <div className="max-w-screen-2xl m-auto">{children}</div>
-            </div>
-          </div>
-        </NextUIProvider>
+      <body className={inter.className}>
+        <TopNav />
+        <main className="min-h-screen bg-gray-50 pt-4">
+          {children}
+        </main>
       </body>
     </html>
   );
