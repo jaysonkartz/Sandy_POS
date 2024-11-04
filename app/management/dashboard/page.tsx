@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import PricingManagement from '@/components/PricingManagement';
 
 interface DashboardSection {
   id: string;
@@ -62,12 +63,7 @@ export default function ManagementDashboard() {
   const renderContent = () => {
     switch (activeSection) {
       case 'pricing':
-        return (
-          <div className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Pricing Management</h2>
-            {/* Add your pricing management content here */}
-          </div>
-        );
+        return <PricingManagement />;
       case 'inventory':
         return (
           <div className="p-6">
