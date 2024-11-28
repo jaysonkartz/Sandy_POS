@@ -1,42 +1,62 @@
 'use client';
 
-import { useState } from 'react';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useEffect, useState } from 'react';
 
 interface Product {
-  code: string;
-  name: string;
-  currentPrice: number;
-  description: string;
+  id: number;
+  title: string;
+  slug: string;
+  price: number;
+  category: number;
+  maxQuantity: number;
+  imagesUrl: string;
+  heroImage: string;
 }
 
 interface Category {
-  id: string;
+  id: number;
   name: string;
-  products: Product[];
+  imageUrl: string;
 }
 
-// Sample data - replace with your actual data
-const categories: Category[] = [
-  {
-    id: 'cat1',
-    name: 'Food',
-    products: [
-      { code: 'F001', name: 'Burger', currentPrice: 9.99, description: 'Classic beef burger' },
-      { code: 'F002', name: 'Pizza', currentPrice: 12.99, description: 'Margherita pizza' },
-    ]
-  },
-  {
-    id: 'cat2',
-    name: 'Beverages',
-    products: [
-      { code: 'B001', name: 'Soda', currentPrice: 2.99, description: 'Carbonated drink' },
-      { code: 'B002', name: 'Coffee', currentPrice: 3.99, description: 'Fresh brewed coffee' },
-    ]
-  }
-];
-
 export default function PricingManagement() {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [openCategories, setOpenCategories] = useState<string[]>([]);
+  const supabase = createClientComponentClient();
+
+  useEffect(() => {
+    async function fetchData() {
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .from('categories')
+        .select('*');
+
+      if (categoriesError) {
+        console.error('Error fetching categories:', categoriesError);
+        return;
+      }
+
+      const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('*');
+
+      if (productsError) {
+        console.error('Error fetching products:', productsError);
+        return;
+      }
+
+      const categoriesWithProducts = categoriesData.map(category => ({
+        ...category,
+        products: productsData.filter(product => product.category === category.id)
+      }));
+
+      setCategories(categoriesWithProducts);
+      console.log(categories)
+    }
+
+    fetchData();
+  }, []);
 
   const toggleCategory = (categoryId: string) => {
     setOpenCategories(prev => 
@@ -52,7 +72,7 @@ export default function PricingManagement() {
       
       {/* Table Headers */}
       <div className="bg-gray-50 p-4 rounded-t-lg font-semibold grid grid-cols-5 gap-4">
-        <div>Item Name (Code)</div>
+        <div>Item Name</div>
         <div>Current Price</div>
         <div className="text-center">Customers</div>
         <div className="text-center">Price Override</div>
@@ -62,28 +82,30 @@ export default function PricingManagement() {
       {/* Categories Accordion */}
       <div className="space-y-4">
         {categories.map((category) => (
+          console.log(categories)
           <div key={category.id} className="border rounded-lg overflow-hidden">
             <button
-              onClick={() => toggleCategory(category.id)}
+              onClick={() => toggleCategory(category.id.toString())}
               className="w-full flex justify-between items-center p-4 bg-white hover:bg-gray-50 transition-colors"
             >
               <span className="font-semibold">{category.name}</span>
-              <span className="text-xl">{openCategories.includes(category.id) ? '−' : '+'}</span>
+              <span className="font-semibold">{category.name}</span>
+              <span className="text-xl">{openCategories.includes(category.id.toString()) ? '−' : '+'}</span>
             </button>
 
-            {openCategories.includes(category.id) && (
+            {openCategories.includes(category.id.toString()) && (
               <div className="border-t">
                 {category.products.map((product) => (
                   <div 
-                    key={product.code}
+                    key={product.id}
                     className="grid grid-cols-5 gap-4 p-4 items-center hover:bg-gray-50 transition-colors"
                   >
                     <div>
-                      <div className="font-medium">{product.name}</div>
-                      <div className="text-sm text-gray-500">{product.code}</div>
+                      <div className="font-medium">{product.title}</div>
+                      <div className="text-sm text-gray-500">{product.slug}</div>
                     </div>
                     <div className="font-medium">
-                      ${product.currentPrice.toFixed(2)}
+                      ${product.price.toFixed(2)}
                     </div>
                     <div className="text-center">
                       <button className="p-2 hover:bg-gray-100 rounded-full" title="View Customers">

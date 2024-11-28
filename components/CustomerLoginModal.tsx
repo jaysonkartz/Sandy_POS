@@ -1,7 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { Database } from '@/types/supabase';
+import { User } from '@supabase/supabase-js';
 
 interface CustomerLoginModalProps {
   isOpen: boolean;
@@ -10,6 +13,7 @@ interface CustomerLoginModalProps {
 
 export default function CustomerLoginModal({ isOpen, onClose }: CustomerLoginModalProps) {
   const router = useRouter();
+  const supabase = createClientComponentClient<Database>();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -23,15 +27,21 @@ export default function CustomerLoginModal({ isOpen, onClose }: CustomerLoginMod
     setIsLoading(true);
 
     try {
-      if (formData.email && formData.password) {
-        // Add authentication logic here
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (signInError) {
+        throw signInError;
+      }
+
+      if (data?.user) {
+        router.refresh();
         onClose();
-        // Refresh the page or update state to show personalized prices
-      } else {
-        setError('Please fill in all fields');
       }
     } catch (err) {
-      setError('Invalid credentials');
+      setError(err instanceof Error ? err.message : 'Invalid credentials');
     } finally {
       setIsLoading(false);
     }
