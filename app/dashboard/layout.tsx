@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 interface Product {
   id: number;
@@ -12,11 +13,72 @@ interface Product {
 
 interface CategoryProps {
   name: string;
+  categoryId: number;
   products: Product[];
 }
 
-export default function ProductCategory({ name, products }: CategoryProps) {
+export default function ProductCategory({ name, categoryId, products: initialProducts }: CategoryProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [products, setProducts] = useState<Product[]>(initialProducts || []);
+  const [loading, setLoading] = useState(true);
+  const supabase = createClientComponentClient();
+
+  console.log("categoryId", categoryId);
+  console.log("name", name);
+  console.log("products", products);
+
+  useEffect(() => {
+    async function fetchProducts() {
+      if (!categoryId) {
+        console.log('Category ID is undefined');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .eq('category_id', categoryId);
+
+        if (error) {
+          console.error('Error fetching products:', error);
+          return;
+        }
+
+        console.log('Fetched products:', data);
+        setProducts(data || []);
+      } catch (error) {
+        console.error('Error:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchProducts();
+  }, [categoryId, name, supabase]);
+
+  if (loading) {
+    return (
+      <div className="border rounded-lg mb-4">
+        <div className="p-4 bg-gray-50">
+          <h2 className="text-xl font-semibold">{name}</h2>
+          <p>Loading products...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!products || products.length === 0) {
+    return (
+      <div className="border rounded-lg mb-4">
+        <div className="p-4 bg-gray-50">
+          <h2 className="text-xl font-semibold">{name}</h2>
+          <p>No products available in this category</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="border rounded-lg mb-4">

@@ -53,7 +53,6 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
       if (error) throw error;
       setProducts(data || []);
       
-      // Initialize quantities state
       const initialQuantities = (data || []).reduce((acc, product) => ({
         ...acc,
         [product.id]: 0
@@ -68,7 +67,6 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
   }
 
   const handleQuantityChange = (productId: number, newQuantity: number, maxQuantity: number) => {
-    // Ensure quantity is within bounds
     const validQuantity = Math.max(0, Math.min(newQuantity, maxQuantity));
     setQuantities(prev => ({
       ...prev,
@@ -106,56 +104,90 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {products.map((product) => (
-          <div key={product.id} className="border rounded-lg p-4">
-            <img 
-              src={product.heroImage || product.imagesUrl} 
-              alt={product.title} 
-              className="w-full h-48 object-cover rounded mb-2" 
-            />
-            <h3 className="font-semibold">{product.title}</h3>
-            <p className="text-gray-600">S${product.price.toFixed(2)}</p>
-            <p className="text-sm text-gray-500">Max Quantity: {product.maxQuantity}</p>
+          <div key={product.id} className="bg-red-200 rounded-lg p-4 shadow-md">
+            <h3 className="font-semibold text-lg">{product.title}</h3>
+            {product.heroImage && (
+              <div className="my-2">
+                <img 
+                  src={product.heroImage} 
+                  alt={product.title}
+                  className="w-full h-48 object-cover rounded"
+                />
+              </div>
+            )}
             
-            <div className="mt-4 flex items-center space-x-2">
-              <button 
-                onClick={() => handleQuantityChange(product.id, quantities[product.id] - 1, product.maxQuantity)}
-                className="px-2 py-1 bg-gray-100 rounded hover:bg-gray-200"
-                disabled={quantities[product.id] <= 0}
-              >
-                -
-              </button>
+            <div className="space-y-1.5">
+              <div className="text-right font-semibold">
+                S${product.price.toFixed(2)}/kg
+              </div>
               
-              <input
-                type="number"
-                value={quantities[product.id]}
-                onChange={(e) => handleQuantityChange(product.id, parseInt(e.target.value) || 0, product.maxQuantity)}
-                min="0"
-                max={product.maxQuantity}
-                className="w-16 text-center border rounded px-2 py-1"
-              />
-              
-              <button 
-                onClick={() => handleQuantityChange(product.id, quantities[product.id] + 1, product.maxQuantity)}
-                className="px-2 py-1 bg-gray-100 rounded hover:bg-gray-200"
-                disabled={quantities[product.id] >= product.maxQuantity}
-              >
-                +
+              <div className="flex justify-between">
+                <span>Availability:</span>
+                <span>{product.maxQuantity > 0 ? 'Yes' : 'No'}</span>
+              </div>
+
+              <div className="flex justify-between">
+                <span>Lead Time:</span>
+                <span>13 Days</span>
+              </div>
+
+              <div className="flex justify-between">
+                <span>Origin:</span>
+                <span>Shandong, China</span>
+              </div>
+
+              <div className="flex justify-between">
+                <span>MOQ:</span>
+                <span>9 kg/bag</span>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span>Quantity:</span>
+                <div className="flex items-center space-x-2">
+                  <button 
+                    onClick={() => handleQuantityChange(product.id, quantities[product.id] - 1, product.maxQuantity)}
+                    className="px-2 py-0.5 bg-white rounded"
+                  >
+                    -
+                  </button>
+                  <span className="w-8 text-center">{quantities[product.id]}</span>
+                  <button 
+                    onClick={() => handleQuantityChange(product.id, quantities[product.id] + 1, product.maxQuantity)}
+                    className="px-2 py-0.5 bg-white rounded"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex justify-between">
+                <span>Sub-Total:</span>
+                <span>{(product.price * quantities[product.id]).toFixed(2)}</span>
+              </div>
+
+              <div className="flex space-x-2">
+                <button className="flex-1 px-3 py-1 bg-green-500 text-white rounded text-sm">
+                  Make Offer
+                </button>
+                <button className="flex-1 px-3 py-1 bg-blue-500 text-white rounded text-sm">
+                  Add to Cart
+                </button>
+              </div>
+
+              <button className="w-full flex items-center justify-center space-x-2 px-3 py-1 bg-green-600 text-white rounded text-sm">
+                <span>Customer Service</span>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                </svg>
               </button>
-            </div>
 
-            <div className="mt-2">
-              <p className="text-sm text-gray-600">
-                Total: S${(product.price * quantities[product.id]).toFixed(2)}
-              </p>
+              <div className="mt-2">
+                <h4 className="font-semibold">Description</h4>
+                <p className="text-sm">
+                  It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout.
+                </p>
+              </div>
             </div>
-
-            <button
-              onClick={() => {/* Add to cart logic here */}}
-              disabled={quantities[product.id] === 0}
-              className="mt-4 w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
-            >
-              Add to Cart
-            </button>
           </div>
         ))}
       </div>
