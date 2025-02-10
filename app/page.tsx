@@ -121,138 +121,116 @@ export default function Home() {
     return category ? category.title : 'Unknown Category';
   };
 
+  const updateQuantity = (productId: number, change: number) => {
+    setQuantities(prev => ({
+      ...prev,
+      [productId]: Math.max(1, Math.min(prev[productId] + change, 99))
+    }));
+  };
+
   return (
     <div className="container mx-auto p-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {products.map((product) => (
           <div 
             key={product.id} 
-            className={`bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 border-l-4 ${categoryColors[product.category as keyof typeof categoryColors]?.color || 'border-gray-500'}`}
+            className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col border-l-4 relative"
+            style={{
+              borderLeftColor: categoryColors[product.category as keyof typeof categoryColors]?.color?.replace('border-', '') || '#e5e7eb'
+            }}
           >
             {/* Product Image */}
-            {product.imagesUrl && (
-              <div className="relative h-48 overflow-hidden">
-                <img 
-                  src={product.imagesUrl} 
-                  alt={product.title}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute top-0 right-0 bg-blue-500 text-white px-2 py-1 text-sm rounded-bl">
-                  ${product.price.toFixed(2)}/kg
-                </div>
-                <div className={`absolute bottom-0 left-0 px-2 py-1 text-sm rounded-tr flex items-center gap-1 ${categoryColors[product.category as keyof typeof categoryColors]?.bg || 'bg-gray-50'} ${categoryColors[product.category as keyof typeof categoryColors]?.text || 'text-gray-700'}`}>
-                  <Tag size={14} />
-                  <span>{getCategoryTitle(product.category)}</span>
-                </div>
+            <div className="relative aspect-square">
+              <img 
+                src="/Chilli-test-img.jpg"
+                alt={product.title}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute top-2 right-2 bg-white/90 text-gray-900 px-3 py-1 text-sm font-medium rounded-full shadow-sm">
+                ${product.price.toFixed(2)}/kg
               </div>
-            )}
+              <div className={`absolute bottom-2 left-2 px-3 py-1 text-sm rounded-full flex items-center gap-1.5 bg-white/90 ${categoryColors[product.category as keyof typeof categoryColors]?.text || 'text-gray-700'}`}>
+                <Tag size={14} />
+                <span>{getCategoryTitle(product.category)}</span>
+              </div>
+            </div>
 
-            <div className="p-4">
+            <div className="p-4 flex flex-col gap-3">
               {/* Product Title */}
-              <h2 className="font-semibold text-lg mb-2 truncate">{product.title}</h2>
-
-              {/* Product Details */}
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Availability:</span>
-                  <span className={product.maxQuantity > 0 ? 'text-green-500' : 'text-red-500'}>
+              <div>
+                <h2 className="font-medium text-gray-900 text-lg line-clamp-2">{product.title}</h2>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className={`text-sm ${product.maxQuantity > 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {product.maxQuantity > 0 ? 'In Stock' : 'Out of Stock'}
                   </span>
+                  <span className="text-sm text-gray-500">•</span>
+                  <span className="text-sm text-gray-500">13 Days Lead Time</span>
                 </div>
+              </div>
 
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Lead Time:</span>
-                  <span>13 Days</span>
-                </div>
-
-                {/* Origin Dropdown */}
-                <div className="relative">
-                  <div className="flex justify-between items-center">
+              {/* Origin Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => toggleDropdown(product.id)}
+                  className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-sm"
+                >
+                  <span className="flex items-center gap-2">
                     <span className="text-gray-600">Origin:</span>
-                    <button
-                      onClick={() => toggleDropdown(product.id)}
-                      className="flex items-center gap-1 px-2 py-1 bg-gray-50 rounded hover:bg-gray-100"
-                    >
-                      {selectedOrigins[product.id]}
-                      {openDropdowns[product.id] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                    </button>
+                    <span className="text-gray-900">{selectedOrigins[product.id] || 'Select origin'}</span>
+                  </span>
+                  {openDropdowns[product.id] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+                {openDropdowns[product.id] && (
+                  <div className="absolute left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg z-10">
+                    {origins.map((origin) => (
+                      <button
+                        key={origin}
+                        onClick={() => selectOrigin(product.id, origin)}
+                        className="block w-full text-left px-4 py-2 hover:bg-gray-50 text-sm first:rounded-t-lg last:rounded-b-lg"
+                      >
+                        {origin}
+                      </button>
+                    ))}
                   </div>
-                  {openDropdowns[product.id] && (
-                    <div className="absolute right-0 mt-1 w-48 bg-white border rounded-md shadow-lg z-10">
-                      {origins.map((origin) => (
-                        <button
-                          key={origin}
-                          onClick={() => selectOrigin(product.id, origin)}
-                          className="block w-full text-left px-4 py-2 hover:bg-gray-50 text-sm"
-                        >
-                          {origin}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                )}
+              </div>
 
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">MOQ:</span>
-                  <span>9 kg/bag</span>
-                </div>
-
-                {/* Quantity Selector */}
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Quantity:</span>
-                  <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-1">
+              {/* Quantity and Actions */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Quantity:</span>
+                  <div className="flex items-center gap-2">
                     <button
-                      onClick={() => handleQuantityChange(product.id, -1)}
-                      className="p-1 hover:bg-gray-200 rounded"
+                      onClick={() => updateQuantity(product.id, -1)}
+                      className="p-1 rounded-md hover:bg-gray-100"
+                      disabled={quantities[product.id] <= 0}
                     >
-                      <Minus size={16} />
+                      <Minus size={16} className="text-gray-600" />
                     </button>
-                    <input
-                      type="number"
-                      value={quantities[product.id]}
-                      onChange={(e) => {
-                        const value = parseInt(e.target.value);
-                        if (!isNaN(value)) {
-                          setQuantities(prev => ({
-                            ...prev,
-                            [product.id]: Math.max(1, Math.min(value, 99))
-                          }));
-                        }
-                      }}
-                      className="w-12 text-center bg-transparent"
-                      min="1"
-                      max="99"
-                    />
+                    <span className="w-8 text-center text-sm">{quantities[product.id] || 0}</span>
                     <button
-                      onClick={() => handleQuantityChange(product.id, 1)}
-                      className="p-1 hover:bg-gray-200 rounded"
+                      onClick={() => updateQuantity(product.id, 1)}
+                      className="p-1 rounded-md hover:bg-gray-100"
+                      disabled={quantities[product.id] >= product.maxQuantity}
                     >
-                      <Plus size={16} />
+                      <Plus size={16} className="text-gray-600" />
                     </button>
                   </div>
                 </div>
 
-                {/* Sub-Total */}
-                <div className="flex justify-between items-center font-semibold">
-                  <span>Sub-Total:</span>
-                  <span>${(product.price * quantities[product.id]).toFixed(2)}</span>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-2 mt-3">
-                  <button className="flex-1 px-3 py-1.5 bg-green-500 text-white rounded hover:bg-green-600 transition-colors text-sm">
+                <div className="flex gap-2">
+                  <button className="flex-1 px-4 py-2 bg-rose-50 text-rose-600 rounded-lg text-sm font-medium hover:bg-rose-100 transition-colors">
                     Make Offer
                   </button>
                   <button 
-                    onClick={() => addToCart({ ...product, quantity: quantities[product.id] })}
-                    className="flex-1 px-3 py-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors text-sm"
+                    onClick={() => addToCart(product, quantities[product.id] || 1)}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
                   >
                     Add to Cart
                   </button>
                 </div>
 
-                {/* Customer Service Button */}
-                <button className="w-full flex items-center justify-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-sm transition-colors">
+                <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-50 text-green-600 rounded-lg text-sm font-medium hover:bg-green-100 transition-colors">
                   <MessageCircle size={16} />
                   <span>Customer Service</span>
                 </button>
