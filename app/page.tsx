@@ -3,7 +3,9 @@
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useEffect, useState } from 'react';
 import { useCart } from '@/context/CartContext';
-import { ChevronDown, ChevronUp, Minus, Plus, MessageCircle, Tag } from 'lucide-react';
+import { motion } from 'framer-motion';
+import Image from 'next/image';
+import { Tag } from 'lucide-react';
 
 interface Product {
   id: number;
@@ -16,110 +18,63 @@ interface Product {
   maxQuantity: number;
 }
 
-interface Category {
-  id: number;
-  title: string;
-  imageUrl: string;
-}
-
-// Category color mapping
-const categoryColors = {
-  1: { color: 'border-red-500', bg: 'bg-red-50', text: 'text-red-700' },
-  2: { color: 'border-green-500', bg: 'bg-green-50', text: 'text-green-700' },
-  3: { color: 'border-yellow-500', bg: 'bg-yellow-50', text: 'text-yellow-700' },
-  4: { color: 'border-blue-500', bg: 'bg-blue-50', text: 'text-blue-700' },
-  5: { color: 'border-purple-500', bg: 'bg-purple-50', text: 'text-purple-700' },
-  6: { color: 'border-orange-500', bg: 'bg-orange-50', text: 'text-orange-700' },
-  7: { color: 'border-pink-500', bg: 'bg-pink-50', text: 'text-pink-700' },
-  8: { color: 'border-teal-500', bg: 'bg-teal-50', text: 'text-teal-700' },
+const getCategoryTitle = (categoryId: number): string => {
+  const categories: { [key: number]: string } = {
+    1: 'Fruits',
+    2: 'Vegetables',
+    3: 'Herbs',
+    // Add more categories as needed
+  };
+  return categories[categoryId] || 'Unknown';
 };
-
-const origins = [
-  'Shandong, China',
-  'Guangdong, China',
-  'Fujian, China',
-  'Vietnam',
-  'Thailand',
-  'Indonesia'
-];
 
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
   const [quantities, setQuantities] = useState<{ [key: number]: number }>({});
-  const [selectedOrigins, setSelectedOrigins] = useState<{ [key: number]: string }>({});
-  const [openDropdowns, setOpenDropdowns] = useState<{ [key: number]: boolean }>({});
   const supabase = createClientComponentClient();
   const { addToCart } = useCart();
 
   useEffect(() => {
-    async function fetchData() {
-      // Fetch products
-      const { data: productsData, error: productsError } = await supabase
-        .from('products')
-        .select('*');
+    async function fetchProducts() {
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*');
 
-      if (productsError) {
-        console.error('Error fetching products:', productsError);
-        return;
+        if (error) throw error;
+
+        setProducts(data || []);
+        const initialQuantities = (data || []).reduce((acc, product) => ({
+          ...acc,
+          [product.id]: 1
+        }), {});
+        setQuantities(initialQuantities);
+      } catch (error) {
+        console.error('Error fetching products:', error);
+      } finally {
+        setLoading(false);
       }
-
-      // Fetch categories
-      const { data: categoriesData, error: categoriesError } = await supabase
-        .from('categories')
-        .select('*');
-
-      if (categoriesError) {
-        console.error('Error fetching categories:', categoriesError);
-        return;
-      }
-
-      const initialQuantities = Object.fromEntries(
-        (productsData || []).map(product => [product.id, 1])
-      );
-      const initialOrigins = Object.fromEntries(
-        (productsData || []).map(product => [product.id, origins[0]])
-      );
-      const initialDropdowns = Object.fromEntries(
-        (productsData || []).map(product => [product.id, false])
-      );
-
-      setQuantities(initialQuantities);
-      setSelectedOrigins(initialOrigins);
-      setOpenDropdowns(initialDropdowns);
-      setProducts(productsData || []);
-      setCategories(categoriesData || []);
     }
 
-    fetchData();
-  }, []);
+    fetchProducts();
+  }, [supabase]);
 
-  const handleQuantityChange = (productId: number, change: number) => {
+  const handleQuantityUpdate = (productId: number, delta: number) => {
     setQuantities(prev => ({
       ...prev,
-      [productId]: Math.max(1, Math.min(prev[productId] + change, 99))
+      [productId]: Math.max(1, Math.min(prev[productId] + delta, 
+        products.find(p => p.id === productId)?.maxQuantity || 1))
     }));
   };
 
-  const toggleDropdown = (productId: number) => {
-    setOpenDropdowns(prev => ({
-      ...prev,
-      [productId]: !prev[productId]
-    }));
-  };
-
-  const selectOrigin = (productId: number, origin: string) => {
-    setSelectedOrigins(prev => ({
-      ...prev,
-      [productId]: origin
-    }));
-    toggleDropdown(productId);
-  };
-
-  const getCategoryTitle = (categoryId: number) => {
-    const category = categories.find(cat => cat.id === categoryId);
-    return category ? category.title : 'Unknown Category';
-  };
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   const updateQuantity = (productId: number, change: number) => {
     setQuantities(prev => ({
@@ -130,115 +85,123 @@ export default function Home() {
 
   return (
     <div className="container mx-auto p-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+      >
         {products.map((product) => (
-          <div 
-            key={product.id} 
-            className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col border-l-4 relative"
-            style={{
-              borderLeftColor: categoryColors[product.category as keyof typeof categoryColors]?.color?.replace('border-', '') || '#e5e7eb'
-            }}
+          <motion.div
+            key={product.id}
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            whileHover={{ scale: 1.02 }}
+            transition={{ duration: 0.2 }}
+            className="bg-white rounded-lg p-4 shadow-lg hover:shadow-xl transition-shadow"
           >
-            {/* Product Image */}
-            <div className="relative aspect-square">
-              <img 
-                src="/Chilli-test-img.jpg"
+            <h2 className="font-bold text-lg mb-2">{product.title}</h2>
+
+            <div className="relative mb-2 overflow-hidden rounded-lg">
+              <Image
+                src={product.imagesUrl}
                 alt={product.title}
-                className="w-full h-full object-cover"
+                width={400}
+                height={300}
+                className="w-full h-48 object-cover transform hover:scale-105 transition-transform duration-300"
               />
-              <div className="absolute top-2 right-2 bg-white/90 text-gray-900 px-3 py-1 text-sm font-medium rounded-full shadow-sm">
-                ${product.price.toFixed(2)}/kg
-              </div>
-              <div className={`absolute bottom-2 left-2 px-3 py-1 text-sm rounded-full flex items-center gap-1.5 bg-white/90 ${categoryColors[product.category as keyof typeof categoryColors]?.text || 'text-gray-700'}`}>
+              {product.maxQuantity <= 0 && (
+                <div className="absolute top-0 right-0 bg-red-500 text-white px-2 py-1 text-sm">
+                  Out of Stock
+                </div>
+              )}
+              <div className={`absolute bottom-2 left-2 px-3 py-1 text-sm rounded-full flex items-center gap-1.5 bg-white/90 text-gray-700`}>
                 <Tag size={14} />
                 <span>{getCategoryTitle(product.category)}</span>
               </div>
             </div>
 
-            <div className="p-4 flex flex-col gap-3">
-              {/* Product Title */}
-              <div>
-                <h2 className="font-medium text-gray-900 text-lg line-clamp-2">{product.title}</h2>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={`text-sm ${product.maxQuantity > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {product.maxQuantity > 0 ? 'In Stock' : 'Out of Stock'}
-                  </span>
-                  <span className="text-sm text-gray-500">•</span>
-                  <span className="text-sm text-gray-500">13 Days Lead Time</span>
-                </div>
-              </div>
-
-              {/* Origin Dropdown */}
-              <div className="relative">
-                <button
-                  onClick={() => toggleDropdown(product.id)}
-                  className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-sm"
-                >
-                  <span className="flex items-center gap-2">
-                    <span className="text-gray-600">Origin:</span>
-                    <span className="text-gray-900">{selectedOrigins[product.id] || 'Select origin'}</span>
-                  </span>
-                  {openDropdowns[product.id] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </button>
-                {openDropdowns[product.id] && (
-                  <div className="absolute left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg z-10">
-                    {origins.map((origin) => (
-                      <button
-                        key={origin}
-                        onClick={() => selectOrigin(product.id, origin)}
-                        className="block w-full text-left px-4 py-2 hover:bg-gray-50 text-sm first:rounded-t-lg last:rounded-b-lg"
-                      >
-                        {origin}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Quantity and Actions */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Quantity:</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => updateQuantity(product.id, -1)}
-                      className="p-1 rounded-md hover:bg-gray-100"
-                      disabled={quantities[product.id] <= 0}
-                    >
-                      <Minus size={16} className="text-gray-600" />
-                    </button>
-                    <span className="w-8 text-center text-sm">{quantities[product.id] || 0}</span>
-                    <button
-                      onClick={() => updateQuantity(product.id, 1)}
-                      className="p-1 rounded-md hover:bg-gray-100"
-                      disabled={quantities[product.id] >= product.maxQuantity}
-                    >
-                      <Plus size={16} className="text-gray-600" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <button className="flex-1 px-4 py-2 bg-rose-50 text-rose-600 rounded-lg text-sm font-medium hover:bg-rose-100 transition-colors">
-                    Make Offer
-                  </button>
-                  <button 
-                    onClick={() => addToCart(product, quantities[product.id] || 1)}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-                  >
-                    Add to Cart
-                  </button>
-                </div>
-
-                <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-50 text-green-600 rounded-lg text-sm font-medium hover:bg-green-100 transition-colors">
-                  <MessageCircle size={16} />
-                  <span>Customer Service</span>
-                </button>
-              </div>
+            <div className="text-right font-bold text-lg mb-2 text-green-600">
+              ${product.price.toFixed(2)}/kg
             </div>
-          </div>
+
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span>Availability:</span>
+                <span>{product.maxQuantity > 0 ? 'Yes' : 'No'}</span>
+              </div>
+
+              <div className="flex justify-between">
+                <span>Lead Time:</span>
+                <span>13 Days</span>
+              </div>
+
+              <div className="flex justify-between">
+                <span>Origin:</span>
+                <span>Shandong, China</span>
+              </div>
+
+              <div className="flex justify-between">
+                <span>MOQ:</span>
+                <span>9 kg/bag</span>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span>Quantity:</span>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => updateQuantity(product.id, -1)}
+                    className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                  >
+                    -
+                  </button>
+                  <span className="w-8 text-center">{quantities[product.id]}</span>
+                  <button 
+                    onClick={() => updateQuantity(product.id, 1)}
+                    className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex justify-between font-bold text-lg">
+                <span>Sub-Total:</span>
+                <span>${(product.price * quantities[product.id]).toFixed(2)}</span>
+              </div>
+
+              <div className="flex gap-2 mt-4">
+                <motion.button 
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="flex-1 px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm transition-colors"
+                >
+                  Make Offer
+                </motion.button>
+                <motion.button 
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => addToCart({ ...product, quantity: quantities[product.id] })}
+                  className="flex-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm transition-colors"
+                  disabled={product.maxQuantity <= 0}
+                >
+                  Add to Cart
+                </motion.button>
+              </div>
+
+              <motion.button 
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm mt-2 transition-colors"
+              >
+                <span>Customer Service</span>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                </svg>
+              </motion.button>
+            </div>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
     </div>
   );
 }
