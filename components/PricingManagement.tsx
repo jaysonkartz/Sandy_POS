@@ -117,7 +117,18 @@ export default function PricingManagement() {
         return;
       }
 
-      setNewProduct({ title: '', price: '' });
+      setNewProduct({
+        title: '',
+        price: '',
+        slug: '',
+        category: 2,
+        maxQuantity: 0,
+        imagesUrl: '',
+        heroImage: '',
+        origin: '',
+        moq: 1,
+        availability: false
+      });
       setShowAddForm(false);
     }
   };
