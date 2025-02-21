@@ -32,9 +32,8 @@ export default function Home() {
           .select('*');
 
         if (error) throw error;
-
         setProducts(data || []);
-        const initialQuantities = (data || []).reduce((acc, product) => ({
+        const initialQuantities = (data || []).reduce((acc: { [key: number]: number }, product: Product) => ({
           ...acc,
           [product.id]: 1
         }), {});

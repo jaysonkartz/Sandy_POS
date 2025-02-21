@@ -44,6 +44,19 @@ export default function PricingManagement() {
   });
   const supabase = createClientComponentClient();
 
+  const fetchProducts = async () => {
+    const { data: productsData, error: productsError } = await supabase
+      .from('products')
+      .select('*');
+
+    if (productsError) {
+      console.error('Error fetching products:', productsError);
+      return;
+    }
+
+    setProducts(productsData || []);
+  };
+
   useEffect(() => {
     async function fetchData() {
       const { data: categoriesData, error: categoriesError } = await supabase
@@ -55,22 +68,8 @@ export default function PricingManagement() {
         return;
       }
 
-      const { data: productsData, error: productsError } = await supabase
-        .from('products')
-        .select('*');
-
-      if (productsError) {
-        console.error('Error fetching products:', productsError);
-        return;
-      }
-
-      const categoriesWithProducts = categoriesData.map(category => ({
-        ...category,
-        products: productsData.filter(product => product.category === category.id)
-      }));
-
-      setCategories(categoriesWithProducts);
-      console.log(categories)
+      setCategories(categoriesData || []);
+      await fetchProducts();
     }
 
     fetchData();
@@ -87,7 +86,6 @@ export default function PricingManagement() {
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Get the first available category ID or show error if none exist
     if (categories.length === 0) {
       console.error('No categories available. Please create a category first.');
       return;
@@ -98,19 +96,18 @@ export default function PricingManagement() {
         title: newProduct.title,
         price: parseInt(newProduct.price),
         slug: newProduct.title.toLowerCase().replace(/\s+/g, '-'),
-        category: categories[0].id, 
-        imagesUrl: '',
-        heroImage: '',
-        maxQuantity: 0,
-        origin: '',
-        moq: 1,
-        availability: false
+        category: newProduct.category,
+        imagesUrl: newProduct.imagesUrl,
+        heroImage: newProduct.heroImage,
+        maxQuantity: newProduct.maxQuantity,
+        origin: newProduct.origin,
+        moq: newProduct.moq,
+        availability: newProduct.availability
       };
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('products')
-        .insert([product])
-        .select();
+        .insert([product]);
         
       if (error) {
         console.error('Error adding product:', error);
@@ -130,6 +127,8 @@ export default function PricingManagement() {
         availability: false
       });
       setShowAddForm(false);
+      
+      await fetchProducts();
     }
   };
 
@@ -147,6 +146,20 @@ export default function PricingManagement() {
     setProducts(prev => prev.map(product => 
       product.id === productId ? { ...product, price: newPrice } : product
     ));
+  };
+
+  const handleDeleteProduct = async (productId: number) => {
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', productId);
+
+    if (error) {
+      console.error('Error deleting product:', error);
+      return;
+    }
+
+    await fetchProducts();
   };
 
   return (
@@ -389,7 +402,7 @@ export default function PricingManagement() {
                     Edit
                   </button>
                   <button 
-                    onClick={() => {/* Add delete handler */}}
+                    onClick={() => handleDeleteProduct(product.id)}
                     className="text-red-600 hover:text-red-900"
                   >
                     Delete
