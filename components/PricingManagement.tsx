@@ -18,6 +18,7 @@ interface Category {
   id: number;
   name: string;
   imageUrl: string;
+  products: Product[];
 }
 
 export default function PricingManagement() {
@@ -82,7 +83,6 @@ export default function PricingManagement() {
       {/* Categories Accordion */}
       <div className="space-y-4">
         {categories.map((category) => (
-          console.log(categories)
           <div key={category.id} className="border rounded-lg overflow-hidden">
             <button
               onClick={() => toggleCategory(category.id.toString())}
