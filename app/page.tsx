@@ -43,9 +43,8 @@ export default function Home() {
           .select('*');
 
         if (error) throw error;
-
         setProducts(data || []);
-        const initialQuantities = (data || []).reduce((acc, product) => ({
+        const initialQuantities = (data || []).reduce((acc: { [key: number]: number }, product: Product) => ({
           ...acc,
           [product.id]: 1
         }), {});
@@ -76,12 +75,9 @@ export default function Home() {
     );
   }
 
-  const updateQuantity = (productId: number, change: number) => {
-    setQuantities(prev => ({
-      ...prev,
-      [productId]: Math.max(1, Math.min(prev[productId] + change, 99))
-    }));
-  };
+  function updateQuantity(id: number, arg1: number): void {
+    throw new Error('Function not implemented.');
+  }
 
   return (
     <div className="container mx-auto p-4">
@@ -101,24 +97,22 @@ export default function Home() {
           >
             <h2 className="font-bold text-lg mb-2">{product.title}</h2>
 
-            <div className="relative mb-2 overflow-hidden rounded-lg">
-              <Image
-                src={product.imagesUrl}
-                alt={product.title}
-                width={400}
-                height={300}
-                className="w-full h-48 object-cover transform hover:scale-105 transition-transform duration-300"
-              />
-              {product.maxQuantity <= 0 && (
-                <div className="absolute top-0 right-0 bg-red-500 text-white px-2 py-1 text-sm">
-                  Out of Stock
-                </div>
-              )}
-              <div className={`absolute bottom-2 left-2 px-3 py-1 text-sm rounded-full flex items-center gap-1.5 bg-white/90 text-gray-700`}>
-                <Tag size={14} />
-                <span>{getCategoryTitle(product.category)}</span>
+            {product.imagesUrl && (
+              <div className="relative mb-2 overflow-hidden rounded-lg">
+                <Image
+                  src={product.imagesUrl}
+                  alt={product.title}
+                  width={400}
+                  height={300}
+                  className="w-full h-48 object-cover transform hover:scale-105 transition-transform duration-300"
+                />
+                {product.maxQuantity <= 0 && (
+                  <div className="absolute top-0 right-0 bg-red-500 text-white px-2 py-1 text-sm">
+                    Out of Stock
+                  </div>
+                )}
               </div>
-            </div>
+            )}
 
             <div className="text-right font-bold text-lg mb-2 text-green-600">
               ${product.price.toFixed(2)}/kg

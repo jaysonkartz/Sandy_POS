@@ -20,9 +20,8 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
   const [quantities, setQuantities] = useState<{ [key: number]: number }>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string) => {
       if (event === 'SIGNED_OUT') {
         router.push('/');
       }
@@ -53,7 +52,7 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
       if (error) throw error;
       setProducts(data || []);
       
-      const initialQuantities = (data || []).reduce((acc, product) => ({
+      const initialQuantities = (data || []).reduce((acc: { [key: number]: number }, product: Product) => ({
         ...acc,
         [product.id]: 0
       }), {});

@@ -4,6 +4,32 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PricingManagement from '@/components/PricingManagement';
 import Image from 'next/image';
+import { Bar, Line, Pie } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+
+// Register ChartJS components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 interface DashboardSection {
   id: string;
@@ -13,7 +39,7 @@ interface DashboardSection {
 }
 
 export default function ManagementDashboard() {
-  const [activeSection, setActiveSection] = useState('pricing');
+  const [activeSection, setActiveSection] = useState('overview');
   const [isMobile, setIsMobile] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -25,6 +51,16 @@ export default function ManagementDashboard() {
   }, []);
 
   const sections: DashboardSection[] = [
+    {
+      id: 'overview',
+      title: 'Overview',
+      description: 'Dashboard overview and statistics',
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+        </svg>
+      )
+    },
     {
       id: 'pricing',
       title: 'Pricing',
@@ -77,8 +113,119 @@ export default function ManagementDashboard() {
     }
   ];
 
+  const renderOverview = () => {
+    const salesData = {
+      labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+      datasets: [{
+        label: 'Monthly Sales',
+        data: [12, 19, 3, 5, 2, 3],
+        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+        borderColor: 'rgba(54, 162, 235, 1)',
+        borderWidth: 1
+      }]
+    };
+
+    const inventoryData = {
+      labels: ['In Stock', 'Low Stock', 'Out of Stock'],
+      datasets: [{
+        data: [300, 50, 20],
+        backgroundColor: [
+          'rgba(75, 192, 192, 0.5)',
+          'rgba(255, 206, 86, 0.5)',
+          'rgba(255, 99, 132, 0.5)',
+        ],
+        borderColor: [
+          'rgba(75, 192, 192, 1)',
+          'rgba(255, 206, 86, 1)',
+          'rgba(255, 99, 132, 1)',
+        ],
+      }]
+    };
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="space-y-6"
+      >
+        {/* Stats Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          {[
+            { title: 'Total Products', value: '150', change: '+12%' },
+            { title: 'Total Sales', value: '$15,234', change: '+23%' },
+            { title: 'Active Customers', value: '1,234', change: '+5%' },
+            { title: 'Suppliers', value: '45', change: '0%' },
+            { title: 'Pending Orders', value: '23', change: '-2%' },
+          ].map((stat, index) => (
+            <div key={index} className="bg-white p-4 rounded-lg shadow-sm">
+              <h3 className="text-gray-500 text-sm">{stat.title}</h3>
+              <p className="text-2xl font-bold">{stat.value}</p>
+              <span className={`text-sm ${
+                stat.change.startsWith('+') ? 'text-green-500' : 
+                stat.change.startsWith('-') ? 'text-red-500' : 'text-gray-500'
+              }`}>
+                {stat.change} from last month
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Charts */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white p-4 rounded-lg shadow-sm">
+            <h3 className="text-lg font-semibold mb-4">Sales Overview</h3>
+            <Bar data={salesData} options={{ responsive: true }} />
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow-sm">
+            <h3 className="text-lg font-semibold mb-4">Inventory Status</h3>
+            <Pie data={inventoryData} options={{ responsive: true }} />
+          </div>
+        </div>
+
+        {/* Recent Activity */}
+        <div className="bg-white p-4 rounded-lg shadow-sm">
+          <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {[
+                  { date: '2024-03-15', type: 'Order', description: 'New order #1234', status: 'Pending' },
+                  { date: '2024-03-14', type: 'Inventory', description: 'Stock update: +50 items', status: 'Completed' },
+                  { date: '2024-03-14', type: 'Customer', description: 'New customer registration', status: 'Completed' },
+                  { date: '2024-03-13', type: 'Supplier', description: 'Payment processed', status: 'Completed' },
+                ].map((activity, index) => (
+                  <tr key={index}>
+                    <td className="px-6 py-4 whitespace-nowrap">{activity.date}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{activity.type}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{activity.description}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        activity.status === 'Completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {activity.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
   const renderContent = () => {
     const content = {
+      overview: renderOverview(),
       pricing: <PricingManagement />,
       inventory: (
         <motion.div 
