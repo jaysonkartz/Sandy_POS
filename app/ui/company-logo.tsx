@@ -1,15 +1,13 @@
-import { Image } from "@nextui-org/react";
-
-import { lusitana } from "@/app/ui/fonts";
+import Image from 'next/image';
+import Link from 'next/link';
 
 export default function CompanyLogo() {
   return (
-    <div className="text-white hidden sm:block">
-      <div
-        className={`${lusitana.className} flex flex-row items-center text-white`}
-      >
-        <Image alt="Temple Logo" height={50} src="/TGT_Logo.jpg" width={50} />
-      </div>
-    </div>
+    <Link
+      className="flex flex-row items-center leading-none text-white"
+      href="/"
+    >
+      <Image alt="HongGuan Logo" height={50} src="/HongGuan_Icon.jpg" width={50} className="rounded-lg" />
+    </Link>
   );
 }

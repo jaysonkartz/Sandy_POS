@@ -21,7 +21,7 @@ export default function Header() {
     <>
       <header className="flex justify-between items-center p-4 bg-white shadow-md">
         <Link href="/management" className="logo hover:opacity-80 transition-opacity">
-          <img src="/logo.png" alt="Sandy POS Logo" className="h-12" />
+          <img src="/HongGuan_Icon.jpg" alt="HongGuan Logo" className="h-12 rounded-lg" />
         </Link>
         {(pathname === '/dashboard' || pathname === '/') && (
           <>

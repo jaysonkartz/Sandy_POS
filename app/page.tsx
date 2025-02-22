@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useCart } from '@/context/CartContext';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import { Tag } from 'lucide-react';
 
 interface Product {
   id: number;
@@ -16,6 +17,16 @@ interface Product {
   category: number;
   maxQuantity: number;
 }
+
+const getCategoryTitle = (categoryId: number): string => {
+  const categories: { [key: number]: string } = {
+    1: 'Fruits',
+    2: 'Vegetables',
+    3: 'Herbs',
+    // Add more categories as needed
+  };
+  return categories[categoryId] || 'Unknown';
+};
 
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -46,9 +57,9 @@ export default function Home() {
     }
 
     fetchProducts();
-  }, []);
+  }, [supabase]);
 
-  const updateQuantity = (productId: number, delta: number) => {
+  const handleQuantityUpdate = (productId: number, delta: number) => {
     setQuantities(prev => ({
       ...prev,
       [productId]: Math.max(1, Math.min(prev[productId] + delta, 
@@ -62,6 +73,10 @@ export default function Home() {
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
+  }
+
+  function updateQuantity(id: number, arg1: number): void {
+    throw new Error('Function not implemented.');
   }
 
   return (

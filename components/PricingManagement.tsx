@@ -23,6 +23,7 @@ interface Category {
   id: number;
   name: string;
   imageUrl: string;
+  products: Product[];
 }
 
 export default function PricingManagement() {
