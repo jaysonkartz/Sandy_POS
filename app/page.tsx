@@ -1,9 +1,17 @@
+"use client";
+
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useEffect, useState } from 'react';
 import { useCart } from '@/context/CartContext';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { Tag } from 'lucide-react';
+
+const CATEGORIES = {
+  1: 'Fruits',
+  2: 'Vegetables',
+  3: 'Herbs',
+} as const;
 
 interface Product {
   id: number;
@@ -12,18 +20,12 @@ interface Product {
   imagesUrl: string;
   price: number;
   heroImage: string;
-  category: number;
+  category: keyof typeof CATEGORIES;
   maxQuantity: number;
 }
 
-const getCategoryTitle = (categoryId: number): string => {
-  const categories: { [key: number]: string } = {
-    1: 'Fruits',
-    2: 'Vegetables',
-    3: 'Herbs',
-    // Add more categories as needed
-  };
-  return categories[categoryId] || 'Unknown';
+const getCategoryTitle = (categoryId: keyof typeof CATEGORIES): string => {
+  return CATEGORIES[categoryId] || 'Unknown';
 };
 
 export default function Home() {
@@ -57,11 +59,13 @@ export default function Home() {
     fetchProducts();
   }, [supabase]);
 
-  const handleQuantityUpdate = (productId: number, delta: number) => {
+  const handleQuantityChange = (productId: number, delta: number) => {
     setQuantities(prev => ({
       ...prev,
-      [productId]: Math.max(1, Math.min(prev[productId] + delta, 
-        products.find(p => p.id === productId)?.maxQuantity || 1))
+      [productId]: Math.max(1, Math.min(
+        prev[productId] + delta,
+        products.find(p => p.id === productId)?.maxQuantity || 1
+      ))
     }));
   };
 
@@ -71,10 +75,6 @@ export default function Home() {
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
-  }
-
-  function updateQuantity(id: number, arg1: number): void {
-    throw new Error('Function not implemented.');
   }
 
   return (
@@ -119,7 +119,9 @@ export default function Home() {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span>Availability:</span>
-                <span>{product.maxQuantity > 0 ? 'Yes' : 'No'}</span>
+                <span className={product.maxQuantity === 0 ? 'text-red-500' : 'text-green-500'}>
+                  {product.maxQuantity === 0 ? 'Not Available' : 'Available'}
+                </span>
               </div>
 
               <div className="flex justify-between">
@@ -139,21 +141,27 @@ export default function Home() {
 
               <div className="flex justify-between items-center">
                 <span>Quantity:</span>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => updateQuantity(product.id, -1)}
-                    className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-                  >
-                    -
-                  </button>
-                  <span className="w-8 text-center">{quantities[product.id]}</span>
-                  <button 
-                    onClick={() => updateQuantity(product.id, 1)}
-                    className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-                  >
-                    +
-                  </button>
-                </div>
+                {product.maxQuantity === 0 ? (
+                  <span className="text-red-500">Out of Stock</span>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => handleQuantityChange(product.id, -1)}
+                      className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                      disabled={quantities[product.id] <= 1}
+                    >
+                      -
+                    </button>
+                    <span className="w-8 text-center">{quantities[product.id]}</span>
+                    <button 
+                      onClick={() => handleQuantityChange(product.id, 1)}
+                      className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                      disabled={quantities[product.id] >= (product.maxQuantity || 1)}
+                    >
+                      +
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-between font-bold text-lg">
@@ -165,7 +173,12 @@ export default function Home() {
                 <motion.button 
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="flex-1 px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm transition-colors"
+                  className={`flex-1 px-3 py-2 ${
+                    product.maxQuantity === 0 
+                      ? 'bg-gray-400 cursor-not-allowed' 
+                      : 'bg-green-500 hover:bg-green-600'
+                  } text-white rounded-lg text-sm transition-colors`}
+                  disabled={product.maxQuantity === 0}
                 >
                   Make Offer
                 </motion.button>
@@ -173,8 +186,12 @@ export default function Home() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => addToCart({ ...product, quantity: quantities[product.id] })}
-                  className="flex-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm transition-colors"
-                  disabled={product.maxQuantity <= 0}
+                  className={`flex-1 px-3 py-2 ${
+                    product.maxQuantity === 0 
+                      ? 'bg-gray-400 cursor-not-allowed' 
+                      : 'bg-blue-500 hover:bg-blue-600'
+                  } text-white rounded-lg text-sm transition-colors`}
+                  disabled={product.maxQuantity === 0}
                 >
                   Add to Cart
                 </motion.button>
