@@ -3,20 +3,17 @@
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import EditProductModal from './EditProductModal';
 
-interface Product {
+export interface Product {
   id: number;
   title: string;
-  slug: string;
   price: number;
   category: number;
   maxQuantity: number;
-  imagesUrl: string;
-  heroImage: string;
-  availability: boolean;
-  leadTime: number;
   origin: string;
   moq: number;
+  availability: boolean;
 }
 
 interface Category {
@@ -43,6 +40,8 @@ export default function PricingManagement() {
     moq: 1,
     availability: false
   });
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const supabase = createClientComponentClient();
 
   const fetchProducts = async () => {
@@ -133,10 +132,10 @@ export default function PricingManagement() {
     }
   };
 
-  const handleUpdateProduct = async (productId: number, newPrice: number) => {
+  const handleUpdateProduct = async (productId: number, updatedData: Partial<Product>) => {
     const { error } = await supabase
       .from('products')
-      .update({ price: newPrice })
+      .update(updatedData)
       .eq('id', productId);
 
     if (error) {
@@ -145,18 +144,20 @@ export default function PricingManagement() {
     }
 
     setProducts(prev => prev.map(product => 
-      product.id === productId ? { ...product, price: newPrice } : product
+      product.id === productId ? { ...product, ...updatedData } : product
     ));
+    setIsEditModalOpen(false);
+    setEditingProduct(null);
   };
 
-  const handleDeleteProduct = async (productId: number) => {
+  const handleAvailabilityToggle = async (productId: number, currentAvailability: boolean) => {
     const { error } = await supabase
       .from('products')
-      .delete()
+      .update({ availability: !currentAvailability })
       .eq('id', productId);
 
     if (error) {
-      console.error('Error deleting product:', error);
+      console.error('Error updating product availability:', error);
       return;
     }
 
@@ -397,16 +398,21 @@ export default function PricingManagement() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap space-x-2">
                   <button 
-                    onClick={() => handleUpdateProduct(product.id, product.price)}
+                    onClick={() => {
+                      setEditingProduct(product);
+                      setIsEditModalOpen(true);
+                    }}
                     className="text-blue-600 hover:text-blue-900"
                   >
                     Edit
                   </button>
                   <button 
-                    onClick={() => handleDeleteProduct(product.id)}
-                    className="text-red-600 hover:text-red-900"
+                    onClick={() => handleAvailabilityToggle(product.id, product.availability)}
+                    className={`${
+                      product.availability ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'
+                    }`}
                   >
-                    Delete
+                    {product.availability ? 'Disable' : 'Enable'}
                   </button>
                 </td>
               </motion.tr>
@@ -414,6 +420,17 @@ export default function PricingManagement() {
           </tbody>
         </table>
       </div>
+
+      {isEditModalOpen && editingProduct && (
+        <EditProductModal
+          product={editingProduct}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setEditingProduct(null);
+          }}
+          onUpdate={handleUpdateProduct}
+        />
+      )}
     </div>
   );
 } 

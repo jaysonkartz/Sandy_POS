@@ -18,9 +18,7 @@ export default function CustomerLoginModal({ isOpen, onClose }: CustomerLoginMod
     email: '',
     password: '',
     name: '',
-    // Add any other fields you need
-    // phone: '',
-    // etc.
+    role: 'USER'
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -58,61 +56,104 @@ export default function CustomerLoginModal({ isOpen, onClose }: CustomerLoginMod
     setIsLoading(true);
 
     const cleanEmail = formData.email.toLowerCase().trim();
+    console.log('Selected role before signup:', formData.role);
 
     try {
-      // First check if email exists in users table
       const { data: existingUser, error: checkError } = await supabase
         .from('users')
-        .select('email')
+        .select('*')
         .eq('email', cleanEmail)
         .maybeSingle();
 
-      if (existingUser) {
-        throw new Error('Email already registered');
+      if (checkError) {
+        console.error('Check Error:', checkError);
       }
 
-      // Create the auth user
+      if (existingUser) {
+        console.log('User exists, updating role to:', formData.role);
+        
+        const { data: updatedUser, error: updateError } = await supabase
+          .from('users')
+          .update({ role: formData.role })
+          .eq('email', cleanEmail)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error('Update Error:', updateError);
+          throw updateError;
+        }
+
+        console.log('Successfully updated user:', updatedUser);
+        alert('User role updated successfully!');
+        onClose();
+        router.refresh();
+        return;
+      }
+
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: cleanEmail,
         password: formData.password,
       });
 
-      if (signUpError) throw signUpError;
-
-      if (authData?.user) {
-        // Insert the user data into your users table
-        const { error: insertError } = await supabase
-          .from('users')
-          .upsert([
-            {
-              id: authData.user.id,
-              email: cleanEmail,
-              role: 'USER',
-              avatar_url: 'https://cdn.example.com/default-avatar.png',
-              created_at: new Date().toISOString(),
-            }
-          ], 
-          { 
-            onConflict: 'email',
-            ignoreDuplicates: true
-          });
-
-        if (insertError) {
-          console.error('Insert Error:', insertError);
-          throw insertError;
-        }
-
-        // Clear any existing errors
-        setError('');
-        // Show success message
-        alert('Account created successfully!');
-        // Close modal and refresh
-        onClose();
-        router.refresh();
-        return;
+      if (signUpError) {
+        console.error('Auth Signup Error:', signUpError);
+        throw signUpError;
       }
+
+      if (!authData?.user?.id) {
+        throw new Error('No user ID returned from auth signup');
+      }
+
+      const userData = {
+        id: authData.user.id,
+        email: cleanEmail,
+        role: formData.role,
+        avatar_url: 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png',
+        created_at: new Date().toISOString(),
+      };
+
+      console.log('Creating new user with data:', userData);
+
+      const { data: newUser, error: insertError } = await supabase
+        .from('users')
+        .upsert([userData], {
+          onConflict: 'email',
+          ignoreDuplicates: false
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('Insert Error:', insertError);
+        // If it's a duplicate error, try updating instead
+        if (insertError.code === '23505') {
+          console.log('Duplicate detected, updating role instead');
+          const { data: updatedUser, error: updateError } = await supabase
+            .from('users')
+            .update({ role: formData.role })
+            .eq('email', cleanEmail)
+            .select()
+            .single();
+
+          if (updateError) throw updateError;
+          
+          console.log('Successfully updated user:', updatedUser);
+          alert('User role updated successfully!');
+          onClose();
+          router.refresh();
+          return;
+        }
+        throw insertError;
+      }
+
+      console.log('Successfully created new user:', newUser);
+      alert('Account created successfully!');
+      onClose();
+      router.refresh();
+
     } catch (err) {
-      console.error('Signup Error:', err);
+      console.error('Final Error:', err);
       setError(err instanceof Error ? err.message : 'Error creating account');
     } finally {
       setIsLoading(false);
@@ -159,6 +200,27 @@ export default function CustomerLoginModal({ isOpen, onClose }: CustomerLoginMod
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter your full name"
                   />
+                </div>
+                <div>
+                  <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
+                    Role
+                  </label>
+                  <select
+                    id="role"
+                    value={formData.role}
+                    onChange={(e) => {
+                      console.log('Role changed to:', e.target.value);
+                      setFormData(prev => {
+                        const newState = { ...prev, role: e.target.value };
+                        console.log('New form data state:', newState);
+                        return newState;
+                      });
+                    }}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="USER">User</option>
+                    <option value="ADMIN">Admin</option>
+                  </select>
                 </div>
               </>
             )}
