@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import CustomerLoginModal from './CustomerLoginModal';
-import { FaWhatsapp } from 'react-icons/fa';
+
 import TopBarLogin from './TopBarLogin';
 
 export default function Header() {
@@ -31,8 +31,7 @@ export default function Header() {
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center"
             >
-              <FaWhatsapp size={24} className="text-green-500 hover:text-green-600" />
-            </a>
+           </a>
             <TopBarLogin />
           </>
         )}

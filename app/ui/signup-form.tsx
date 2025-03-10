@@ -33,7 +33,7 @@ export default function SignUpForm() {
       }
 
       if (data?.user) {
-        router.push('/verify-email'); // Create this page to show email verification message
+        router.push('/verify-email'); 
       }
     } catch (error) {
       setError('An error occurred during sign up');
@@ -42,5 +42,4 @@ export default function SignUpForm() {
     }
   };
 
-  // Form JSX similar to login form...
 } 

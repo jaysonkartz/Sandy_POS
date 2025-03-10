@@ -167,7 +167,7 @@ export default function PricingManagement() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Pricing Management</h2>
+        <h2 className="text-2xl font-bold">Product Management</h2>
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}

@@ -19,6 +19,7 @@ import {
 } from 'chart.js';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import EditUserModal from '@/components/EditUserModal';
+import CustomerManagement from '@/components/CustomerManagement';
 
 ChartJS.register(
   CategoryScale,
@@ -100,7 +101,7 @@ export default function ManagementDashboard() {
     },
     {
       id: 'pricing',
-      title: 'Pricing',
+      title: 'Product List',
       description: 'Manage product prices and discounts',
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -405,6 +406,7 @@ export default function ManagementDashboard() {
         </motion.div>
       ),
       users: renderUsers(),
+      customers: <CustomerManagement />,
     }[activeSection] || (
       <motion.div 
         initial={{ opacity: 0 }}
