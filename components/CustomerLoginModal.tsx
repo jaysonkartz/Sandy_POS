@@ -18,7 +18,9 @@ export default function CustomerLoginModal({ isOpen, onClose }: CustomerLoginMod
     email: '',
     password: '',
     name: '',
-    role: 'USER'
+    role: 'USER',
+    address: '',
+    phone: ''
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -52,111 +54,48 @@ export default function CustomerLoginModal({ isOpen, onClose }: CustomerLoginMod
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setIsLoading(true);
-
-    const cleanEmail = formData.email.toLowerCase().trim();
-    console.log('Selected role before signup:', formData.role);
-
     try {
-      const { data: existingUser, error: checkError } = await supabase
+      // 1. First check if user exists
+      const { data: existingUser } = await supabase
         .from('users')
-        .select('*')
-        .eq('email', cleanEmail)
-        .maybeSingle();
-
-      if (checkError) {
-        console.error('Check Error:', checkError);
-      }
+        .select()
+        .eq('email', formData.email)
+        .single();
 
       if (existingUser) {
-        console.log('User exists, updating role to:', formData.role);
-        
-        const { data: updatedUser, error: updateError } = await supabase
-          .from('users')
-          .update({ role: formData.role })
-          .eq('email', cleanEmail)
-          .select()
-          .single();
-
-        if (updateError) {
-          console.error('Update Error:', updateError);
-          throw updateError;
-        }
-
-        console.log('Successfully updated user:', updatedUser);
-        alert('User role updated successfully!');
-        onClose();
-        router.refresh();
-        return;
+        throw new Error('User already exists');
       }
 
+      // 2. Sign up the user in auth
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email: cleanEmail,
+        email: formData.email,
         password: formData.password,
       });
 
-      if (signUpError) {
-        console.error('Auth Signup Error:', signUpError);
-        throw signUpError;
-      }
+      if (signUpError) throw signUpError;
 
-      if (!authData?.user?.id) {
-        throw new Error('No user ID returned from auth signup');
-      }
-
-      const userData = {
-        id: authData.user.id,
-        email: cleanEmail,
-        role: formData.role,
-        avatar_url: 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png',
+      // 3. Create customer record
+      const customerData = {
+        name: formData.name,
+        email: formData.email,
+        user_id: authData.user!.id,
+        status: true,
         created_at: new Date().toISOString(),
+        address: formData.address,
+        phone: formData.phone
       };
 
-      console.log('Creating new user with data:', userData);
+      const { error: customerError } = await supabase
+        .from('customers')
+        .insert([customerData]);
 
-      const { data: newUser, error: insertError } = await supabase
-        .from('users')
-        .upsert([userData], {
-          onConflict: 'email',
-          ignoreDuplicates: false
-        })
-        .select()
-        .single();
+      if (customerError) throw customerError;
 
-      if (insertError) {
-        console.error('Insert Error:', insertError);
-        // If it's a duplicate error, try updating instead
-        if (insertError.code === '23505') {
-          console.log('Duplicate detected, updating role instead');
-          const { data: updatedUser, error: updateError } = await supabase
-            .from('users')
-            .update({ role: formData.role })
-            .eq('email', cleanEmail)
-            .select()
-            .single();
-
-          if (updateError) throw updateError;
-          
-          console.log('Successfully updated user:', updatedUser);
-          alert('User role updated successfully!');
-          onClose();
-          router.refresh();
-          return;
-        }
-        throw insertError;
-      }
-
-      console.log('Successfully created new user:', newUser);
-      alert('Account created successfully!');
+      // Success handling here
       onClose();
-      router.refresh();
 
-    } catch (err) {
-      console.error('Final Error:', err);
-      setError(err instanceof Error ? err.message : 'Error creating account');
-    } finally {
-      setIsLoading(false);
+    } catch (error) {
+      console.error('Error:', error);
     }
   };
 
@@ -199,28 +138,38 @@ export default function CustomerLoginModal({ isOpen, onClose }: CustomerLoginMod
                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter your full name"
+                    required
                   />
                 </div>
+
                 <div>
-                  <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
-                    Role
+                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                    Phone Number
                   </label>
-                  <select
-                    id="role"
-                    value={formData.role}
-                    onChange={(e) => {
-                      console.log('Role changed to:', e.target.value);
-                      setFormData(prev => {
-                        const newState = { ...prev, role: e.target.value };
-                        console.log('New form data state:', newState);
-                        return newState;
-                      });
-                    }}
+                  <input
+                    type="tel"
+                    id="phone"
+                    value={formData.phone}
+                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="USER">User</option>
-                    <option value="ADMIN">Admin</option>
-                  </select>
+                    placeholder="Enter your phone number"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
+                    Address
+                  </label>
+                  <textarea
+                    id="address"
+                    value={formData.address}
+                    onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter your address"
+                    rows={3}
+                    required
+                  />
                 </div>
               </>
             )}
@@ -232,12 +181,11 @@ export default function CustomerLoginModal({ isOpen, onClose }: CustomerLoginMod
               <input
                 type="email"
                 id="email"
-                required
-                pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
                 value={formData.email}
-                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value.toLowerCase().trim() }))}
+                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter your email"
+                required
               />
             </div>
 
@@ -252,6 +200,7 @@ export default function CustomerLoginModal({ isOpen, onClose }: CustomerLoginMod
                 onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter your password"
+                required
               />
             </div>
 

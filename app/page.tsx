@@ -7,48 +7,64 @@ import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { Tag } from 'lucide-react';
 
-const CATEGORIES = {
-  1: 'Fruits',
-  2: 'Vegetables',
-  3: 'Herbs',
-} as const;
-
 interface Product {
   id: number;
-  title: string;
-  slug: string;
-  imagesUrl: string;
+  "Item Code": string;
+  Product: string;
+  Category: string;
+  Weight: number;
+  UOM: string;
+  Country: string;
+  Product_CH?: string;
+  Category_CH?: string;
+  Country_CH?: string;
+  Variation?: string;
+  Variation_CH?: string;
   price: number;
-  heroImage: string;
-  category: keyof typeof CATEGORIES;
-  maxQuantity: number;
+  uom: string;
+  stock_quantity: number;
 }
 
-const getCategoryTitle = (categoryId: keyof typeof CATEGORIES): string => {
-  return CATEGORIES[categoryId] || 'Unknown';
+const CATEGORIES = {
+  'DRIED_CHILLI': 'Dried Chilli',
+  'BEANS_LEGUMES': 'Beans & Legumes',
+  'NUTS_SEEDS': 'Nuts & Seeds',
+  'HERBS_SPICES': 'Herbs and Spices',
+  'GRAINS': 'Grains',
+  'DRIED_SEAFOOD': 'Dried Seafood',
+  'VEGETABLES': 'Vegetables',
+  'DRIED_MUSHROOM': 'Dried Mushroom & Fungus'
 };
 
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [quantities, setQuantities] = useState<{ [key: number]: number }>({});
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const supabase = createClientComponentClient();
   const { addToCart } = useCart();
+  const [session, setSession] = useState<any>(null);
 
   useEffect(() => {
     async function fetchProducts() {
       try {
-        const { data, error } = await supabase
-          .from('products')
-          .select('*');
+        let query = supabase.from('products').select('*');
+        
+        if (selectedCategory !== 'all') {
+          const categoryValue = CATEGORIES[selectedCategory as keyof typeof CATEGORIES];
+          // Add these debug logs
+          console.log('All unique categories in data:', 
+            [...new Set(products.map(p => p.Category))]
+          );
+          console.log('Attempting to filter by:', categoryValue);
+          query = query.eq('Category', categoryValue);
+        }
 
+        const { data, error } = await query;
         if (error) throw error;
+        
+        // Log for debugging
+        console.log('Fetched products:', data);
         setProducts(data || []);
-        const initialQuantities = (data || []).reduce((acc: { [key: number]: number }, product: Product) => ({
-          ...acc,
-          [product.id]: 1
-        }), {});
-        setQuantities(initialQuantities);
       } catch (error) {
         console.error('Error fetching products:', error);
       } finally {
@@ -57,16 +73,29 @@ export default function Home() {
     }
 
     fetchProducts();
-  }, [supabase]);
+  }, [supabase, selectedCategory]);
 
-  const handleQuantityChange = (productId: number, delta: number) => {
-    setQuantities(prev => ({
-      ...prev,
-      [productId]: Math.max(1, Math.min(
-        prev[productId] + delta,
-        products.find(p => p.id === productId)?.maxQuantity || 1
-      ))
-    }));
+  useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase.auth]);
+
+  const handleCustomerService = () => {
+    const phoneNumber = '6592341145'; 
+    const message = 'Hi, I would like to inquire about your products.';
+    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
   };
 
   if (loading) {
@@ -79,6 +108,20 @@ export default function Home() {
 
   return (
     <div className="container mx-auto p-4">
+      {/* Category Filter */}
+      <div className="mb-6">
+        <select 
+          value={selectedCategory}
+          onChange={(e) => setSelectedCategory(e.target.value)}
+          className="p-2 border rounded-md"
+        >
+          <option value="all">All Categories</option>
+          {Object.entries(CATEGORIES).map(([key, value]) => (
+            <option key={key} value={key}>{value}</option>
+          ))}
+        </select>
+      </div>
+
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -93,113 +136,86 @@ export default function Home() {
             transition={{ duration: 0.2 }}
             className="bg-white rounded-lg p-4 shadow-lg hover:shadow-xl transition-shadow"
           >
-            <h2 className="font-bold text-lg mb-2">{product.title}</h2>
-
-            {product.imagesUrl && (
-              <div className="relative mb-2 overflow-hidden rounded-lg">
-                <Image
-                  src={product.imagesUrl}
-                  alt={product.title}
-                  width={400}
-                  height={300}
-                  className="w-full h-48 object-cover transform hover:scale-105 transition-transform duration-300"
-                />
-                {product.maxQuantity <= 0 && (
-                  <div className="absolute top-0 right-0 bg-red-500 text-white px-2 py-1 text-sm">
-                    Out of Stock
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="text-right font-bold text-lg mb-2 text-green-600">
-              ${product.price.toFixed(2)}/kg
+            <div className="flex justify-between items-start mb-2">
+              <h2 className="font-bold text-lg">{product.Product}</h2>
+              <span className="text-sm text-gray-500">{product["Item Code"]}</span>
             </div>
 
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span>Availability:</span>
-                <span className={product.maxQuantity === 0 ? 'text-red-500' : 'text-green-500'}>
-                  {product.maxQuantity === 0 ? 'Not Available' : 'Available'}
-                </span>
+                <span>Category:</span>
+                <span>{product.Category}</span>
               </div>
 
               <div className="flex justify-between">
-                <span>Lead Time:</span>
-                <span>13 Days</span>
+                <span>Weight:</span>
+                <span>{product.Weight} {product.UOM}</span>
               </div>
 
               <div className="flex justify-between">
                 <span>Origin:</span>
-                <span>Shandong, China</span>
+                <span>{product.Country}</span>
               </div>
 
-              <div className="flex justify-between">
-                <span>MOQ:</span>
-                <span>9 kg/bag</span>
+              {product.Variation && (
+                <div className="flex justify-between">
+                  <span>Variation:</span>
+                  <span>{product.Variation}</span>
+                </div>
+              )}
+
+              <div className="text-right font-bold text-lg mb-2 text-green-600">
+                ${product.price.toFixed(2)}/{product.uom}
               </div>
 
-              <div className="flex justify-between items-center">
-                <span>Quantity:</span>
-                {product.maxQuantity === 0 ? (
-                  <span className="text-red-500">Out of Stock</span>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => handleQuantityChange(product.id, -1)}
-                      className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-                      disabled={quantities[product.id] <= 1}
-                    >
-                      -
-                    </button>
-                    <span className="w-8 text-center">{quantities[product.id]}</span>
-                    <button 
-                      onClick={() => handleQuantityChange(product.id, 1)}
-                      className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-                      disabled={quantities[product.id] >= (product.maxQuantity || 1)}
-                    >
-                      +
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex justify-between font-bold text-lg">
-                <span>Sub-Total:</span>
-                <span>${(product.price * quantities[product.id]).toFixed(2)}</span>
-              </div>
-
-              <div className="flex gap-2 mt-4">
-                <motion.button 
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className={`flex-1 px-3 py-2 ${
-                    product.maxQuantity === 0 
-                      ? 'bg-gray-400 cursor-not-allowed' 
-                      : 'bg-green-500 hover:bg-green-600'
-                  } text-white rounded-lg text-sm transition-colors`}
-                  disabled={product.maxQuantity === 0}
+              {session ? (
+                <div className="flex gap-2 mt-4">
+                  <motion.button 
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className={`flex-1 px-3 py-2 ${
+                      product.stock_quantity === 0 
+                        ? 'bg-gray-400 cursor-not-allowed' 
+                        : 'bg-green-500 hover:bg-green-600'
+                    } text-white rounded-lg text-sm transition-colors`}
+                    disabled={product.stock_quantity === 0}
+                  >
+                    Make Offer
+                  </motion.button>
+                  <motion.button 
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => addToCart({
+                      id: product.id,
+                      title: product.Product,
+                      price: product.price,
+                      quantity: 1,
+                      maxQuantity: product.stock_quantity,
+                      imagesUrl: []
+                    })}
+                    className={`flex-1 px-3 py-2 ${
+                      product.stock_quantity === 0 
+                        ? 'bg-gray-400 cursor-not-allowed' 
+                        : 'bg-blue-500 hover:bg-blue-600'
+                    } text-white rounded-lg text-sm transition-colors`}
+                    disabled={product.stock_quantity === 0}
+                  >
+                    Add to Cart
+                  </motion.button>
+                </div>
+              ) : (
+                <button 
+                  onClick={() => window.location.href = '/login'}
+                  className="w-full px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm transition-colors"
                 >
-                  Make Offer
-                </motion.button>
-                <motion.button 
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => addToCart({ ...product, quantity: quantities[product.id] })}
-                  className={`flex-1 px-3 py-2 ${
-                    product.maxQuantity === 0 
-                      ? 'bg-gray-400 cursor-not-allowed' 
-                      : 'bg-blue-500 hover:bg-blue-600'
-                  } text-white rounded-lg text-sm transition-colors`}
-                  disabled={product.maxQuantity === 0}
-                >
-                  Add to Cart
-                </motion.button>
-              </div>
+                  Login to Purchase
+                </button>
+              )}
 
               <motion.button 
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
+                onClick={handleCustomerService}
                 className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm mt-2 transition-colors"
               >
                 <span>Customer Service</span>
