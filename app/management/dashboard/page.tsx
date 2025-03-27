@@ -517,9 +517,9 @@ export default function ManagementDashboard() {
           >
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-900">Product List</h2>
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              {/* <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                 Add New Product
-              </button>
+              </button> */}
             </div>
             <ProductListTable />
           </motion.div>
