@@ -6,6 +6,7 @@ import { useCart } from '@/context/CartContext';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { Tag } from 'lucide-react';
+import { AuthChangeEvent } from '@supabase/supabase-js';
 
 interface Product {
   id: number;
@@ -77,14 +78,14 @@ export default function Home() {
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }: { data: { session: any } }) => {
       setSession(session);
     });
 
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
       setSession(session);
     });
 

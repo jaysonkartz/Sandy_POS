@@ -9,6 +9,7 @@
   "dependencies": {
     "@headlessui/react": "^2.2.0",
     "@heroicons/react": "^2.2.0",
+    "@heroui/react": "^2.7.5",
     "@nextui-org/react": "^2.6.11",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/ssr": "^0.5.2",
@@ -39,7 +40,7 @@
     "@typescript-eslint/parser": "^8.28.0",
     "autoprefixer": "10.4.19",
     "eslint": "^9.23.0",
-    "eslint-config-next": "14.2.15",
+    "eslint-config-next": "15.1.7",
     "eslint-config-prettier": "^8.10.0",
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
