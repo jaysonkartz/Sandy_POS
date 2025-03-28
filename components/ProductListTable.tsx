@@ -18,6 +18,7 @@ interface Product {
   created_at: string;
   updated_at: string;
   Product?: string;
+  price?: number;
 }
 
 interface AddProductFormData {
@@ -28,6 +29,7 @@ interface AddProductFormData {
   Country: string;
   stock_quantity: number;
   Product: string;
+  price: number;
 }
 
 export default function ProductListTable() {
@@ -43,6 +45,7 @@ export default function ProductListTable() {
     Country: "",
     stock_quantity: 0,
     Product: "",
+    price: 0,
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -84,9 +87,9 @@ export default function ProductListTable() {
     const { name, value } = e.target;
     let processedValue = value;
     
-    // Only process stock_quantity as numeric
-    if (name === 'stock_quantity') {
-      processedValue = parseFloat(value.replace(/[^\d.-]/g, '')) || 0;
+    // Handle numeric fields
+    if (name === 'stock_quantity' || name === 'price') {
+      processedValue = parseFloat(value) || 0;
     }
 
     setFormData(prev => ({
@@ -117,6 +120,7 @@ export default function ProductListTable() {
         uom: "",
         Country: "",
         stock_quantity: 0,
+        price: 0,
       });
       setIsAddModalOpen(false);
     } catch (error) {
@@ -252,6 +256,20 @@ export default function ProductListTable() {
                     required
                   />
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Price</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    name="price"
+                    value={formData.price}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    required
+                  />
+                </div>
               </div>
 
               <div className="mt-6 flex justify-end space-x-3">
@@ -315,6 +333,9 @@ export default function ProductListTable() {
                   Product
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Price
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Category
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -358,6 +379,11 @@ export default function ProductListTable() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
                         {product.Product || '-'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        ${product.price?.toFixed(2) || '0.00'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -409,51 +435,105 @@ export default function ProductListTable() {
                   <AnimatePresence>
                     {expandedRow === product.id && (
                       <motion.tr
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="bg-gray-50"
-                      >
-                        <td colSpan={7} className="px-6 py-4">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <h4 className="text-sm font-medium text-gray-900 mb-2">
-                                Product Details
-                              </h4>
-                              <div className="space-y-2 text-sm text-gray-600">
-                                <p>
-                                  <span className="font-medium">Product Code:</span>{" "}
-                                  {product.Product_C}
-                                </p>
-                                <p>
-                                  <span className="font-medium">Category:</span>{" "}
-                                  {product.Category}
-                                </p>
-                                <p>
-                                  <span className="font-medium">Country:</span>{" "}
-                                  {product.Country}
-                                </p>
-                              </div>
-                            </div>
-                            <div>
-                              <h4 className="text-sm font-medium text-gray-900 mb-2">
-                                Stock Information
-                              </h4>
-                              <div className="space-y-2 text-sm text-gray-600">
-                                <p>
-                                  <span className="font-medium">Current Stock:</span>{" "}
-                                  {product.stock_quantity} {product.UOM}
-                                </p>
-                                <p>
-                                  <span className="font-medium">Last Updated:</span>{" "}
-                                  {new Date(product.updated_at).toLocaleDateString()}
-                                </p>
-                              </div>
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="bg-gray-50"
+                    >
+                      <td colSpan={7} className="px-6 py-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-900 mb-2">
+                              Product Details
+                            </h4>
+                            <div className="space-y-2 text-sm text-gray-600">
+                              <p>
+                                <span className="font-medium">SKU:</span> PRD-
+                                {product.id.toString().padStart(4, "0")}
+                              </p>
+                              <p>
+                                <span className="font-medium">Supplier:</span>{" "}
+                                Global Spices Inc.
+                              </p>
+                              <p>
+                                <span className="font-medium">
+                                  Minimum Stock:
+                                </span>{" "}
+                                10 units
+                              </p>
                             </div>
                           </div>
-                        </td>
-                      </motion.tr>
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-900 mb-2">
+                              Pricing History
+                            </h4>
+                            <div className="space-y-2 text-sm text-gray-600">
+                              <p>
+                                <span className="font-medium">
+                                  Original Price:
+                                </span>{" "}
+                                ${(product.price * 1.2).toFixed(2)}
+                              </p>
+                              <p>
+                                <span className="font-medium">Discount:</span>{" "}
+                                20%
+                              </p>
+                              <p>
+                                <span className="font-medium">
+                                  Last Price Update:
+                                </span>{" "}
+                                2024-03-01
+                              </p>
+                            </div>
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-900 mb-2">
+                              Customer Pricing
+                            </h4>
+                            <div className="space-y-2 text-sm text-gray-600">
+                              <p>
+                                <span className="font-medium">Customer A:</span>{" "}
+                                ${(product.price * 0.9).toFixed(2)}
+                              </p>
+                              <p>
+                                <span className="font-medium">Customer B:</span>{" "}
+                                ${(product.price * 0.95).toFixed(2)}
+                              </p>
+                              <p>
+                                <span className="font-medium">Customer C:</span>{" "}
+                                ${(product.price * 0.85).toFixed(2)}
+                              </p>
+                            </div>
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-900 mb-2">
+                              Stock History
+                            </h4>
+                            <div className="space-y-2 text-sm text-gray-600">
+                              <p>
+                                <span className="font-medium">
+                                  Last Restock:
+                                </span>{" "}
+                                2024-03-10
+                              </p>
+                              <p>
+                                <span className="font-medium">
+                                  Restock Quantity:
+                                </span>{" "}
+                                50 units
+                              </p>
+                              <p>
+                                <span className="font-medium">
+                                  Next Restock:
+                                </span>{" "}
+                                2024-03-25
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </motion.tr>
                     )}
                   </AnimatePresence>
                 </Fragment>
