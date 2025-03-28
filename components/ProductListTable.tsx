@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Fragment, useEffect, useMemo } from "react";
+import { useState, Fragment, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, ChevronUp, Check, X, Plus } from "lucide-react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
@@ -17,17 +17,15 @@ interface Product {
   Country: string;
   created_at: string;
   updated_at: string;
-  Product?: string;
 }
 
 interface AddProductFormData {
   item_code: string;
   Category: string;
-  Weight: string;
+  weight: string;
   uom: string;
   Country: string;
   stock_quantity: number;
-  Product: string;
 }
 
 export default function ProductListTable() {
@@ -38,14 +36,11 @@ export default function ProductListTable() {
   const [formData, setFormData] = useState<AddProductFormData>({
     item_code: "",
     Category: "",
-    Weight: "",
+    weight: "",
     uom: "",
     Country: "",
     stock_quantity: 0,
-    Product: "",
   });
-  const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
   const supabase = createClientComponentClient();
 
   useEffect(() => {
@@ -82,16 +77,10 @@ export default function ProductListTable() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    let processedValue = value;
-    
-    // Only process stock_quantity as numeric
-    if (name === 'stock_quantity') {
-      processedValue = parseFloat(value.replace(/[^\d.-]/g, '')) || 0;
-    }
-
+    console.log('Input changed:', name, value);
     setFormData(prev => ({
       ...prev,
-      [name]: processedValue
+      [name]: value
     }));
   };
 
@@ -111,9 +100,8 @@ export default function ProductListTable() {
       // Reset form and close modal
       setFormData({
         item_code: "",
-        Product: "",
         Category: "",
-        Weight: "",
+        weight: "",
         uom: "",
         Country: "",
         stock_quantity: 0,
@@ -123,26 +111,6 @@ export default function ProductListTable() {
       console.error('Error adding product:', error);
     }
   };
-
-  const filteredProducts = useMemo(() => {
-    return products.filter(product => {
-      const matchesSearch = 
-        product.Item_Code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.Product?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.Category?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesCategory = 
-        !categoryFilter || 
-        product.Category === categoryFilter;
-
-      return matchesSearch && matchesCategory;
-    });
-  }, [products, searchTerm, categoryFilter]);
-
-  const categories = useMemo(() => {
-    const uniqueCategories = new Set(products.map(product => product.Category));
-    return Array.from(uniqueCategories).filter(Boolean);
-  }, [products]);
 
   if (loading) {
     return <div className="flex justify-center p-4">Loading...</div>;
@@ -181,18 +149,6 @@ export default function ProductListTable() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Product</label>
-                  <input
-                    type="text"
-                    name="Product"
-                    value={formData.Product}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-
-                <div>
                   <label className="block text-sm font-medium text-gray-700">Category</label>
                   <input
                     type="text"
@@ -204,29 +160,29 @@ export default function ProductListTable() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Weight</label>
-                  <input
-                    type="text"
-                    name="Weight"
-                    value={formData.Weight}
-                    placeholder="e.g., 15kg x 2"
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">UOM</label>
-                  <input
-                    type="text"
-                    name="uom"
-                    value={formData.uom}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    required
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Weight</label>
+                    <input
+                      type="text"
+                      name="weight"
+                      value={formData.weight}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">UOM</label>
+                    <input
+                      type="text"
+                      name="uom"
+                      value={formData.uom}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -274,35 +230,6 @@ export default function ProductListTable() {
         </div>
       )}
 
-      <div className="mb-4 flex gap-4">
-        {/* Search input */}
-        <div className="flex-1">
-          <input
-            type="text"
-            placeholder="Search products..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        {/* Category filter */}
-        <div>
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">All Categories</option>
-            {categories.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -310,9 +237,6 @@ export default function ProductListTable() {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Item Code
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Product
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Category
@@ -335,7 +259,7 @@ export default function ProductListTable() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredProducts.map((product) => (
+              {products.map((product) => (
                 <Fragment key={product.id}>
                   <tr
                     className="hover:bg-gray-50 cursor-pointer"
@@ -357,17 +281,12 @@ export default function ProductListTable() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {product.Product || '-'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
                         {product.Category}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {product.Weight}
+                        {product.Weight} / {product.UOM}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
