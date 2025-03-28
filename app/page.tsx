@@ -13,7 +13,7 @@ interface Product {
   "Item Code": string;
   Product: string;
   Category: string;
-  Weight: number;
+  Weight: string;
   UOM: string;
   Country: string;
   Product_CH?: string;
@@ -150,7 +150,7 @@ export default function Home() {
 
               <div className="flex justify-between">
                 <span>Weight:</span>
-                <span>{product.Weight} {product.UOM}</span>
+                <span>{product.Weight}</span>
               </div>
 
               <div className="flex justify-between">
