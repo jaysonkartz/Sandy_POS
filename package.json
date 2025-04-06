@@ -13,7 +13,7 @@
     "@nextui-org/react": "^2.6.11",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/ssr": "^0.5.2",
-    "@supabase/supabase-js": "^2.49.4",
+    "@supabase/supabase-js": "^2.49.3",
     "@tailwindcss/forms": "^0.5.10",
     "@vercel/postgres": "^0.8.0",
     "chart.js": "^4.4.8",
@@ -36,8 +36,8 @@
     "@types/node": "20.14.8",
     "@types/react": "18.3.3",
     "@types/react-dom": "18.3.0",
-    "@typescript-eslint/eslint-plugin": "^8.29.0",
-    "@typescript-eslint/parser": "^8.29.0",
+    "@typescript-eslint/eslint-plugin": "^8.28.0",
+    "@typescript-eslint/parser": "^8.28.0",
     "autoprefixer": "10.4.19",
     "eslint": "^9.24.0",
     "eslint-config-next": "15.1.7",
@@ -45,8 +45,8 @@
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-prettier": "^5.2.6",
-    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-prettier": "^5.2.5",
+    "eslint-plugin-react": "^7.37.4",
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-unused-imports": "^3.2.0",
     "postcss": "8.4.38",
@@ -56,10 +56,5 @@
   },
   "engines": {
     "node": ">=20.12.0"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@heroui/shared-utils"
-    ]
   }
 }

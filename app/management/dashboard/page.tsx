@@ -21,8 +21,6 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import EditUserModal from "@/components/EditUserModal";
 import CustomerManagement from "@/components/CustomerManagement";
 import ProductListTable from "@/components/ProductListTable";
-import { useRouter } from "next/navigation";
-import CountriesPage from "../countries/page";
 
 ChartJS.register(
   CategoryScale,
@@ -51,15 +49,6 @@ interface User {
   created_at: string;
 }
 
-interface Country {
-  id: string;
-  name: string;
-  code: string;
-  currency: string;
-  currency_symbol: string;
-  status: boolean;
-}
-
 export default function ManagementDashboard() {
   const [activeSection, setActiveSection] = useState("overview");
   const [isMobile, setIsMobile] = useState(false);
@@ -68,10 +57,7 @@ export default function ManagementDashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [countries, setCountries] = useState<Country[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const supabase = createClientComponentClient();
-  const router = useRouter();
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -102,27 +88,6 @@ export default function ManagementDashboard() {
       fetchUsers();
     }
   }, [activeSection]);
-
-  useEffect(() => {
-    const fetchCountries = async () => {
-      setIsLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('countries')
-          .select('*')
-          .order('name', { ascending: true });
-
-        if (error) throw error;
-        setCountries(data || []);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch countries');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchCountries();
-  }, []);
 
   const sections: DashboardSection[] = [
     {
@@ -161,26 +126,6 @@ export default function ManagementDashboard() {
             strokeLinejoin="round"
             strokeWidth={2}
             d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-      ),
-    },
-    {
-      id: "countries",
-      title: "Countries",
-      description: "Manage countries and view products by country",
-      icon: (
-        <svg
-          className="w-6 h-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
           />
         </svg>
       ),
@@ -572,12 +517,13 @@ export default function ManagementDashboard() {
           >
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-900">Product List</h2>
+              {/* <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                Add New Product
+              </button> */}
             </div>
             <ProductListTable />
           </motion.div>
         );
-      case "countries":
-        return <CountriesPage />;
       case "inventory":
         return <div>Inventory Management</div>;
       case "history":
@@ -603,27 +549,7 @@ export default function ManagementDashboard() {
         >
           <div className="w-64">
             <div className="p-4 border-b flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => router.push('/')}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M10 19l-7-7m0 0l7-7m-7 7h18"
-                    />
-                  </svg>
-                </button>
-                <h1 className="text-xl font-bold">Management Portal</h1>
-              </div>
+              <h1 className="text-xl font-bold">Management Portal</h1>
               {isMobile && (
                 <button onClick={() => setSidebarOpen(false)} className="p-2">
                   <svg
