@@ -4,7 +4,6 @@ import { useState, Fragment, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, ChevronUp, Check, X, Plus } from "lucide-react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import { useAuth } from '@/context/AuthContext';
 
 interface Product {
   id: number;
@@ -51,8 +50,6 @@ export default function ProductListTable() {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const supabase = createClientComponentClient();
-  const { user } = useAuth();
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     fetchProducts();
@@ -88,12 +85,16 @@ export default function ProductListTable() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+    let processedValue = value;
     
+    // Handle numeric fields
+    if (name === 'stock_quantity' || name === 'price') {
+      processedValue = parseFloat(value) || 0;
+    }
+
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'stock_quantity' || name === 'price' 
-        ? parseFloat(value) || 0 
-        : value
+      [name]: processedValue
     }));
   };
 
@@ -340,9 +341,9 @@ export default function ProductListTable() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Weight/UOM
                 </th>
-                {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Stock
-                </th> */}
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Country
                 </th>
@@ -382,16 +383,7 @@ export default function ProductListTable() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {user ? (
-                          `$${product.price?.toFixed(2) || '0.00'}`
-                        ) : (
-                          <button
-                            onClick={() => setIsModalOpen(true)}
-                            className="text-blue-600 hover:underline"
-                          >
-                            Login to see price
-                          </button>
-                        )}
+                        ${product.price?.toFixed(2) || '0.00'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -404,9 +396,9 @@ export default function ProductListTable() {
                         {product.Weight}
                       </div>
                     </td>
-                    {/* <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{product.stock_quantity}</div>
-                    </td> */}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{product.Country}</div>
                     </td>
@@ -441,70 +433,107 @@ export default function ProductListTable() {
                     </td>
                   </tr>
                   <AnimatePresence>
-                    {user && expandedRow === product.id && (
+                    {expandedRow === product.id && (
                       <motion.tr
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                      >
-                        <td colSpan={7} className="px-6 py-4">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <h4 className="text-sm font-medium text-gray-900 mb-2">
-                                Product Details
-                              </h4>
-                              <div className="space-y-2 text-sm text-gray-600">
-                                <p>
-                                  <span className="font-medium">SKU:</span> PRD-
-                                  {product.id.toString().padStart(4, "0")}
-                                </p>
-                              </div>
-                            </div>
-                            <div>
-                              <h4 className="text-sm font-medium text-gray-900 mb-2">
-                                Pricing History
-                              </h4>
-                              <div className="space-y-2 text-sm text-gray-600">
-                                <p>
-                                  <span className="font-medium">
-                                    Original Price:
-                                  </span>{" "}
-                                  ${((product.price ?? 0) * 1.2).toFixed(2)}
-                                </p>
-                                <p>
-                                  <span className="font-medium">Discount:</span>{" "}
-                                  20%
-                                </p>
-                                <p>
-                                  <span className="font-medium">
-                                    Last Price Update:
-                                  </span>{" "}
-                                  2024-03-01
-                                </p>
-                              </div>
-                            </div>
-                            <div>
-                              <h4 className="text-sm font-medium text-gray-900 mb-2">
-                                Customer Pricing
-                              </h4>
-                              <div className="space-y-2 text-sm text-gray-600">
-                                <p>
-                                  <span className="font-medium">Customer A:</span>{" "}
-                                  ${((product.price ?? 0) * 0.9).toFixed(2)}
-                                </p>
-                                <p>
-                                  <span className="font-medium">Customer B:</span>{" "}
-                                  ${((product.price ?? 0) * 0.95).toFixed(2)}
-                                </p>
-                                <p>
-                                  <span className="font-medium">Customer C:</span>{" "}
-                                  ${((product.price ?? 0) * 0.85).toFixed(2)}
-                                </p>
-                              </div>
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="bg-gray-50"
+                    >
+                      <td colSpan={7} className="px-6 py-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-900 mb-2">
+                              Product Details
+                            </h4>
+                            <div className="space-y-2 text-sm text-gray-600">
+                              <p>
+                                <span className="font-medium">SKU:</span> PRD-
+                                {product.id.toString().padStart(4, "0")}
+                              </p>
+                              <p>
+                                <span className="font-medium">Supplier:</span>{" "}
+                                Global Spices Inc.
+                              </p>
+                              <p>
+                                <span className="font-medium">
+                                  Minimum Stock:
+                                </span>{" "}
+                                10 units
+                              </p>
                             </div>
                           </div>
-                        </td>
-                      </motion.tr>
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-900 mb-2">
+                              Pricing History
+                            </h4>
+                            <div className="space-y-2 text-sm text-gray-600">
+                              <p>
+                                <span className="font-medium">
+                                  Original Price:
+                                </span>{" "}
+                                ${(product.price * 1.2).toFixed(2)}
+                              </p>
+                              <p>
+                                <span className="font-medium">Discount:</span>{" "}
+                                20%
+                              </p>
+                              <p>
+                                <span className="font-medium">
+                                  Last Price Update:
+                                </span>{" "}
+                                2024-03-01
+                              </p>
+                            </div>
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-900 mb-2">
+                              Customer Pricing
+                            </h4>
+                            <div className="space-y-2 text-sm text-gray-600">
+                              <p>
+                                <span className="font-medium">Customer A:</span>{" "}
+                                ${(product.price * 0.9).toFixed(2)}
+                              </p>
+                              <p>
+                                <span className="font-medium">Customer B:</span>{" "}
+                                ${(product.price * 0.95).toFixed(2)}
+                              </p>
+                              <p>
+                                <span className="font-medium">Customer C:</span>{" "}
+                                ${(product.price * 0.85).toFixed(2)}
+                              </p>
+                            </div>
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-900 mb-2">
+                              Stock History
+                            </h4>
+                            <div className="space-y-2 text-sm text-gray-600">
+                              <p>
+                                <span className="font-medium">
+                                  Last Restock:
+                                </span>{" "}
+                                2024-03-10
+                              </p>
+                              <p>
+                                <span className="font-medium">
+                                  Restock Quantity:
+                                </span>{" "}
+                                50 units
+                              </p>
+                              <p>
+                                <span className="font-medium">
+                                  Next Restock:
+                                </span>{" "}
+                                2024-03-25
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </motion.tr>
                     )}
                   </AnimatePresence>
                 </Fragment>
