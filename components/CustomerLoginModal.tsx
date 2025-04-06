@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Database } from '@/types/supabase';
-import type { User } from '@supabase/auth-helpers-nextjs';
 
 interface CustomerLoginModalProps {
   isOpen: boolean;
@@ -18,10 +17,13 @@ export default function CustomerLoginModal({ isOpen, onClose }: CustomerLoginMod
     email: '',
     password: '',
     name: '',
+    companyName: '',
     role: 'USER',
-    address: '',
+    companyAddress: '',
+    deliveryAddress: '',
     phone: ''
   });
+  const [sameAddress, setSameAddress] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
@@ -54,50 +56,68 @@ export default function CustomerLoginModal({ isOpen, onClose }: CustomerLoginMod
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    setIsLoading(true);
+  
     try {
-      // 1. First check if user exists
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select()
-        .eq('email', formData.email)
-        .single();
-
-      if (existingUser) {
-        throw new Error('User already exists');
-      }
-
-      // 2. Sign up the user in auth
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
       });
-
+  
       if (signUpError) throw signUpError;
-
-      // 3. Create customer record
-      const customerData = {
-        name: formData.name,
-        email: formData.email,
-        user_id: authData.user!.id,
-        status: true,
-        created_at: new Date().toISOString(),
-        address: formData.address,
-        phone: formData.phone
-      };
-
+      if (!authData.user) throw new Error('No user was returned after sign-up');
+  
+      const userId = authData.user.id;
+  
+      console.log('✅ Auth user created with ID:', userId);
+  
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // wait 1 second
+  
+      // ✅ Insert into `users` table
+      const { error: userInsertError } = await supabase
+        .from('users')
+        .insert([
+          {
+            id: userId,
+            email: formData.email,
+            role: formData.role,
+            created_at: new Date().toISOString(),
+          }
+        ]);
+  
+      if (userInsertError) throw userInsertError;
+  
+      // ✅ Insert into `customers` table
       const { error: customerError } = await supabase
         .from('customers')
-        .insert([customerData]);
-
+        .insert([
+          {
+            name: formData.name,
+            email: formData.email,
+            user_id: userId,
+            status: true,
+            created_at: new Date().toISOString(),
+            address: formData.companyAddress,
+            delivery_address: formData.deliveryAddress,
+            phone: formData.phone,
+            company_name: formData.companyName,
+          }
+        ]);
+  
       if (customerError) throw customerError;
-
-      // Success handling here
+  
+      router.refresh();
       onClose();
-
-    } catch (error) {
-      console.error('Error:', error);
+    } catch (err) {
+      console.error('🔴 Sign-up error details:');
+      console.error(JSON.stringify(err, Object.getOwnPropertyNames(err), 2));
+      const message = err instanceof Error ? err.message : 'Unexpected error occurred.';
+      setError(message);
+    } finally {
+      setIsLoading(false);
     }
-  };
+  };  
 
   if (!isOpen) return null;
 
@@ -117,14 +137,29 @@ export default function CustomerLoginModal({ isOpen, onClose }: CustomerLoginMod
           <h1 className="text-2xl font-bold text-center mb-8">
             {isRegistering ? 'Register Account' : 'Customer Login'}
           </h1>
-          
+
           <form onSubmit={isRegistering ? handleSignUp : handleSubmit} className="space-y-6">
             {error && (
               <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded text-center">
                 {error}
               </div>
             )}
-            
+
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                Email
+              </label>
+              <input
+                type="email"
+                id="email"
+                value={formData.email}
+                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter your email"
+                required
+              />
+            </div>
+
             {isRegistering && (
               <>
                 <div>
@@ -138,6 +173,21 @@ export default function CustomerLoginModal({ isOpen, onClose }: CustomerLoginMod
                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter your full name"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 mb-2">
+                    Company Name
+                  </label>
+                  <input
+                    type="text"
+                    id="companyName"
+                    value={formData.companyName}
+                    onChange={(e) => setFormData(prev => ({ ...prev, companyName: e.target.value }))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter your company name"
                     required
                   />
                 </div>
@@ -158,15 +208,60 @@ export default function CustomerLoginModal({ isOpen, onClose }: CustomerLoginMod
                 </div>
 
                 <div>
-                  <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
-                    Address
+                  <label htmlFor="companyAddress" className="block text-sm font-medium text-gray-700 mb-2">
+                    Company Address
                   </label>
                   <textarea
-                    id="address"
-                    value={formData.address}
-                    onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                    id="companyAddress"
+                    value={formData.companyAddress}
+                    onChange={(e) =>
+                      setFormData(prev => ({
+                        ...prev,
+                        companyAddress: e.target.value,
+                        ...(sameAddress && { deliveryAddress: e.target.value })
+                      }))
+                    }
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter your address"
+                    placeholder="Enter company address"
+                    rows={3}
+                    required
+                  />
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="sameAddress"
+                    checked={sameAddress}
+                    onChange={(e) => {
+                      const isChecked = e.target.checked;
+                      setSameAddress(isChecked);
+                      if (isChecked) {
+                        setFormData(prev => ({
+                          ...prev,
+                          deliveryAddress: prev.companyAddress
+                        }));
+                      }
+                    }}
+                    className="w-4 h-4"
+                  />
+                  <label htmlFor="sameAddress" className="text-sm text-gray-700">
+                    Delivery address is the same as company address
+                  </label>
+                </div>
+
+                <div>
+                  <label htmlFor="deliveryAddress" className="block text-sm font-medium text-gray-700 mb-2">
+                    Delivery Address
+                  </label>
+                  <textarea
+                    id="deliveryAddress"
+                    value={formData.deliveryAddress}
+                    onChange={(e) => setFormData(prev => ({ ...prev, deliveryAddress: e.target.value }))}
+                    disabled={sameAddress}
+                    className={`w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${sameAddress ? 'bg-gray-100' : ''
+                      }`}
+                    placeholder="Enter delivery address"
                     rows={3}
                     required
                   />
@@ -174,20 +269,7 @@ export default function CustomerLoginModal({ isOpen, onClose }: CustomerLoginMod
               </>
             )}
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address
-              </label>
-              <input
-                type="email"
-                id="email"
-                value={formData.email}
-                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter your email"
-                required
-              />
-            </div>
+            
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
@@ -213,8 +295,8 @@ export default function CustomerLoginModal({ isOpen, onClose }: CustomerLoginMod
             </button>
 
             <div className="text-center text-sm text-gray-600">
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setIsRegistering(!isRegistering)}
                 className="text-blue-600 hover:underline"
               >
@@ -226,4 +308,4 @@ export default function CustomerLoginModal({ isOpen, onClose }: CustomerLoginMod
       </div>
     </div>
   );
-} 
+}

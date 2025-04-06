@@ -1,6 +1,7 @@
 import { BookmarkIcon } from '@heroicons/react/24/outline';
 import { BookmarkIcon as BookmarkSolidIcon } from '@heroicons/react/24/solid';
 import { useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
 
 interface ProductCardProps {
   product: {
@@ -15,6 +16,8 @@ interface ProductCardProps {
 
 export default function ProductCard({ product }: ProductCardProps) {
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const { user } = useAuth();
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const toggleBookmark = () => {
     setIsBookmarked(!isBookmarked);
@@ -47,9 +50,18 @@ export default function ProductCard({ product }: ProductCardProps) {
         </div>
         
         <div className="flex justify-between items-center">
-          <span className="text-lg font-semibold text-gray-900">
-            ${product.price.toFixed(2)}/kg
-          </span>
+          {user ? (
+            <span className="text-lg font-semibold text-gray-900">
+              ${product.price.toFixed(2)}/kg
+            </span>
+          ) : (
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="text-blue-600 hover:underline font-medium"
+            >
+              Login to see price
+            </button>
+          )}
           <span className="text-sm text-gray-500">
             Max: {product.maxQuantity}kg
           </span>

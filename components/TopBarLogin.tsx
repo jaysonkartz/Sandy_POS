@@ -5,11 +5,14 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { User } from '@supabase/supabase-js';
 import { Database } from '@/types/supabase';
 import CustomerLoginModal from './CustomerLoginModal';
+import { useRouter } from 'next/navigation';
 
 export default function TopBarLogin() {
+  const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [userRole, setUserRole] = useState<string>('');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const supabase = createClientComponentClient<Database>();
 
@@ -17,12 +20,29 @@ export default function TopBarLogin() {
     const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
+      
+      if (user) {
+        const { data: userData, error } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        
+        if (userData) {
+          setUserRole(userData.role);
+        }
+      }
     };
     
     checkUser();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: string, session: { user: User | null } | null) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        checkUser();
+      } else {
+        setUserRole('');
+      }
     });
 
     // Close dropdown when clicking outside
@@ -73,6 +93,35 @@ export default function TopBarLogin() {
                   Signed in as<br />
                   <span className="font-medium">{user.email}</span>
                 </div>
+                {userRole === 'ADMIN' && (
+                  <button
+                    onClick={() => {
+                      router.push('/management/dashboard');
+                      setIsDropdownOpen(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    Management Portal
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    router.push('/customer-details');
+                    setIsDropdownOpen(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  View Customer Details
+                </button>
+                <button
+                  onClick={() => {
+                    router.push('/order-history');
+                    setIsDropdownOpen(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  Order History
+                </button>
                 <button
                   onClick={handleSignOut}
                   className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"

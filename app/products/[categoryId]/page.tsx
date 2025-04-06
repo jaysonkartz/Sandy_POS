@@ -168,8 +168,11 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
                 <button className="flex-1 px-3 py-1 bg-green-500 text-white rounded text-sm">
                   Make Offer
                 </button>
-                <button className="flex-1 px-3 py-1 bg-blue-500 text-white rounded text-sm">
-                  Add to Cart
+                <button
+                  onClick={() => addToCart(product)}
+                  className="w-full px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                >
+                  {isEnglish ? 'Add to Order' : '添加到订单'}
                 </button>
               </div>
 
