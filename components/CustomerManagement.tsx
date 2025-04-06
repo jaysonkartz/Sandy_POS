@@ -34,14 +34,7 @@ export default function CustomerManagement() {
     try {
       const { data, error } = await supabase
         .from('customers')
-        .select(`
-          *,
-          users:user_id (
-            id,
-            email,
-            role
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;

@@ -104,8 +104,11 @@ export default function ProductCategory({ name, categoryId, products: initialPro
               </div>
               <h3 className="font-semibold">{product.name}</h3>
               <p className="text-gray-600">${product.price.toFixed(2)}</p>
-              <button className="mt-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 w-full">
-                Add to Cart
+              <button
+                onClick={() => addToCart(product)}
+                className="w-full px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+              >
+                {isEnglish ? 'Add to Order' : '添加到订单'}
               </button>
             </div>
           ))}
