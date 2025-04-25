@@ -8,8 +8,9 @@ import type { CartItem, Product } from './contexts/CartContext';
 import { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { useAuth } from '@/context/AuthContext';
 import Image from 'next/image';
-import { Tag } from 'lucide-react';
+import { Tag, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import React from 'react';
 
 interface Category {
   id: number;
@@ -28,6 +29,8 @@ export default function Home() {
   const [selectedProducts, setSelectedProducts] = useState<{ product: Product; quantity: number }[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [expandedCountries, setExpandedCountries] = useState<string[]>([]);
+  const [expandedProducts, setExpandedProducts] = useState<number[]>([]);
   const supabase = createClientComponentClient();
   const { addToCart, cartItems, updateQuantity } = useCart();
   const [session, setSession] = useState<any>(null);
@@ -167,6 +170,39 @@ export default function Home() {
     }
   };
 
+  const sendWhatsAppNotification = (orderDetails: {
+    orderId: number;
+    customerName: string;
+    totalAmount: number;
+    items: Array<{
+      productName: string;
+      quantity: number;
+      price: number;
+    }>;
+  }) => {
+    // Format the message
+    const message = `
+🛍️ New Order Notification
+Order ID: ${orderDetails.orderId}
+Customer: ${orderDetails.customerName}
+Total Amount: $${orderDetails.totalAmount.toFixed(2)}
+
+Order Items:
+${orderDetails.items.map(item => 
+  `- ${item.productName} x ${item.quantity} @ $${item.price.toFixed(2)}`
+).join('\n')}
+
+Please check the admin panel for more details.
+    `.trim();
+
+    // Create WhatsApp URL (using your business phone number)
+    const phoneNumber = '6587520417'; // Replace with your business phone number
+    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+    
+    // Open WhatsApp in a new window
+    window.open(whatsappUrl, '_blank');
+  };
+
   const handleSubmitOrder = async () => {
     // Check if user is authenticated
     if (!user) {
@@ -176,6 +212,11 @@ export default function Home() {
 
     if (selectedProducts.length === 0) {
       alert(isEnglish ? 'Please add at least one product to the order' : '请至少添加一个产品到订单');
+      return;
+    }
+
+    if (!customerName || !customerPhone) {
+      alert(isEnglish ? 'Please provide customer name and phone number' : '请提供客户姓名和电话号码');
       return;
     }
 
@@ -194,7 +235,9 @@ export default function Home() {
             status: 'pending',
             total_amount: totalAmount,
             created_at: new Date().toISOString(),
-            user_id: user.id
+            user_id: user.id,
+            customer_name: customerName,
+            customer_phone: customerPhone
           }
         ])
         .select()
@@ -205,7 +248,7 @@ export default function Home() {
         throw orderError;
       }
 
-      // Create order items with user_id
+      // Create order items
       const orderItems = selectedProducts.map(item => ({
         order_id: order.id,
         product_id: item.product.id,
@@ -214,7 +257,6 @@ export default function Home() {
         total_price: item.product.price * item.quantity,
         product_name: isEnglish ? item.product.Product : item.product.Product_CH,
         product_code: item.product["Item Code"] || 'N/A',
-        user_id: user.id,  // Add user_id to order items
         created_at: new Date().toISOString()
       }));
 
@@ -227,8 +269,22 @@ export default function Home() {
         throw itemsError;
       }
 
+      // Send WhatsApp notification
+      sendWhatsAppNotification({
+        orderId: order.id,
+        customerName,
+        totalAmount,
+        items: selectedProducts.map(item => ({
+          productName: isEnglish ? item.product.Product : item.product.Product_CH,
+          quantity: item.quantity,
+          price: item.product.price
+        }))
+      });
+
       // Reset form and close panel
       setSelectedProducts([]);
+      setCustomerName('');
+      setCustomerPhone('');
       setIsOrderPanelOpen(false);
 
       // Show success message
@@ -239,6 +295,22 @@ export default function Home() {
     }
   };
 
+  const toggleCountryExpansion = (country: string) => {
+    setExpandedCountries(prev => 
+      prev.includes(country) 
+        ? prev.filter(c => c !== country)
+        : [...prev, country]
+    );
+  };
+
+  const toggleProductExpansion = (productId: number) => {
+    setExpandedProducts(prev => 
+      prev.includes(productId)
+        ? prev.filter(id => id !== productId)
+        : [...prev, productId]
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -246,6 +318,9 @@ export default function Home() {
       </div>
     );
   }
+
+  // Get unique countries and sort them
+  const uniqueCountries = Array.from(new Set(products.map(p => p.Country))).sort();
 
   return (
     <div className="container mx-auto p-4">
@@ -287,119 +362,110 @@ export default function Home() {
         </div>
       </div>
 
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4"
-      >
+      {/* Product Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {products.map((product) => {
           const cartItem = cartItems.find((item: CartItem) => item.product_id === product.id);
           
           return (
-            <motion.div
-              key={product.id}
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              whileHover={{ scale: 1.02 }}
-              transition={{ duration: 0.2 }}
-              className="bg-white rounded-lg p-3 shadow-md hover:shadow-lg transition-shadow"
-            >
-              <div className="flex justify-between items-start mb-1">
-                <h2 className="font-semibold text-base">{isEnglish ? product.Product : product.Product_CH}</h2>
-                <span className="text-xs text-gray-500">{product["Item Code"]}</span>
+            <div key={product.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+              {/* Product Image */}
+              <div className="relative h-48 bg-gray-200">
+                <Image
+                  src="/product-placeholder.png"
+                  alt={product.Product}
+                  layout="fill"
+                  objectFit="cover"
+                  className="hover:opacity-75 transition-opacity"
+                />
               </div>
 
-              <div className="space-y-1 text-xs">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-500">{isEnglish ? 'Category:' : '类别:'}</span>
-                  <div className="text-gray-600">
-                    {isEnglish ? getCategoryName(product.Category) : getCategoryChineseName(product.Category)}
+              {/* Product Info */}
+              <div className="p-4">
+                <div className="mb-2">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {isEnglish ? product.Product : product.Product_CH}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {product["Item Code"]}
+                  </p>
+                </div>
+
+                <div className="mb-4">
+                  <div className="text-sm text-gray-600">
+                    <span>{isEnglish ? 'Category: ' : '类别：'}</span>
+                    <span>{isEnglish ? getCategoryName(product.Category) : getCategoryChineseName(product.Category)}</span>
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    <span>{isEnglish ? 'Weight: ' : '重量：'}</span>
+                    <span>{product.Weight} {product.UOM}</span>
+                  </div>
+                  {product.Variation && (
+                    <div className="text-sm text-gray-600">
+                      <span>{isEnglish ? 'Variation: ' : '规格：'}</span>
+                      <span>{isEnglish ? product.Variation : product.Variation_CH}</span>
+                    </div>
+                  )}
+                  <div className="text-sm text-gray-600">
+                    <span>{isEnglish ? 'Origin: ' : '产地：'}</span>
+                    <span>{isEnglish ? product.Country : product.Country_CH}</span>
                   </div>
                 </div>
-
-                <div className="flex justify-between">
-                  <span className="text-gray-500">{isEnglish ? 'Weight:' : '重量:'}</span>
-                  <span className="text-gray-600">{product.Weight} {product.UOM}</span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="text-gray-500">{isEnglish ? 'Origin:' : '产地:'}</span>
-                  <span className="text-gray-600">{isEnglish ? product.Country : product.Country_CH}</span>
-                </div>
-
-                {product.Variation && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">{isEnglish ? 'Variation:' : '规格:'}</span>
-                    <span className="text-gray-600">{isEnglish ? product.Variation : product.Variation_CH}</span>
-                  </div>
-                )}
 
                 {user ? (
-                  <div className="text-right font-semibold text-base text-green-600">
-                    ${product.price.toFixed(2)}/{product.UOM}
+                  <div className="mb-4">
+                    <div className="text-lg font-semibold text-green-600">
+                      ${product.price.toFixed(2)}/{product.UOM}
+                    </div>
                   </div>
                 ) : (
-                  <div className="text-right font-medium text-sm text-blue-600">
-                    <button
-                      onClick={() => setIsModalOpen(true)}
-                      className="hover:underline"
-                    >
-                      {isEnglish ? 'Login to see price' : '登录查看价格'}
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => setIsModalOpen(true)}
+                    className="mb-4 text-blue-600 hover:text-blue-900"
+                  >
+                    {isEnglish ? 'Login to see price' : '登录查看价格'}
+                  </button>
                 )}
 
-                {user && (
-                  cartItem ? (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => updateQuantity(product.id, cartItem.quantity - 1)}
-                        className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm"
-                      >
-                        -
-                      </button>
-                      <span className="flex-1 text-center text-sm">{cartItem.quantity}</span>
-                      <button
-                        onClick={() => updateQuantity(product.id, cartItem.quantity + 1)}
-                        className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm"
-                      >
-                        +
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex gap-2">
+                <div className="flex items-center justify-between">
+                  {user ? (
+                    cartItem ? (
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => updateQuantity(product.id, cartItem.quantity - 1)}
+                          className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                        >
+                          -
+                        </button>
+                        <span>{cartItem.quantity}</span>
+                        <button
+                          onClick={() => updateQuantity(product.id, cartItem.quantity + 1)}
+                          className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                        >
+                          +
+                        </button>
+                      </div>
+                    ) : (
                       <button
                         onClick={() => handleAddToOrder(product)}
-                        className="flex-1 px-2 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors text-sm"
+                        className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
                       >
                         {isEnglish ? 'Add to Order' : '添加到订单'}
                       </button>
-                      <button
-                        onClick={() => handleCustomerService()}
-                        className="flex-1 px-2 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors text-sm"
-                      >
-                        {isEnglish ? 'Make Offer' : '询价'}
-                      </button>
-                    </div>
-                  )
-                )}
-
-                <motion.button 
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={handleCustomerService}
-                  className="w-full flex items-center justify-center gap-1 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs mt-1 transition-colors"
-                >
-                  <span>{isEnglish ? 'Customer Service' : '客服'}</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-                  </svg>
-                </motion.button>
+                    )
+                  ) : null}
+                  <button
+                    onClick={() => handleCustomerService()}
+                    className="ml-2 bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors"
+                  >
+                    {isEnglish ? 'Inquire' : '询价'}
+                  </button>
+                </div>
               </div>
-            </motion.div>
+            </div>
           );
         })}
-      </motion.div>
+      </div>
 
       {/* Floating Order Button */}
       {selectedProducts.length > 0 && (
@@ -447,6 +513,39 @@ export default function Home() {
               >
                 ✕
               </button>
+            </div>
+
+            {/* Customer Information */}
+            <div className="mb-4 space-y-3">
+              <h3 className="font-semibold">{isEnglish ? 'Customer Information' : '客户信息'}</h3>
+              <div className="space-y-2">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {isEnglish ? 'Customer Name' : '客户姓名'}
+                  </label>
+                  <input
+                    type="text"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className="w-full p-2 border rounded-md"
+                    placeholder={isEnglish ? 'Enter customer name' : '输入客户姓名'}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {isEnglish ? 'Phone Number' : '电话号码'}
+                  </label>
+                  <input
+                    type="tel"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    className="w-full p-2 border rounded-md"
+                    placeholder={isEnglish ? 'Enter phone number' : '输入电话号码'}
+                    required
+                  />
+                </div>
+              </div>
             </div>
 
             {selectedProducts.length > 0 && (
