@@ -15,6 +15,10 @@ interface Customer {
   user_id: string;
 }
 
+interface EditCustomer extends Customer {
+  isEditing?: boolean;
+}
+
 export default function CustomerManagement() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -26,6 +30,7 @@ export default function CustomerManagement() {
     address: '',
     status: true
   });
+  const [editingCustomer, setEditingCustomer] = useState<EditCustomer | null>(null);
 
   const supabase = createClientComponentClient();
 
@@ -111,6 +116,33 @@ export default function CustomerManagement() {
     }
 
     await fetchCustomers();
+  };
+
+  const handleEdit = (customer: Customer) => {
+    setEditingCustomer({ ...customer, isEditing: true });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingCustomer) return;
+
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .update({
+          name: editingCustomer.name,
+          email: editingCustomer.email,
+          phone: editingCustomer.phone,
+          address: editingCustomer.address,
+        })
+        .eq('id', editingCustomer.id);
+
+      if (error) throw error;
+
+      setEditingCustomer(null);
+      await fetchCustomers();
+    } catch (error) {
+      console.error('Error updating customer:', error);
+    }
   };
 
   return (
@@ -199,6 +231,79 @@ export default function CustomerManagement() {
         )}
       </AnimatePresence>
 
+      {/* Edit Customer Modal */}
+      <AnimatePresence>
+        {editingCustomer && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-lg p-6 w-full max-w-md"
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">Edit Customer</h2>
+                <button
+                  onClick={() => setEditingCustomer(null)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="space-y-4">
+                <input
+                  type="text"
+                  placeholder="Name"
+                  value={editingCustomer.name}
+                  onChange={(e) => setEditingCustomer({ ...editingCustomer, name: e.target.value })}
+                  className="w-full border p-2 rounded"
+                  required
+                />
+                <input
+                  type="email"
+                  placeholder="Email"
+                  value={editingCustomer.email}
+                  onChange={(e) => setEditingCustomer({ ...editingCustomer, email: e.target.value })}
+                  className="w-full border p-2 rounded"
+                  required
+                />
+                <input
+                  type="tel"
+                  placeholder="Phone"
+                  value={editingCustomer.phone}
+                  onChange={(e) => setEditingCustomer({ ...editingCustomer, phone: e.target.value })}
+                  className="w-full border p-2 rounded"
+                />
+                <input
+                  type="text"
+                  placeholder="Address"
+                  value={editingCustomer.address}
+                  onChange={(e) => setEditingCustomer({ ...editingCustomer, address: e.target.value })}
+                  className="w-full border p-2 rounded"
+                />
+                <div className="flex justify-end space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingCustomer(null)}
+                    className="px-4 py-2 border rounded hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveEdit}
+                    className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Customers List */}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         <div className="p-4 border-b">
@@ -240,14 +345,22 @@ export default function CustomerManagement() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <button
-                        onClick={() => handleStatusToggle(customer.id, customer.status)}
-                        className={`${
-                          customer.status ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'
-                        }`}
-                      >
-                        {customer.status ? 'Deactivate' : 'Activate'}
-                      </button>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleEdit(customer)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleStatusToggle(customer.id, customer.status)}
+                          className={`${
+                            customer.status ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'
+                          }`}
+                        >
+                          {customer.status ? 'Deactivate' : 'Activate'}
+                        </button>
+                      </div>
                     </td>
                   </motion.tr>
                 ))}

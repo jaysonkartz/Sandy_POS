@@ -5,11 +5,16 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { User } from '@supabase/supabase-js';
 import { Database } from '@/types/supabase';
 import CustomerLoginModal from './CustomerLoginModal';
+import { useRouter } from 'next/navigation';
+import { Customer } from '@/app/lib/definitions';
 
 export default function TopBarLogin() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [customer,setCustomer] = useState<Customer | null>(null);
+  const [userRole, setUserRole] = useState<string>('');
+  const [customerName, setCustomerName] = useState<string>('');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const supabase = createClientComponentClient<Database>();
 
@@ -17,9 +22,39 @@ export default function TopBarLogin() {
     const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
+      
+      if (user) {
+        const { data: userData, error } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        
+        if (userData) {
+          setUserRole(userData.role);
+        }
+      }
+    };
+
+    const checkCustomer = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        const { data: customerData, error } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('auth_user_id', user.id)
+          .single();
+        
+        if (customerData) {
+          setCustomer(customerData);
+          setCustomerName(customerData.name);
+        }
+      }
     };
     
     checkUser();
+    checkCustomer();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
@@ -70,9 +105,40 @@ export default function TopBarLogin() {
             <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
               <div className="py-1">
                 <div className="px-4 py-2 text-sm text-gray-700 border-b border-gray-200">
-                  Signed in as<br />
-                  <span className="font-medium">{user.email}</span>
+                  Welcome<br />
+                  <span className="font-medium">
+                    {customerName || user?.email?.split('@')[0]}
+                  </span>
                 </div>
+                {userRole === 'ADMIN' && (
+                  <button
+                    onClick={() => {
+                      router.push('/management/dashboard');
+                      setIsDropdownOpen(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    Management Portal
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    router.push('/customer-details');
+                    setIsDropdownOpen(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  View Profile
+                </button>
+                <button
+                  onClick={() => {
+                    router.push('/order-history');
+                    setIsDropdownOpen(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  Order History
+                </button>
                 <button
                   onClick={handleSignOut}
                   className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"

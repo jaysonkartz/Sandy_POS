@@ -49,6 +49,24 @@ interface User {
   created_at: string;
 }
 
+interface Country {
+  id: string;
+  name: string;
+  code: string;
+  currency: string;
+  currency_symbol: string;
+  status: boolean;
+}
+
+interface OrderDetail {
+  id: string;
+  created_at: string;
+  order_number: string;
+  total_amount: number;
+  status: string;
+  customer_email: string;
+}
+
 export default function ManagementDashboard() {
   const [activeSection, setActiveSection] = useState("overview");
   const [isMobile, setIsMobile] = useState(false);
@@ -57,6 +75,9 @@ export default function ManagementDashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [orderDetails, setOrderDetails] = useState<OrderDetail[]>([]);
   const supabase = createClientComponentClient();
 
   useEffect(() => {
@@ -86,6 +107,50 @@ export default function ManagementDashboard() {
   useEffect(() => {
     if (activeSection === "users") {
       fetchUsers();
+    }
+  }, [activeSection]);
+
+  useEffect(() => {
+    const fetchCountries = async () => {
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('countries')
+          .select('*')
+          .order('name', { ascending: true });
+
+        if (error) throw error;
+        setCountries(data || []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch countries');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCountries();
+  }, []);
+
+  const fetchOrderDetails = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setOrderDetails(data || []);
+    } catch (error) {
+      console.error('Error fetching order details:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeSection === 'history') {
+      fetchOrderDetails();
     }
   }, [activeSection]);
 
@@ -131,9 +196,9 @@ export default function ManagementDashboard() {
       ),
     },
     {
-      id: "inventory",
-      title: "Inventory",
-      description: "Manage your stock",
+      id: "countries",
+      title: "Countries",
+      description: "Manage countries and view products by country",
       icon: (
         <svg
           className="w-6 h-6"
@@ -145,11 +210,31 @@ export default function ManagementDashboard() {
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
-            d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+            d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
           />
         </svg>
       ),
     },
+    // {
+    //   id: "inventory",
+    //   title: "Inventory",
+    //   description: "Manage your stock",
+    //   icon: (
+    //     <svg
+    //       className="w-6 h-6"
+    //       fill="none"
+    //       stroke="currentColor"
+    //       viewBox="0 0 24 24"
+    //     >
+    //       <path
+    //         strokeLinecap="round"
+    //         strokeLinejoin="round"
+    //         strokeWidth={2}
+    //         d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+    //       />
+    //     </svg>
+    //   ),
+    // },
     {
       id: "history",
       title: "History",
@@ -190,26 +275,26 @@ export default function ManagementDashboard() {
         </svg>
       ),
     },
-    {
-      id: "suppliers",
-      title: "Suppliers",
-      description: "Manage your supplier relationships",
-      icon: (
-        <svg
-          className="w-6 h-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-          />
-        </svg>
-      ),
-    },
+    // {
+    //   id: "suppliers",
+    //   title: "Suppliers",
+    //   description: "Manage your supplier relationships",
+    //   icon: (
+    //     <svg
+    //       className="w-6 h-6"
+    //       fill="none"
+    //       stroke="currentColor"
+    //       viewBox="0 0 24 24"
+    //     >
+    //       <path
+    //         strokeLinecap="round"
+    //         strokeLinejoin="round"
+    //         strokeWidth={2}
+    //         d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+    //       />
+    //     </svg>
+    //   ),
+    // },
     {
       id: "users",
       title: "Users",
@@ -516,10 +601,7 @@ export default function ManagementDashboard() {
             className="space-y-6"
           >
             <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-gray-900">Product List</h2>
-              {/* <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                Add New Product
-              </button> */}
+              <h2 className="text-2xl font-bold text-gray-900">Product Lists</h2>
             </div>
             <ProductListTable />
           </motion.div>
@@ -527,7 +609,86 @@ export default function ManagementDashboard() {
       case "inventory":
         return <div>Inventory Management</div>;
       case "history":
-        return <div>Transaction History</div>;
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-6"
+          >
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-semibold">Transaction History</h2>
+              <button
+                onClick={fetchOrderDetails}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                Refresh
+              </button>
+            </div>
+
+            {isLoading ? (
+              <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg shadow overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Order Number
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Date
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Customer
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Amount
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {orderDetails.map((order) => (
+                        <tr key={order.id}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {order.order_number}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {new Date(order.created_at).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {order.customer_email}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            ${order.total_amount.toFixed(2)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span
+                              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                order.status === 'completed'
+                                  ? 'bg-green-100 text-green-800'
+                                  : order.status === 'pending'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-red-100 text-red-800'
+                              }`}
+                            >
+                              {order.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        );
       case "customers":
         return <CustomerManagement />;
       case "suppliers":
