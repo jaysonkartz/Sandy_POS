@@ -88,52 +88,17 @@ export default function Home() {
 
   // Get category name by id
   const getCategoryName = (categoryNumber: number) => {
-    switch (categoryNumber) {
-      case 1:
-        return 'Dried Chilli';
-      case 2:
-        return 'Beans & Legumes';
-      case 3:
-        return 'Nuts & Seeds';
-      case 4:
-        return 'Herbs and Spices';
-      case 5:
-        return 'Grains';
-      case 6:
-        return 'Dried Seafood';
-      case 7:
-        return 'Vegetables';
-      case 8:
-        return 'Dried Mushroom & Fungus';
-      default:
-        return 'Unknown Category';
-    }
+    const category = categories.find(cat => cat.id === categoryNumber);
+    return category ? category.name : 'Unknown Category';
   };
 
   // Get category Chinese name
   const getCategoryChineseName = (categoryNumber: number) => {
-    switch (categoryNumber) {
-      case 1:
-        return '干辣椒';
-      case 2:
-        return '豆类';
-      case 3:
-        return '坚果和种子';
-      case 4:
-        return '香料';
-      case 5:
-        return '谷物';
-      case 6:
-        return '海鲜干货';
-      case 7:
-        return '蔬菜';
-      case 8:
-        return '菇类和菌类';
-      default:
-        return '';
-    }
+    const category = categories.find(cat => cat.id === categoryNumber);
+    return category?.name_ch || '';
   };
 
+  //Send Whatsapp enquiry
   const handleCustomerService = () => {
     const phoneNumber = '6587520417'; 
     const message = 'Hi, I would like to inquire about your products.';
@@ -141,6 +106,7 @@ export default function Home() {
     window.open(whatsappUrl, '_blank');
   };
 
+  //Add to order
   const handleAddToOrder = (product: Product) => {
     const existingProduct = selectedProducts.find(item => item.product.id === product.id);
     if (existingProduct) {
@@ -156,6 +122,7 @@ export default function Home() {
     }
   };
 
+  //Update quantity
   const handleUpdateQuantity = (productId: number, newQuantity: number) => {
     if (newQuantity < 1) {
       setSelectedProducts(prev => prev.filter(item => item.product.id !== productId));
@@ -170,6 +137,7 @@ export default function Home() {
     }
   };
 
+  //Send Whatsapp notification after submit order
   const sendWhatsAppNotification = (orderDetails: {
     orderId: number;
     customerName: string;

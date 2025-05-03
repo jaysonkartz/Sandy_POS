@@ -6,13 +6,16 @@ import { User } from '@supabase/supabase-js';
 import { Database } from '@/types/supabase';
 import CustomerLoginModal from './CustomerLoginModal';
 import { useRouter } from 'next/navigation';
+import { Customer } from '@/app/lib/definitions';
 
 export default function TopBarLogin() {
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [customer,setCustomer] = useState<Customer | null>(null);
   const [userRole, setUserRole] = useState<string>('');
+  const [customerName, setCustomerName] = useState<string>('');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const supabase = createClientComponentClient<Database>();
 
@@ -33,8 +36,26 @@ export default function TopBarLogin() {
         }
       }
     };
+
+    const checkCustomer = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        const { data: customerData, error } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('auth_user_id', user.id)
+          .single();
+        
+        if (customerData) {
+          setCustomer(customerData);
+          setCustomerName(customerData.name);
+        }
+      }
+    };
     
     checkUser();
+    checkCustomer();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: string, session: { user: User | null } | null) => {
       setUser(session?.user ?? null);
@@ -90,8 +111,10 @@ export default function TopBarLogin() {
             <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
               <div className="py-1">
                 <div className="px-4 py-2 text-sm text-gray-700 border-b border-gray-200">
-                  Signed in as<br />
-                  <span className="font-medium">{user.email}</span>
+                  Welcome<br />
+                  <span className="font-medium">
+                    {customerName || user?.email?.split('@')[0]}
+                  </span>
                 </div>
                 {userRole === 'ADMIN' && (
                   <button

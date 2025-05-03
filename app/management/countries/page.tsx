@@ -27,6 +27,31 @@ interface Product {
   Weight_KG: string;
 }
 
+interface ProductDetail {
+  id: string;
+  product_id: string;
+  description: string;
+  description_ch: string;
+  created_at: string;
+}
+
+interface PricingHistory {
+  id: string;
+  product_id: string;
+  price: number;
+  effective_date: string;
+  created_at: string;
+}
+
+interface CustomerPurchase {
+  customer: {
+    name: string;
+    email: string;
+  };
+  last_purchase_date: string;
+  total_purchases: number;
+}
+
 export default function CountriesPage() {
   const [countries, setCountries] = useState<Country[]>([]);
   const [products, setProducts] = useState<{ [key: string]: Product[] }>({});
@@ -34,6 +59,10 @@ export default function CountriesPage() {
   const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [productDetails, setProductDetails] = useState<ProductDetail | null>(null);
+  const [pricingHistory, setPricingHistory] = useState<PricingHistory[]>([]);
+  const [customerPurchases, setCustomerPurchases] = useState<CustomerPurchase[]>([]);
   const supabase = createClientComponentClient();
 
   useEffect(() => {
@@ -80,16 +109,104 @@ export default function CountriesPage() {
     setExpandedCountry(expandedCountry === countryId ? null : countryId);
   };
 
-  const toggleProduct = (productId: string) => {
-    setExpandedProducts(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(productId)) {
-        newSet.delete(productId);
+  const toggleProduct = async (product: Product) => {
+    if (selectedProduct?.id === product.id) {
+      setSelectedProduct(null);
+      setProductDetails(null);
+      setPricingHistory([]);
+      setCustomerPurchases([]);
+    } else {
+      setSelectedProduct(product);
+      await fetchProductDetails(product.id.toString());
+    }
+  };
+
+  const fetchProductDetails = async (productId: string) => {
+    try {
+      // Fetch product details
+      const { data: details, error: detailsError } = await supabase
+        .from('products')  // or your actual table name
+        .select(`
+          id,
+          description,
+          description_ch
+        `)
+        .eq('id', productId)
+        .single();
+      
+      if (detailsError) {
+        console.log('Product details error:', detailsError);
       } else {
-        newSet.add(productId);
+        setProductDetails(details);
       }
-      return newSet;
-    });
+
+      // Fetch pricing history
+      const { data: pricing, error: pricingError } = await supabase
+        .from('product_pricing')  // or your actual table name
+        .select(`
+          id,
+          price,
+          created_at,
+          updated_by
+        `)
+        .eq('product_id', productId)
+        .order('created_at', { ascending: false });
+      
+      if (pricingError) {
+        console.log('Pricing history error:', pricingError);
+      } else {
+        setPricingHistory(pricing || []);
+      }
+
+      // Fetch customer purchases
+      const { data: orders, error: ordersError } = await supabase
+        .from('orders')  // adjust table name as needed
+        .select(`
+          id,
+          created_at,
+          customers (
+            id,
+            name,
+            email
+          )
+        `)
+        .eq('product_id', productId);
+      
+      if (ordersError) {
+        console.log('Customer purchases error:', ordersError);
+      } else {
+        // Process orders into customer purchase summary
+        const customerMap = new Map();
+        orders?.forEach(order => {
+          if (!order.customers) return;
+          
+          const customer = order.customers;
+          const key = customer.email;
+          
+          if (!customerMap.has(key)) {
+            customerMap.set(key, {
+              customer: {
+                name: customer.name,
+                email: customer.email
+              },
+              last_purchase_date: order.created_at,
+              total_purchases: 1
+            });
+          } else {
+            const existing = customerMap.get(key);
+            existing.total_purchases += 1;
+            if (new Date(order.created_at) > new Date(existing.last_purchase_date)) {
+              existing.last_purchase_date = order.created_at;
+            }
+          }
+        });
+        
+        setCustomerPurchases(Array.from(customerMap.values()));
+      }
+
+    } catch (error) {
+      console.error('Error in fetchProductDetails:', error);
+    }
   };
 
   const filteredCountries = countries.filter(country =>
@@ -186,8 +303,10 @@ export default function CountriesPage() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ delay: index * 0.05 }}
-                            onClick={() => toggleProduct(`${country.id}-${product.Product}`)}
-                            className="hover:bg-gray-50 cursor-pointer"
+                            onClick={() => toggleProduct(product)}
+                            className={`hover:bg-gray-50 cursor-pointer ${
+                              selectedProduct?.id === product.id ? 'bg-blue-50' : ''
+                            }`}
                           >
                             <td className="px-4 py-3 whitespace-nowrap">
                               <div className="flex items-center">
@@ -233,73 +352,128 @@ export default function CountriesPage() {
                               </span>
                             </td>
                           </motion.tr>
-                          {expandedProducts.has(`${country.id}-${product.Product}`) && (
+                          {selectedProduct?.id === product.id && (
                             <motion.tr
                               initial={{ opacity: 0, height: 0 }}
                               animate={{ opacity: 1, height: 'auto' }}
                               exit={{ opacity: 0, height: 0 }}
                               className="bg-gray-50"
                             >
-                              <td colSpan={5} className="px-4 py-4">
+                              <td colSpan={6} className="px-4 py-4">
                                 <div className="bg-white rounded-lg shadow-sm p-4">
-                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div>
-                                      <h4 className="text-sm font-medium text-gray-900 mb-2">Product Information</h4>
-                                      <dl className="space-y-1">
-                                        <div className="flex justify-between">
-                                          <dt className="text-sm text-gray-500">Product Code:</dt>
-                                          <dd className="text-sm text-gray-900">{product.Product}</dd>
-                                        </div>
-                                        <div className="flex justify-between">
-                                          <dt className="text-sm text-gray-500">Chinese Name:</dt>
-                                          <dd className="text-sm text-gray-900">{product.Product_CH}</dd>
-                                        </div>
-                                        <div className="flex justify-between">
-                                          <dt className="text-sm text-gray-500">Status:</dt>
-                                          <dd className="text-sm text-gray-900">
-                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                              product.availability ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                            }`}>
-                                              {product.availability ? 'Available' : 'Unavailable'}
-                                            </span>
-                                          </dd>
-                                        </div>
-                                      </dl>
-                                    </div>
-
-                                    <div>
-                                      <h4 className="text-sm font-medium text-gray-900 mb-2">Specifications</h4>
-                                      <dl className="space-y-1">
-                                        <div className="flex justify-between">
-                                          <dt className="text-sm text-gray-500">Weight:</dt>
-                                          <dd className="text-sm text-gray-900">{product.weight} {product.UOM}</dd>
-                                        </div>
-                                        {product.Weight_KG && (
-                                          <div className="flex justify-between">
-                                            <dt className="text-sm text-gray-500">Weight (KG):</dt>
-                                            <dd className="text-sm text-gray-900">{product.Weight_KG}</dd>
+                                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                                    <div className="space-y-4">
+                                      <div>
+                                        <h3 className="text-lg font-semibold mb-2">Product Details</h3>
+                                        <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                                          <div>
+                                            <span className="text-gray-600">Product ID:</span>
+                                            <span className="ml-2 font-medium">{selectedProduct.id}</span>
                                           </div>
-                                        )}
-                                        <div className="flex justify-between">
-                                          <dt className="text-sm text-gray-500">Max Quantity:</dt>
-                                          <dd className="text-sm text-gray-900">{product.max_quantity || '-'}</dd>
+                                          <div>
+                                            <span className="text-gray-600">Name:</span>
+                                            <span className="ml-2 font-medium">{selectedProduct.Product}</span>
+                                          </div>
+                                          <div>
+                                            <span className="text-gray-600">Chinese Name:</span>
+                                            <span className="ml-2 font-medium">{selectedProduct.Product_CH}</span>
+                                          </div>
+                                          <div>
+                                            <span className="text-gray-600">Category:</span>
+                                            <span className="ml-2 font-medium">{selectedProduct.category}</span>
+                                          </div>
+                                          <div>
+                                            <span className="text-gray-600">Weight:</span>
+                                            <span className="ml-2 font-medium">{selectedProduct.weight} {selectedProduct.UOM}</span>
+                                          </div>
                                         </div>
-                                      </dl>
+                                      </div>
                                     </div>
 
-                                    <div>
-                                      <h4 className="text-sm font-medium text-gray-900 mb-2">Variations</h4>
-                                      <dl className="space-y-1">
-                                        <div className="flex justify-between">
-                                          <dt className="text-sm text-gray-500">Variation:</dt>
-                                          <dd className="text-sm text-gray-900">{product.Variation || '-'}</dd>
+                                    <div className="space-y-4">
+                                      <div>
+                                        <h3 className="text-lg font-semibold mb-2">Customer History</h3>
+                                        <div className="bg-gray-50 p-4 rounded-lg">
+                                          <div className="overflow-y-auto max-h-48">
+                                            {customerPurchases && customerPurchases.length > 0 ? (
+                                              <table className="min-w-full">
+                                                <thead>
+                                                  <tr>
+                                                    <th className="text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                                                    <th className="text-left text-xs font-medium text-gray-500 uppercase">Last Purchase</th>
+                                                  </tr>
+                                                </thead>
+                                                <tbody>
+                                                  {customerPurchases.map((purchase, index) => (
+                                                    <tr key={index} className="border-b border-gray-200">
+                                                      <td className="py-2 text-sm">{purchase.customer.name}</td>
+                                                      <td className="py-2 text-sm">
+                                                        {new Date(purchase.last_purchase_date).toLocaleDateString()}
+                                                      </td>
+                                                    </tr>
+                                                  ))}
+                                                </tbody>
+                                              </table>
+                                            ) : (
+                                              <p className="text-sm text-gray-500">No purchase history available</p>
+                                            )}
+                                          </div>
                                         </div>
-                                        <div className="flex justify-between">
-                                          <dt className="text-sm text-gray-500">Chinese Variation:</dt>
-                                          <dd className="text-sm text-gray-900">{product.Variation_CH || '-'}</dd>
-                                        </div>
-                                      </dl>
+                                      </div>
                                     </div>
+
+                                    <div className="space-y-4">
+                                      <div>
+                                        <h3 className="text-lg font-semibold mb-2">Price History</h3>
+                                        <div className="bg-gray-50 p-4 rounded-lg">
+                                          <div className="overflow-y-auto max-h-48">
+                                            {pricingHistory && pricingHistory.length > 0 ? (
+                                              <table className="min-w-full">
+                                                <thead>
+                                                  <tr>
+                                                    <th className="text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                                    <th className="text-left text-xs font-medium text-gray-500 uppercase">Price</th>
+                                                  </tr>
+                                                </thead>
+                                                <tbody>
+                                                  {pricingHistory.map((price) => (
+                                                    <tr key={price.id} className="border-b border-gray-200">
+                                                      <td className="py-2 text-sm">
+                                                        {new Date(price.created_at).toLocaleDateString()}
+                                                      </td>
+                                                      <td className="py-2 text-sm">${price.price.toFixed(2)}</td>
+                                                    </tr>
+                                                  ))}
+                                                </tbody>
+                                              </table>
+                                            ) : (
+                                              <p className="text-sm text-gray-500">No price history available</p>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex justify-end space-x-2 mt-6">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        // Add edit functionality
+                                      }}
+                                      className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                                    >
+                                      Edit Product
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedProduct(null);
+                                      }}
+                                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+                                    >
+                                      Close
+                                    </button>
                                   </div>
                                 </div>
                               </td>

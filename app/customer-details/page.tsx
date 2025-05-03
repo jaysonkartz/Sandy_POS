@@ -18,36 +18,87 @@ type Customer = {
 
 export default function CustomerDetails() {
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editedCustomer, setEditedCustomer] = useState<Customer | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const router = useRouter();
   const supabase = createClientComponentClient<Database>();
 
   useEffect(() => {
-    const fetchCustomerData = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          router.push('/');
-          return;
-        }
-
-        const { data: customerData, error } = await supabase
-          .from('customers')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-
-        if (error) throw error;
-        setCustomer(customerData);
-      } catch (error) {
-        console.error('Error fetching customer data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchCustomerData();
   }, [router, supabase]);
+
+  const fetchCustomerData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push('/');
+        return;
+      }
+
+      const { data: customerData, error } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error) throw error;
+      setCustomer(customerData);
+      setEditedCustomer(customerData);
+    } catch (error) {
+      console.error('Error fetching customer data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = () => {
+    setEditMode(true);
+  };
+
+  const handleCancel = () => {
+    setEditMode(false);
+    setEditedCustomer(customer);
+  };
+
+  const handleSave = async () => {
+    if (!editedCustomer) return;
+    
+    try {
+      setSaving(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const { error } = await supabase
+        .from('customers')
+        .update({
+          name: editedCustomer.name,
+          company_name: editedCustomer.company_name,
+          address: editedCustomer.address,
+          delivery_address: editedCustomer.delivery_address,
+          phone: editedCustomer.phone,
+        })
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+      
+      setCustomer(editedCustomer);
+      setEditMode(false);
+      // Show success message
+      alert('Profile updated successfully!');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      alert('Failed to update profile. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleChange = (field: keyof Customer, value: string | boolean) => {
+    if (editedCustomer) {
+      setEditedCustomer({ ...editedCustomer, [field]: value });
+    }
+  };
 
   if (loading) {
     return (
@@ -57,7 +108,7 @@ export default function CustomerDetails() {
     );
   }
 
-  if (!customer) {
+  if (!customer || !editedCustomer) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -81,11 +132,31 @@ export default function CustomerDetails() {
             </svg>
             Back to Main Page
           </button>
-          <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-            customer.status ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-          }`}>
-            {customer.status ? 'Active Account' : 'Inactive Account'}
-          </div>
+          {!editMode ? (
+            <button
+              onClick={handleEdit}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700"
+            >
+              Edit Profile
+            </button>
+          ) : (
+            <div className="space-x-2">
+              <button
+                onClick={handleCancel}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700"
+                disabled={saving}
+              >
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          )}
         </div>
         
         <div className="bg-white shadow-xl rounded-lg overflow-hidden">
@@ -102,7 +173,16 @@ export default function CustomerDetails() {
                   <div className="mt-2 space-y-3">
                     <div>
                       <p className="text-sm text-gray-500">Full Name</p>
-                      <p className="text-lg font-medium text-gray-900">{customer.name}</p>
+                      {editMode ? (
+                        <input
+                          type="text"
+                          value={editedCustomer.name}
+                          onChange={(e) => handleChange('name', e.target.value)}
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        />
+                      ) : (
+                        <p className="text-lg font-medium text-gray-900">{customer.name}</p>
+                      )}
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Email</p>
@@ -110,7 +190,16 @@ export default function CustomerDetails() {
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Phone Number</p>
-                      <p className="text-lg font-medium text-gray-900">{customer.phone}</p>
+                      {editMode ? (
+                        <input
+                          type="text"
+                          value={editedCustomer.phone}
+                          onChange={(e) => handleChange('phone', e.target.value)}
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        />
+                      ) : (
+                        <p className="text-lg font-medium text-gray-900">{customer.phone}</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -120,11 +209,29 @@ export default function CustomerDetails() {
                   <div className="mt-2 space-y-3">
                     <div>
                       <p className="text-sm text-gray-500">Company Name</p>
-                      <p className="text-lg font-medium text-gray-900">{customer.company_name}</p>
+                      {editMode ? (
+                        <input
+                          type="text"
+                          value={editedCustomer.company_name}
+                          onChange={(e) => handleChange('company_name', e.target.value)}
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        />
+                      ) : (
+                        <p className="text-lg font-medium text-gray-900">{customer.company_name}</p>
+                      )}
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Company Address</p>
-                      <p className="text-lg font-medium text-gray-900 whitespace-pre-line">{customer.address}</p>
+                      {editMode ? (
+                        <textarea
+                          value={editedCustomer.address}
+                          onChange={(e) => handleChange('address', e.target.value)}
+                          rows={3}
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        />
+                      ) : (
+                        <p className="text-lg font-medium text-gray-900 whitespace-pre-line">{customer.address}</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -135,7 +242,16 @@ export default function CustomerDetails() {
                   <h2 className="text-sm font-medium text-gray-500">Delivery Information</h2>
                   <div className="mt-2">
                     <p className="text-sm text-gray-500">Delivery Address</p>
-                    <p className="text-lg font-medium text-gray-900 whitespace-pre-line">{customer.delivery_address}</p>
+                    {editMode ? (
+                      <textarea
+                        value={editedCustomer.delivery_address}
+                        onChange={(e) => handleChange('delivery_address', e.target.value)}
+                        rows={3}
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <p className="text-lg font-medium text-gray-900 whitespace-pre-line">{customer.delivery_address}</p>
+                    )}
                   </div>
                 </div>
 
