@@ -21,6 +21,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import EditUserModal from "@/components/EditUserModal";
 import CustomerManagement from "@/components/CustomerManagement";
 import ProductListTable from "@/components/ProductListTable";
+import React from "react";
 
 ChartJS.register(
   CategoryScale,
@@ -49,13 +50,18 @@ interface User {
   created_at: string;
 }
 
+interface Product {
+  id: number;
+  Product: string;
+  price: number;
+}
+
 interface Country {
-  id: string;
-  name: string;
-  code: string;
-  currency: string;
-  currency_symbol: string;
-  status: boolean;
+  id: number;
+  country: string;
+  is_active: boolean;
+  chineseName: string;
+  products: Product[];
 }
 
 interface OrderDetail {
@@ -79,6 +85,8 @@ export default function ManagementDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [orderDetails, setOrderDetails] = useState<OrderDetail[]>([]);
   const supabase = createClientComponentClient();
+  const [expandedCountry, setExpandedCountry] = useState<number | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<number | null>(null);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -114,19 +122,41 @@ export default function ManagementDashboard() {
     const fetchCountries = async () => {
       setIsLoading(true);
       try {
-        const { data, error } = await supabase
-          .from('countries')
-          .select('*')
-          .order('name', { ascending: true });
-
+        const { data: countries, error } = await supabase
+        .from('countries')
+        .select(`
+          id,
+          country,
+          is_active,
+          chineseName,
+          products_Country_fkey (
+            id,
+            Product,
+            price
+          )
+        `)
+        .order('country', { ascending: true });
+      
+      console.log(countries)
+    
         if (error) throw error;
-        setCountries(data || []);
+        setCountries(
+          (countries || []).map(country => ({
+            ...country,
+            products: country.products_Country_fkey || []
+          }))
+        );
+        // Log all products for debugging
+        console.log(
+          (countries || []).flatMap(country => country.products_Country_fkey || [])
+        );
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch countries');
       } finally {
         setIsLoading(false);
       }
     };
+    
 
     fetchCountries();
   }, []);
@@ -603,7 +633,57 @@ export default function ManagementDashboard() {
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-900">Product Lists</h2>
             </div>
-            <ProductListTable />
+            <div>
+              {error && <div style={{ color: 'red' }}>{error}</div>}
+              {countries.length === 0 && !error && (
+                <div>No countries found.</div>
+              )}
+              <div className="space-y-6">
+                {countries.map((country) => (
+                  <div
+                    key={country.id}
+                    className="bg-white rounded-lg shadow p-4 mb-4"
+                  >
+                    <div
+                      className="flex justify-between items-center cursor-pointer"
+                      onClick={() => setExpandedCountry(expandedCountry === country.id ? null : country.id)}
+                    >
+                      <div>
+                        <span className="text-lg font-bold">{country.country}</span>
+                        <span className="ml-2 text-gray-500">{country.chineseName}</span>
+                      </div>
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-semibold ${
+                          country.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {country.is_active ? "Active" : "Inactive"}
+                      </span>
+                    </div>
+                    {expandedCountry === country.id && (
+                      <div className="mt-4">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Product Name</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-100">
+                            {country.products.map((product) => (
+                              <tr key={product.id}>
+                                <td className="px-4 py-2">{product.Product}</td>
+                                <td className="px-4 py-2">${product.price.toFixed(2)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           </motion.div>
         );
       case "inventory":
@@ -695,6 +775,50 @@ export default function ManagementDashboard() {
         return <div>Supplier Management</div>;
       case "users":
         return renderUsers();
+      case "countries":
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-6"
+          >
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-900">Countries Management</h2>
+            </div>
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Country</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Chinese Name</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Active</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {countries.map((country) => (
+                      <tr key={country.id}>
+                        <td className="px-6 py-4 whitespace-nowrap">{country.country}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">{country.chineseName}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            country.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                          }`}>
+                            {country.is_active ? "Active" : "Inactive"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <button className="text-blue-600 hover:text-blue-900">View</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </motion.div>
+        );
       default:
         return renderOverview();
     }

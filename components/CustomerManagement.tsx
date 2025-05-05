@@ -13,6 +13,11 @@ interface Customer {
   status: boolean;
   created_at: string;
   user_id: string;
+  user?: {
+    id: string;
+    email: string;
+    role: string;
+  } | null;
 }
 
 interface EditCustomer extends Customer {
@@ -39,20 +44,43 @@ export default function CustomerManagement() {
     try {
       const { data, error } = await supabase
         .from('customers')
-        .select(`
-          *,
-          users:user_id (
-            id,
-            email,
-            role
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setCustomers(data || []);
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+      
+      if (!data) {
+        console.error('No data returned from customers table');
+        setCustomers([]);
+        return;
+      }
+
+      // Fetch user data separately for each customer
+      const customersWithUsers = await Promise.all(
+        data.map(async (customer) => {
+          if (customer.user_id) {
+            const { data: userData } = await supabase
+              .from('users')
+              .select('id, email, role')
+              .eq('id', customer.user_id)
+              .single();
+            
+            return {
+              ...customer,
+              user: userData || null
+            };
+          }
+          return customer;
+        })
+      );
+
+      setCustomers(customersWithUsers);
     } catch (error) {
       console.error('Error fetching customers:', error);
+      setCustomers([]);
     } finally {
       setIsLoading(false);
     }

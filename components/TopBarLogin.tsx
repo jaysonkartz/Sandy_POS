@@ -17,6 +17,7 @@ export default function TopBarLogin() {
   const [customerName, setCustomerName] = useState<string>('');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const supabase = createClientComponentClient<Database>();
+  const router = useRouter();
 
   useEffect(() => {
     const checkUser = async () => {

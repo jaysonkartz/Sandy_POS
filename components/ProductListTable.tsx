@@ -4,6 +4,7 @@ import { useState, Fragment, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, ChevronUp, Check, X, Plus } from "lucide-react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { useRouter } from "next/navigation";
 
 interface Product {
   id: number;
@@ -55,7 +56,8 @@ export default function ProductListTable() {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const supabase = createClientComponentClient();
-  const { user } = useAuth();
+  const router = useRouter();
+  const [session, setSession] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Hardcoded customers
@@ -64,6 +66,20 @@ export default function ProductListTable() {
     { name: "Customer B", phone: "60123456780" },
     { name: "Customer C", phone: "60123456781" },
   ];
+
+  useEffect(() => {
+    const getSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+    };
+    getSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase.auth]);
 
   useEffect(() => {
     fetchProducts();
@@ -411,7 +427,7 @@ export default function ProductListTable() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-2">
                         <div className="text-sm text-gray-900">
-                          {user ? (
+                          {session ? (
                             `$${product.price?.toFixed(2) || '0.00'}`
                           ) : (
                             <button

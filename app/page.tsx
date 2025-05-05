@@ -50,7 +50,7 @@ export default function Home() {
   const [expandedCountries, setExpandedCountries] = useState<string[]>([]);
   const [expandedProducts, setExpandedProducts] = useState<number[]>([]);
   const supabase = createClientComponentClient();
-  const { addToCart } = useCart();
+  const { addToCart, cart } = useCart();
   const [session, setSession] = useState<any>(null);
 
   useEffect(() => {
@@ -102,14 +102,14 @@ export default function Home() {
 
   // Get category name by id
   const getCategoryName = (categoryNumber: number) => {
-    const category = categories.find(cat => cat.id === categoryNumber);
-    return category ? category.name : 'Unknown Category';
+    const categoryKey = Object.keys(CATEGORIES)[categoryNumber - 1];
+    return categoryKey ? CATEGORIES[categoryKey as keyof typeof CATEGORIES] : 'Unknown Category';
   };
 
   // Get category Chinese name
   const getCategoryChineseName = (categoryNumber: number) => {
-    const category = categories.find(cat => cat.id === categoryNumber);
-    return category?.name_ch || '';
+    const categoryKey = Object.keys(CATEGORIES)[categoryNumber - 1];
+    return categoryKey ? CATEGORIES[categoryKey as keyof typeof CATEGORIES] : '';
   };
 
   //Send Whatsapp enquiry
@@ -187,7 +187,7 @@ Please check the admin panel for more details.
 
   const handleSubmitOrder = async () => {
     // Check if user is authenticated
-    if (!user) {
+    if (!session) {
       alert(isEnglish ? 'Please log in to submit an order' : '请登录以提交订单');
       return;
     }
@@ -217,7 +217,7 @@ Please check the admin panel for more details.
             status: 'pending',
             total_amount: totalAmount,
             created_at: new Date().toISOString(),
-            user_id: user.id,
+            user_id: session.user.id,
             customer_name: customerName,
             customer_phone: customerPhone
           }
@@ -323,7 +323,7 @@ Please check the admin panel for more details.
       {/* Product Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {products.map((product) => {
-          const cartItem = cartItems.find((item: CartItem) => item.product_id === product.id);
+          const cartItem = cart.find((item) => item.id === product.id);
           
           return (
             <div key={product.id} className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -370,7 +370,7 @@ Please check the admin panel for more details.
                   </div>
                 </div>
 
-                {user ? (
+                {session ? (
                   <div className="mb-4">
                     <div className="text-lg font-semibold text-green-600">
                       ${product.price.toFixed(2)}/{product.UOM}
@@ -386,7 +386,7 @@ Please check the admin panel for more details.
                 )}
 
                 <div className="flex items-center justify-between">
-                  {user ? (
+                  {session ? (
                     cartItem ? (
                       <div className="flex items-center space-x-2">
                         <button
