@@ -54,6 +54,13 @@ interface Product {
   id: number;
   Product: string;
   price: number;
+  order_items?: {
+    order_id: number;
+    orders?: {
+      customer_name: string;
+      customer_phone: string;
+    }[];
+  }[];
 }
 
 interface Country {
@@ -87,6 +94,10 @@ export default function ManagementDashboard() {
   const supabase = createClientComponentClient();
   const [expandedCountry, setExpandedCountry] = useState<number | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<number | null>(null);
+  const [editingProductId, setEditingProductId] = useState<number | null>(null);
+  const [editingPrice, setEditingPrice] = useState<number | null>(null);
+
+  const priceHistoryMap: Record<number, { previous_price: number; last_price_update: string }[]> = {};
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -118,11 +129,10 @@ export default function ManagementDashboard() {
     }
   }, [activeSection]);
 
-  useEffect(() => {
-    const fetchCountries = async () => {
-      setIsLoading(true);
-      try {
-        const { data: countries, error } = await supabase
+  const fetchCountries = async () => {
+    setIsLoading(true);
+    try {
+      const { data: countries, error } = await supabase
         .from('countries')
         .select(`
           id,
@@ -132,32 +142,58 @@ export default function ManagementDashboard() {
           products_Country_fkey (
             id,
             Product,
-            price
+            price,
+            order_items (
+              order_id,
+              orders (
+                customer_name,
+                customer_phone
+              )
+            )
           )
         `)
         .order('country', { ascending: true });
-      
+    
       console.log(countries)
     
-        if (error) throw error;
-        setCountries(
-          (countries || []).map(country => ({
-            ...country,
-            products: country.products_Country_fkey || []
-          }))
-        );
-        // Log all products for debugging
-        console.log(
-          (countries || []).flatMap(country => country.products_Country_fkey || [])
-        );
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch countries');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
+      if (error) throw error;
+      const { data: priceHistories, error: priceHistoryError } = await supabase
+        .from('product_price_history')
+        .select('product_id, previous_price, original_price, last_price_update')
+        .order('last_price_update', { ascending: false });
 
+      if (priceHistoryError) {
+        console.error('Failed to fetch price history:', priceHistoryError);
+      }
+
+      // Group price histories by product_id
+      (priceHistories || []).forEach(ph => {
+        if (!priceHistoryMap[ph.product_id]) priceHistoryMap[ph.product_id] = [];
+        priceHistoryMap[ph.product_id].push(ph);
+      });
+
+      // Attach last 3 previous prices to each product
+      setCountries(
+        (countries || []).map(country => ({
+          ...country,
+          products: (country.products_Country_fkey || []).map(product => ({
+            ...product,
+            priceHistory: (priceHistoryMap[product.id] || []).slice(0, 3)
+          })) as (Product & { priceHistory: { previous_price: number; last_price_update: string }[] })[]
+        }))
+      );
+      // Log all products for debugging
+      console.log(
+        (countries || []).flatMap(country => country.products_Country_fkey || [])
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch countries');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchCountries();
   }, []);
 
@@ -667,13 +703,221 @@ export default function ManagementDashboard() {
                             <tr>
                               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Product Name</th>
                               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Previous Prices</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-100">
                             {country.products.map((product) => (
                               <tr key={product.id}>
                                 <td className="px-4 py-2">{product.Product}</td>
-                                <td className="px-4 py-2">${product.price.toFixed(2)}</td>
+                                <td className="px-4 py-2 flex items-center space-x-2">
+                                  {editingProductId === product.id ? (
+                                    <>
+                                      <input
+                                        type="number"
+                                        value={editingPrice ?? product.price}
+                                        onChange={e => setEditingPrice(Number(e.target.value))}
+                                        className="border rounded px-2 py-1 w-20"
+                                      />
+                                      <button
+                                        className="text-green-600 font-bold"
+                                        onClick={async () => {
+                                          if (editingPrice === null || isNaN(editingPrice)) {
+                                            alert("Please enter a valid price.");
+                                            return;
+                                          }
+                                          setIsLoading(true);
+
+                                          const { data: orderItems, error: orderItemsError } = await supabase
+                                            .from('order_items')
+                                            .select('order_id, orders(customer_id)')
+                                            .eq('product_id', product.id);
+
+                                          if (orderItemsError) {
+                                            alert("Failed to fetch order items: " + orderItemsError.message);
+                                            setIsLoading(false);
+                                            return;
+                                          }
+
+                                          console.log("orderItems", orderItems);
+
+                                          const uniqueCustomerIds = [
+                                            ...new Set(
+                                              (orderItems || [])
+                                                .map(oi => {
+                                                  if (Array.isArray(oi.orders)) {
+                                                    return oi.orders[0]?.customer_id;
+                                                  }
+                                                  return oi.orders?.customer_id;
+                                                })
+                                                .filter(cid => !!cid)
+                                            ),
+                                          ];
+
+                                          if (uniqueCustomerIds.length === 0) {
+                                            await supabase.from('product_price_history').insert([
+                                              {
+                                                product_id: product.id,
+                                                previous_price: product.price,
+                                                original_price: editingPrice,
+                                                last_price_update: new Date().toISOString(),
+                                                customer_id: null,
+                                              }
+                                            ]);
+                                          } else {
+                                            for (const customerId of uniqueCustomerIds) {
+                                              const { error: insertError } = await supabase.from('product_price_history').insert([
+                                                {
+                                                  product_id: product.id,
+                                                  previous_price: product.price,
+                                                  original_price: editingPrice,
+                                                  last_price_update: new Date().toISOString(),
+                                                  customer_id: customerId,
+                                                }
+                                              ]);
+                                              if (insertError) {
+                                                alert("Failed to insert price history: " + insertError.message);
+                                              }
+                                            }
+                                          }
+
+                                          // Now update the product price
+                                          const { error: updateError } = await supabase
+                                            .from('products')
+                                            .update({ price: editingPrice })
+                                            .eq('id', product.id);
+
+                                          if (updateError) {
+                                            alert("Failed to update product price: " + updateError.message);
+                                            setIsLoading(false);
+                                            return;
+                                          }
+
+                                          setEditingProductId(null);
+                                          setEditingPrice(null);
+                                          setIsLoading(false);
+                                          fetchCountries();
+                                        }}
+                                        title="Save"
+                                      >
+                                        ✔
+                                      </button>
+                                      <button
+                                        className="text-gray-400 font-bold"
+                                        onClick={() => {
+                                          setEditingProductId(null);
+                                          setEditingPrice(null);
+                                        }}
+                                        title="Cancel"
+                                      >
+                                        ✖
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span>${product.price.toFixed(2)}</span>
+                                      <button
+                                        className="ml-2 text-blue-600 underline"
+                                        onClick={() => {
+                                          setEditingProductId(product.id);
+                                          setEditingPrice(product.price);
+                                        }}
+                                        title="Edit Price"
+                                      >
+                                        Edit
+                                      </button>
+                                      {(() => {
+                                        let firstOrder: { customer_name?: string; customer_phone?: string } | null = null;
+                                        product.order_items?.some(oi =>
+                                          (Array.isArray(oi.orders) ? oi.orders : oi.orders ? [oi.orders] : []).some(order => {
+                                            if (order.customer_phone) {
+                                              firstOrder = order;
+                                              return true;
+                                            }
+                                            return false;
+                                          })
+                                        );
+                                        if (firstOrder) {
+                                          return (
+                                            <a
+                                              href={`https://wa.me/${firstOrder?.customer_phone?.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                                                `Hi ${firstOrder?.customer_name}, the price for ${product.Product} has changed. Please check the latest update!`
+                                              )}`}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="inline-flex items-center px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition"
+                                              title="Notify all customers via WhatsApp"
+                                            >
+                                              <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                                                <path d="M20.52 3.48A12.07 12.07 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.16 1.6 5.97L0 24l6.18-1.62A11.94 11.94 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.19-1.24-6.19-3.48-8.52zM12 22c-1.85 0-3.68-.5-5.26-1.44l-.38-.22-3.67.96.98-3.58-.25-.37A9.94 9.94 0 0 1 2 12c0-5.52 4.48-10 10-10s10 4.48 10 10-4.48 10-10 10zm5.2-7.8c-.28-.14-1.65-.81-1.9-.9-.25-.09-.43-.14-.61.14-.18.28-.7.9-.86 1.08-.16.18-.32.2-.6.07-.28-.14-1.18-.44-2.25-1.4-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.12-.12.28-.32.42-.48.14-.16.18-.28.28-.46.09-.18.05-.34-.02-.48-.07-.14-.61-1.47-.84-2.01-.22-.53-.45-.46-.61-.47-.16-.01-.34-.01-.52-.01-.18 0-.48.07-.73.34-.25.28-.97.95-.97 2.3 0 1.35.99 2.65 1.13 2.83.14.18 1.95 2.98 4.74 4.06.66.28 1.18.45 1.58.58.66.21 1.26.18 1.73.11.53-.08 1.65-.67 1.88-1.32.23-.65.23-1.21.16-1.32-.07-.11-.25-.18-.53-.32z"/>
+                                              </svg>
+                                              Notify all
+                                            </a>
+                                          );
+                                        } else {
+                                          return (
+                                            <a
+                                              href={`https://wa.me/?text=${encodeURIComponent(
+                                                `The price for ${product.Product} has changed. Please check the latest update!`
+                                              )}`}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="inline-flex items-center px-2 py-1 bg-gray-400 text-white rounded cursor-not-allowed opacity-60"
+                                              title="No customer to notify"
+                                            >
+                                              <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                                                <path d="M20.52 3.48A12.07 12.07 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.16 1.6 5.97L0 24l6.18-1.62A11.94 11.94 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.19-1.24-6.19-3.48-8.52zM12 22c-1.85 0-3.68-.5-5.26-1.44l-.38-.22-3.67.96.98-3.58-.25-.37A9.94 9.94 0 0 1 2 12c0-5.52 4.48-10 10-10s10 4.48 10 10-4.48 10-10 10zm5.2-7.8c-.28-.14-1.65-.81-1.9-.9-.25-.09-.43-.14-.61.14-.18.28-.7.9-.86 1.08-.16.18-.32.2-.6.07-.28-.14-1.18-.44-2.25-1.4-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.12-.12.28-.32.42-.48.14-.16.18-.28.28-.46.09-.18.05-.34-.02-.48-.07-.14-.61-1.47-.84-2.01-.22-.53-.45-.46-.61-.47-.16-.01-.34-.01-.52-.01-.18 0-.48.07-.73.34-.25.28-.97.95-.97 2.3 0 1.35.99 2.65 1.13 2.83.14.18 1.95 2.98 4.74 4.06.66.28 1.18.45 1.58.58.66.21 1.26.18 1.73.11.53-.08 1.65-.67 1.88-1.32.23-.65.23-1.21.16-1.32-.07-.11-.25-.18-.53-.32z"/>
+                                              </svg>
+                                              Notify all
+                                            </a>
+                                          );
+                                        }
+                                      })()}
+                                    </>
+                                  )}
+                                </td>
+                                <td className="px-4 py-2">
+                                  {product.priceHistory && product.priceHistory.length > 0 ? (
+                                    <div className="flex flex-col space-y-1">
+                                      {product.priceHistory.map((ph, idx) => (
+                                        <span key={idx} className="text-xs text-gray-500">
+                                          ${ph.previous_price?.toFixed(2)}{" "}
+                                          <span className="text-gray-400">
+                                            ({ph.last_price_update ? new Date(ph.last_price_update).toLocaleDateString() : "No date"})
+                                          </span>
+                                        </span>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs text-gray-400">No history</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-2">
+                                  {product.order_items?.map((oi, idx) =>
+                                    (Array.isArray(oi.orders) ? oi.orders : oi.orders ? [oi.orders] : []).map((order, oidx) =>
+                                      order.customer_name && order.customer_phone ? (
+                                        <div key={oidx} className="flex items-center space-x-2 mb-1">
+                                          <span>{order.customer_name}</span>
+                                          <a
+                                            href={`https://wa.me/${order.customer_phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                                              `Hi ${order.customer_name}, the price for ${product.Product} has changed. Please check the latest update!`
+                                            )}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition"
+                                            title="Notify this customer via WhatsApp"
+                                          >
+                                            <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                                              <path d="M20.52 3.48A12.07 12.07 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.16 1.6 5.97L0 24l6.18-1.62A11.94 11.94 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.19-1.24-6.19-3.48-8.52zM12 22c-1.85 0-3.68-.5-5.26-1.44l-.38-.22-3.67.96.98-3.58-.25-.37A9.94 9.94 0 0 1 2 12c0-5.52 4.48-10 10-10s10 4.48 10 10-4.48 10-10 10zm5.2-7.8c-.28-.14-1.65-.81-1.9-.9-.25-.09-.43-.14-.61.14-.18.28-.7.9-.86 1.08-.16.18-.32.2-.6.07-.28-.14-1.18-.44-2.25-1.4-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.12-.12.28-.32.42-.48.14-.16.18-.28.28-.46.09-.18.05-.34-.02-.48-.07-.14-.61-1.47-.84-2.01-.22-.53-.45-.46-.61-.47-.16-.01-.34-.01-.52-.01-.18 0-.48.07-.73.34-.25.28-.97.95-.97 2.3 0 1.35.99 2.65 1.13 2.83.14.18 1.95 2.98 4.74 4.06.66.28 1.18.45 1.58.58.66.21 1.26.18 1.73.11.53-.08 1.65-.67 1.88-1.32.23-.65.23-1.21.16-1.32-.07-.11-.25-.18-.53-.32z"/>
+                                            </svg>
+                                            Notify
+                                          </a>
+                                        </div>
+                                      ) : null
+                                    )
+                                  )}
+                                </td>
                               </tr>
                             ))}
                           </tbody>
