@@ -1,31 +1,13 @@
-/** @type {import('next').NextConfig} */
-
-const nextConfig = {
+// next.config.mjs
+export default {
   images: {
     remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "hongguanmp.com.sg",
-        port: "",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "nextui.org",
-        port: "",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "res.cloudinary.com",
-        port: "",
-        pathname: "/**",
-      },
+      { protocol: "https", hostname: "hongguanmp.com.sg", pathname: "/**" },
+      { protocol: "https", hostname: "nextui.org", pathname: "/**" },
+      { protocol: "https", hostname: "res.cloudinary.com", pathname: "/**" },
     ],
   },
-  // experimental: {
-  //   ppr: "incremental",
-  // },
+  experimental: {
+    typedRoutes: false,
+  },
 };
-
-export default nextConfig;

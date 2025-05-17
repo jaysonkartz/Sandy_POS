@@ -21,10 +21,15 @@ export default function CreateForm<T>({
   createAction: (state: State, formData: FormData) => State | Promise<State>;
 }) {
   const initialState: State = { message: null };
-  const [formData, formAction] = useState(initialState);
+  const [state, setState] = useState(initialState);
+
+  async function handleSubmit(formData: FormData) {
+    const result = await createAction(state, formData);
+    setState(result);
+  }
 
   return (
-    <form action={formAction}>
+    <form action={handleSubmit}>
       <div className="rounded-md bg-gray-50 p-4 md:p-6">
         {inputFields.map(({ name, uid, type, required }) => (
           <div key={String(uid)} className="mb-4">
@@ -32,11 +37,11 @@ export default function CreateForm<T>({
               {name}
             </label>
             <Input
-              errorMessage={formData.errors?.[uid]?.[0]} // Using dynamic indexing safely
+              errorMessage={state.errors?.[uid]?.[0]}
               id={String(uid)}
               isInvalid={
-                formData.errors != undefined &&
-                formData.errors[String(uid)] != undefined
+                state.errors != undefined &&
+                state.errors[String(uid)] != undefined
               }
               isRequired={required}
               name={String(uid)}
@@ -45,8 +50,8 @@ export default function CreateForm<T>({
           </div>
         ))}
         <div aria-atomic="true" aria-live="polite">
-          {formData.message ? (
-            <p className="mt-2 text-sm text-red-500">{formData.message}</p>
+          {state.message ? (
+            <p className="mt-2 text-sm text-red-500">{state.message}</p>
           ) : null}
         </div>
       </div>

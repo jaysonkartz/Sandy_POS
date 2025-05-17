@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { motion, AnimatePresence } from 'framer-motion';
+import { LazyMotion, domAnimation, m } from 'framer-motion';
 
 interface Customer {
   id: number;
@@ -187,10 +187,17 @@ export default function CustomerManagement() {
       </div>
 
       {/* Add Customer Modal */}
-      <AnimatePresence>
+      <LazyMotion features={domAnimation}>
         {isModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <motion.div
+          <m.div
+            key="modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          >
+            <m.div
+              key="modal-content"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -202,9 +209,7 @@ export default function CustomerManagement() {
                   onClick={() => setIsModalOpen(false)}
                   className="text-gray-500 hover:text-gray-700"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  ✕
                 </button>
               </div>
               <form onSubmit={handleAddCustomer} className="space-y-4">
@@ -254,16 +259,23 @@ export default function CustomerManagement() {
                   </button>
                 </div>
               </form>
-            </motion.div>
-          </div>
+            </m.div>
+          </m.div>
         )}
-      </AnimatePresence>
+      </LazyMotion>
 
       {/* Edit Customer Modal */}
-      <AnimatePresence>
+      <LazyMotion features={domAnimation}>
         {editingCustomer && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <motion.div
+          <m.div
+            key="edit-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          >
+            <m.div
+              key="edit-modal-content"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -327,10 +339,10 @@ export default function CustomerManagement() {
                   </button>
                 </div>
               </div>
-            </motion.div>
-          </div>
+            </m.div>
+          </m.div>
         )}
-      </AnimatePresence>
+      </LazyMotion>
 
       {/* Customers List */}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
@@ -356,7 +368,7 @@ export default function CustomerManagement() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {customers.map((customer) => (
-                  <motion.tr
+                  <m.tr
                     key={customer.id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -390,7 +402,7 @@ export default function CustomerManagement() {
                         </button>
                       </div>
                     </td>
-                  </motion.tr>
+                  </m.tr>
                 ))}
               </tbody>
             </table>

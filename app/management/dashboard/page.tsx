@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import PricingManagement from "@/components/PricingManagement";
+//import PricingManagement from "@/components/PricingManagement";
 import Image from "next/image";
 import { Bar, Line, Pie } from "react-chartjs-2";
 import {
@@ -20,8 +20,9 @@ import {
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import EditUserModal from "@/components/EditUserModal";
 import CustomerManagement from "@/components/CustomerManagement";
-import ProductListTable from "@/components/ProductListTable";
+//import ProductListTable from "@/components/ProductListTable";
 import React from "react";
+import { useRouter } from "next/navigation";
 
 ChartJS.register(
   CategoryScale,
@@ -54,6 +55,10 @@ interface Product {
   id: number;
   Product: string;
   price: number;
+  priceHistory?: {
+    previous_price: number;
+    last_price_update: string;
+  }[];
   order_items?: {
     order_id: number;
     orders?: {
@@ -74,10 +79,10 @@ interface Country {
 interface OrderDetail {
   id: string;
   created_at: string;
-  order_number: string;
+  customer_name: string;
+  customer_phone: string;
   total_amount: number;
   status: string;
-  customer_email: string;
 }
 
 export default function ManagementDashboard() {
@@ -96,6 +101,13 @@ export default function ManagementDashboard() {
   const [selectedProduct, setSelectedProduct] = useState<number | null>(null);
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [editingPrice, setEditingPrice] = useState<number | null>(null);
+  const router = useRouter();
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10; // Number of orders per page
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [editingCustomer, setEditingCustomer] = useState<{orderItemId: number, price: number} | null>(null);
+  const [newCustomerPrice, setNewCustomerPrice] = useState<number | null>(null);
+  const [offerPrice, setOfferPrice] = useState<number | null>(null);
 
   const priceHistoryMap: Record<number, { previous_price: number; last_price_update: string }[]> = {};
 
@@ -145,6 +157,7 @@ export default function ManagementDashboard() {
             price,
             order_items (
               order_id,
+              price,
               orders (
                 customer_name,
                 customer_phone
@@ -197,16 +210,22 @@ export default function ManagementDashboard() {
     fetchCountries();
   }, []);
 
-  const fetchOrderDetails = async () => {
+  const fetchOrderDetails = async (page = 1) => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
+      // Fetch paginated orders
+      const { data, error, count } = await supabase
         .from('orders')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('id, created_at, customer_name, customer_phone, total_amount, status', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to);
 
       if (error) throw error;
       setOrderDetails(data || []);
+      setTotalOrders(count || 0);
     } catch (error) {
       console.error('Error fetching order details:', error);
     } finally {
@@ -216,9 +235,9 @@ export default function ManagementDashboard() {
 
   useEffect(() => {
     if (activeSection === 'history') {
-      fetchOrderDetails();
+      fetchOrderDetails(currentPage);
     }
-  }, [activeSection]);
+  }, [activeSection, currentPage]);
 
   const sections: DashboardSection[] = [
     {
@@ -704,150 +723,170 @@ export default function ManagementDashboard() {
                               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Product Name</th>
                               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
                               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Previous Prices</th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-100">
                             {country.products.map((product) => (
-                              <tr key={product.id}>
-                                <td className="px-4 py-2">{product.Product}</td>
-                                <td className="px-4 py-2 flex items-center space-x-2">
-                                  {editingProductId === product.id ? (
-                                    <>
-                                      <input
-                                        type="number"
-                                        value={editingPrice ?? product.price}
-                                        onChange={e => setEditingPrice(Number(e.target.value))}
-                                        className="border rounded px-2 py-1 w-20"
-                                      />
+                              <React.Fragment key={product.id}>
+                                <tr>
+                                  <td className="px-4 py-2">
+                                    <div className="flex items-center space-x-2">
                                       <button
-                                        className="text-green-600 font-bold"
-                                        onClick={async () => {
-                                          if (editingPrice === null || isNaN(editingPrice)) {
-                                            alert("Please enter a valid price.");
-                                            return;
-                                          }
-                                          setIsLoading(true);
+                                        onClick={() => setSelectedProduct(selectedProduct === product.id ? null : product.id)}
+                                        className="text-blue-600 hover:text-blue-800"
+                                      >
+                                        {selectedProduct === product.id ? '▼' : '▶'} {product.Product}
+                                      </button>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-2 flex items-center space-x-2">
+                                    {editingProductId === product.id ? (
+                                      <>
+                                        <input
+                                          type="number"
+                                          value={editingPrice ?? product.price}
+                                          onChange={e => setEditingPrice(Number(e.target.value))}
+                                          className="border rounded px-2 py-1 w-20"
+                                        />
+                                        <button
+                                          className="text-green-600 font-bold"
+                                          onClick={async () => {
+                                            if (editingPrice === null || isNaN(editingPrice)) {
+                                              alert("Please enter a valid price.");
+                                              return;
+                                            }
+                                            setIsLoading(true);
 
-                                          const { data: orderItems, error: orderItemsError } = await supabase
-                                            .from('order_items')
-                                            .select('order_id, orders(customer_id)')
-                                            .eq('product_id', product.id);
+                                            const { data: orderItems, error: orderItemsError } = await supabase
+                                              .from('order_items')
+                                              .select('order_id, orders(customer_id)')
+                                              .eq('product_id', product.id);
 
-                                          if (orderItemsError) {
-                                            alert("Failed to fetch order items: " + orderItemsError.message);
-                                            setIsLoading(false);
-                                            return;
-                                          }
+                                            if (orderItemsError) {
+                                              alert("Failed to fetch order items: " + orderItemsError.message);
+                                              setIsLoading(false);
+                                              return;
+                                            }
 
-                                          console.log("orderItems", orderItems);
+                                            console.log("orderItems", orderItems);
 
-                                          const uniqueCustomerIds = [
-                                            ...new Set(
-                                              (orderItems || [])
-                                                .map(oi => {
-                                                  if (Array.isArray(oi.orders)) {
-                                                    return oi.orders[0]?.customer_id;
-                                                  }
-                                                  return oi.orders?.customer_id;
-                                                })
-                                                .filter(cid => !!cid)
-                                            ),
-                                          ];
+                                            const uniqueCustomerIds = [
+                                              ...new Set(
+                                                (orderItems || [])
+                                                  .map(oi => {
+                                                    const orders = oi.orders as { customer_id?: string } | { customer_id?: string }[] | undefined;
+                                                    if (!orders) return null;
+                                                    if (Array.isArray(orders)) {
+                                                      return orders[0]?.customer_id ?? null;
+                                                    }
+                                                    return orders.customer_id ?? null;
+                                                  })
+                                                  .filter(cid => !!cid)
+                                              ),
+                                            ];
 
-                                          if (uniqueCustomerIds.length === 0) {
-                                            await supabase.from('product_price_history').insert([
-                                              {
-                                                product_id: product.id,
-                                                previous_price: product.price,
-                                                original_price: editingPrice,
-                                                last_price_update: new Date().toISOString(),
-                                                customer_id: null,
-                                              }
-                                            ]);
-                                          } else {
-                                            for (const customerId of uniqueCustomerIds) {
-                                              const { error: insertError } = await supabase.from('product_price_history').insert([
+                                            if (uniqueCustomerIds.length === 0) {
+                                              await supabase.from('product_price_history').insert([
                                                 {
                                                   product_id: product.id,
                                                   previous_price: product.price,
                                                   original_price: editingPrice,
                                                   last_price_update: new Date().toISOString(),
-                                                  customer_id: customerId,
+                                                  customer_id: null,
                                                 }
                                               ]);
-                                              if (insertError) {
-                                                alert("Failed to insert price history: " + insertError.message);
+                                            } else {
+                                              for (const customerId of uniqueCustomerIds) {
+                                                const { error: insertError } = await supabase.from('product_price_history').insert([
+                                                  {
+                                                    product_id: product.id,
+                                                    previous_price: product.price,
+                                                    original_price: editingPrice,
+                                                    last_price_update: new Date().toISOString(),
+                                                    customer_id: customerId,
+                                                  }
+                                                ]);
+                                                if (insertError) {
+                                                  alert("Failed to insert price history: " + insertError.message);
+                                                }
                                               }
                                             }
-                                          }
 
-                                          // Now update the product price
-                                          const { error: updateError } = await supabase
-                                            .from('products')
-                                            .update({ price: editingPrice })
-                                            .eq('id', product.id);
+                                            // Now update the product price
+                                            const { error: updateError } = await supabase
+                                              .from('products')
+                                              .update({ price: editingPrice })
+                                              .eq('id', product.id);
 
-                                          if (updateError) {
-                                            alert("Failed to update product price: " + updateError.message);
-                                            setIsLoading(false);
-                                            return;
-                                          }
-
-                                          setEditingProductId(null);
-                                          setEditingPrice(null);
-                                          setIsLoading(false);
-                                          fetchCountries();
-                                        }}
-                                        title="Save"
-                                      >
-                                        ✔
-                                      </button>
-                                      <button
-                                        className="text-gray-400 font-bold"
-                                        onClick={() => {
-                                          setEditingProductId(null);
-                                          setEditingPrice(null);
-                                        }}
-                                        title="Cancel"
-                                      >
-                                        ✖
-                                      </button>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <span>${product.price.toFixed(2)}</span>
-                                      <button
-                                        className="ml-2 text-blue-600 underline"
-                                        onClick={() => {
-                                          setEditingProductId(product.id);
-                                          setEditingPrice(product.price);
-                                        }}
-                                        title="Edit Price"
-                                      >
-                                        Edit
-                                      </button>
-                                      {(() => {
-                                        let firstOrder: { customer_name?: string; customer_phone?: string } | null = null;
-                                        product.order_items?.some(oi =>
-                                          (Array.isArray(oi.orders) ? oi.orders : oi.orders ? [oi.orders] : []).some(order => {
-                                            if (order.customer_phone) {
-                                              firstOrder = order;
-                                              return true;
+                                            if (updateError) {
+                                              alert("Failed to update product price: " + updateError.message);
+                                              setIsLoading(false);
+                                              return;
                                             }
-                                            return false;
-                                          })
-                                        );
-                                        if (firstOrder) {
+
+                                            setEditingProductId(null);
+                                            setEditingPrice(null);
+                                            setIsLoading(false);
+                                            fetchCountries();
+                                          }}
+                                          title="Save"
+                                        >
+                                          ✔
+                                        </button>
+                                        <button
+                                          className="text-gray-400 font-bold"
+                                          onClick={() => {
+                                            setEditingProductId(null);
+                                            setEditingPrice(null);
+                                          }}
+                                          title="Cancel"
+                                        >
+                                          ✖
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <span>${product.price.toFixed(2)}</span>
+                                        <button
+                                          className="ml-2 text-blue-600 underline"
+                                          onClick={() => {
+                                            setEditingProductId(product.id);
+                                            setEditingPrice(product.price);
+                                          }}
+                                          title="Edit Price"
+                                        >
+                                          Edit
+                                        </button>
+                                        {(() => {
+                                          // Find all customers for this product
+                                          const allCustomers = product.order_items
+                                            ?.flatMap(oiRaw => {
+                                              const oi = oiRaw as { price?: number; orders?: { customer_name: string; customer_phone: string }[] };
+                                              return Array.isArray(oi.orders) ? oi.orders : oi.orders ? [oi.orders] : [];
+                                            })
+                                            .filter(order => order.customer_phone);
+                                          const hasCustomers = allCustomers && allCustomers.length > 0;
+                                          const waText = hasCustomers
+                                            ? allCustomers
+                                                .map(
+                                                  order =>
+                                                    `Hi ${order.customer_name}, the price for ${product.Product} has changed. Please check the latest update!`
+                                                )
+                                                .join("%0A")
+                                            : '';
                                           return (
                                             <a
-                                              href={`https://wa.me/${firstOrder?.customer_phone?.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
-                                                `Hi ${firstOrder?.customer_name}, the price for ${product.Product} has changed. Please check the latest update!`
-                                              )}`}
+                                              href={hasCustomers ? `https://wa.me/?text=${waText}` : undefined}
                                               target="_blank"
                                               rel="noopener noreferrer"
-                                              className="inline-flex items-center px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition"
-                                              title="Notify all customers via WhatsApp"
+                                              className={`inline-flex items-center px-2 py-1 ${
+                                                hasCustomers
+                                                  ? 'bg-green-500 hover:bg-green-600 cursor-pointer'
+                                                  : 'bg-gray-400 cursor-not-allowed opacity-60'
+                                              } text-white rounded transition ml-2`}
+                                              title={hasCustomers ? 'Notify all customers via WhatsApp' : 'No customer to notify'}
+                                              tabIndex={hasCustomers ? 0 : -1}
+                                              aria-disabled={!hasCustomers}
                                             >
                                               <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24">
                                                 <path d="M20.52 3.48A12.07 12.07 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.16 1.6 5.97L0 24l6.18-1.62A11.94 11.94 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.19-1.24-6.19-3.48-8.52zM12 22c-1.85 0-3.68-.5-5.26-1.44l-.38-.22-3.67.96.98-3.58-.25-.37A9.94 9.94 0 0 1 2 12c0-5.52 4.48-10 10-10s10 4.48 10 10-4.48 10-10 10zm5.2-7.8c-.28-.14-1.65-.81-1.9-.9-.25-.09-.43-.14-.61.14-.18.28-.7.9-.86 1.08-.16.18-.32.2-.6.07-.28-.14-1.18-.44-2.25-1.4-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.12-.12.28-.32.42-.48.14-.16.18-.28.28-.46.09-.18.05-.34-.02-.48-.07-.14-.61-1.47-.84-2.01-.22-.53-.45-.46-.61-.47-.16-.01-.34-.01-.52-.01-.18 0-.48.07-.73.34-.25.28-.97.95-.97 2.3 0 1.35.99 2.65 1.13 2.83.14.18 1.95 2.98 4.74 4.06.66.28 1.18.45 1.58.58.66.21 1.26.18 1.73.11.53-.08 1.65-.67 1.88-1.32.23-.65.23-1.21.16-1.32-.07-.11-.25-.18-.53-.32z"/>
@@ -855,70 +894,81 @@ export default function ManagementDashboard() {
                                               Notify all
                                             </a>
                                           );
-                                        } else {
-                                          return (
-                                            <a
-                                              href={`https://wa.me/?text=${encodeURIComponent(
-                                                `The price for ${product.Product} has changed. Please check the latest update!`
-                                              )}`}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="inline-flex items-center px-2 py-1 bg-gray-400 text-white rounded cursor-not-allowed opacity-60"
-                                              title="No customer to notify"
-                                            >
-                                              <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24">
-                                                <path d="M20.52 3.48A12.07 12.07 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.16 1.6 5.97L0 24l6.18-1.62A11.94 11.94 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.19-1.24-6.19-3.48-8.52zM12 22c-1.85 0-3.68-.5-5.26-1.44l-.38-.22-3.67.96.98-3.58-.25-.37A9.94 9.94 0 0 1 2 12c0-5.52 4.48-10 10-10s10 4.48 10 10-4.48 10-10 10zm5.2-7.8c-.28-.14-1.65-.81-1.9-.9-.25-.09-.43-.14-.61.14-.18.28-.7.9-.86 1.08-.16.18-.32.2-.6.07-.28-.14-1.18-.44-2.25-1.4-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.12-.12.28-.32.42-.48.14-.16.18-.28.28-.46.09-.18.05-.34-.02-.48-.07-.14-.61-1.47-.84-2.01-.22-.53-.45-.46-.61-.47-.16-.01-.34-.01-.52-.01-.18 0-.48.07-.73.34-.25.28-.97.95-.97 2.3 0 1.35.99 2.65 1.13 2.83.14.18 1.95 2.98 4.74 4.06.66.28 1.18.45 1.58.58.66.21 1.26.18 1.73.11.53-.08 1.65-.67 1.88-1.32.23-.65.23-1.21.16-1.32-.07-.11-.25-.18-.53-.32z"/>
-                                              </svg>
-                                              Notify all
-                                            </a>
-                                          );
-                                        }
-                                      })()}
-                                    </>
-                                  )}
-                                </td>
-                                <td className="px-4 py-2">
-                                  {product.priceHistory && product.priceHistory.length > 0 ? (
-                                    <div className="flex flex-col space-y-1">
-                                      {product.priceHistory.map((ph, idx) => (
-                                        <span key={idx} className="text-xs text-gray-500">
-                                          ${ph.previous_price?.toFixed(2)}{" "}
-                                          <span className="text-gray-400">
-                                            ({ph.last_price_update ? new Date(ph.last_price_update).toLocaleDateString() : "No date"})
+                                        })()}
+                                      </>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-2">
+                                    {product.priceHistory && product.priceHistory.length > 0 ? (
+                                      <div className="flex flex-col space-y-1">
+                                        {product.priceHistory.map((ph, idx) => (
+                                          <span key={idx} className="text-xs text-gray-500">
+                                            ${ph.previous_price?.toFixed(2)}{" "}
+                                            <span className="text-gray-400">
+                                              ({ph.last_price_update ? new Date(ph.last_price_update).toLocaleDateString() : "No date"})
+                                            </span>
                                           </span>
-                                        </span>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <span className="text-xs text-gray-400">No history</span>
-                                  )}
-                                </td>
-                                <td className="px-4 py-2">
-                                  {product.order_items?.map((oi, idx) =>
-                                    (Array.isArray(oi.orders) ? oi.orders : oi.orders ? [oi.orders] : []).map((order, oidx) =>
-                                      order.customer_name && order.customer_phone ? (
-                                        <div key={oidx} className="flex items-center space-x-2 mb-1">
-                                          <span>{order.customer_name}</span>
-                                          <a
-                                            href={`https://wa.me/${order.customer_phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
-                                              `Hi ${order.customer_name}, the price for ${product.Product} has changed. Please check the latest update!`
-                                            )}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-flex items-center px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition"
-                                            title="Notify this customer via WhatsApp"
-                                          >
-                                            <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24">
-                                              <path d="M20.52 3.48A12.07 12.07 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.16 1.6 5.97L0 24l6.18-1.62A11.94 11.94 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.19-1.24-6.19-3.48-8.52zM12 22c-1.85 0-3.68-.5-5.26-1.44l-.38-.22-3.67.96.98-3.58-.25-.37A9.94 9.94 0 0 1 2 12c0-5.52 4.48-10 10-10s10 4.48 10 10-4.48 10-10 10zm5.2-7.8c-.28-.14-1.65-.81-1.9-.9-.25-.09-.43-.14-.61.14-.18.28-.7.9-.86 1.08-.16.18-.32.2-.6.07-.28-.14-1.18-.44-2.25-1.4-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.12-.12.28-.32.42-.48.14-.16.18-.28.28-.46.09-.18.05-.34-.02-.48-.07-.14-.61-1.47-.84-2.01-.22-.53-.45-.46-.61-.47-.16-.01-.34-.01-.52-.01-.18 0-.48.07-.73.34-.25.28-.97.95-.97 2.3 0 1.35.99 2.65 1.13 2.83.14.18 1.95 2.98 4.74 4.06.66.28 1.18.45 1.58.58.66.21 1.26.18 1.73.11.53-.08 1.65-.67 1.88-1.32.23-.65.23-1.21.16-1.32-.07-.11-.25-.18-.53-.32z"/>
-                                            </svg>
-                                            Notify
-                                          </a>
-                                        </div>
-                                      ) : null
-                                    )
-                                  )}
-                                </td>
-                              </tr>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <span className="text-xs text-gray-400">No history</span>
+                                    )}
+                                  </td>
+                                </tr>
+                                {selectedProduct === product.id && (
+                                  <tr>
+                                    <td colSpan={3} className="px-4 py-2 bg-gray-50">
+                                      <div className="pl-8">
+                                        <h4 className="font-medium text-gray-700 mb-2">Customers:</h4>
+                                        {product.order_items?.map((oiRaw, idx) => {
+                                          const oi = oiRaw as { order_id: number; price?: number; orders?: { customer_name: string; customer_phone: string; customer_id?: string }[] };
+                                          return (Array.isArray(oi.orders) ? oi.orders : oi.orders ? [oi.orders] : []).map((order, oidx) => {
+                                            // Use oi.price as the past price for this customer
+                                            return (
+                                              <div key={oidx} className="flex items-center space-x-2 mb-1">
+                                                <span>{order.customer_name}</span>
+                                                {oi.price !== undefined && (
+                                                  <span className="text-xs text-gray-500">
+                                                    Past price: ${oi.price?.toFixed(2)}
+                                                  </span>
+                                                )}
+                                                <input
+                                                  type="number"
+                                                  value={offerPrice ?? ''}
+                                                  onChange={e => setOfferPrice(Number(e.target.value))}
+                                                  placeholder="Offer new price"
+                                                />
+                                                <button
+                                                  onClick={async () => {
+                                                    if (!order.customer_id) {
+                                                      alert('Customer ID not found!');
+                                                      return;
+                                                    }
+                                                    await supabase.from('price_offers').insert([
+                                                      {
+                                                        customer_id: order.customer_id,
+                                                        product_id: product.id,
+                                                        offered_price: offerPrice,
+                                                        status: 'pending',
+                                                        created_at: new Date().toISOString(),
+                                                      }
+                                                    ]);
+                                                  }}
+                                                >
+                                                  Send Offer
+                                                </button>
+                                              </div>
+                                            );
+                                          });
+                                        })}
+                                        {(!product.order_items || product.order_items.length === 0) && (
+                                          <span className="text-gray-500">No customers found</span>
+                                        )}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </React.Fragment>
                             ))}
                           </tbody>
                         </table>
@@ -942,7 +992,7 @@ export default function ManagementDashboard() {
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-semibold">Transaction History</h2>
               <button
-                onClick={fetchOrderDetails}
+                onClick={() => fetchOrderDetails(currentPage)}
                 className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
               >
                 Refresh
@@ -980,16 +1030,17 @@ export default function ManagementDashboard() {
                       {orderDetails.map((order) => (
                         <tr key={order.id}>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            {order.order_number}
+                            {order.id}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             {new Date(order.created_at).toLocaleDateString()}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            {order.customer_email}
+                            {order.customer_name}
+                            {order.customer_phone ? ` (${order.customer_phone})` : ''}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            ${order.total_amount.toFixed(2)}
+                            ${order.total_amount?.toFixed(2)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span
@@ -1011,6 +1062,26 @@ export default function ManagementDashboard() {
                 </div>
               </div>
             )}
+
+            <div className="flex justify-between items-center mt-4">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <span>
+                Page {currentPage} of {Math.ceil(totalOrders / pageSize)}
+              </span>
+              <button
+                onClick={() => setCurrentPage((p) => p + 1)}
+                disabled={currentPage * pageSize >= totalOrders}
+                className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
           </motion.div>
         );
       case "customers":
@@ -1070,6 +1141,14 @@ export default function ManagementDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <div className="p-4">
+        <button
+          onClick={() => router.push("/")}
+          className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition mb-4"
+        >
+          ← Back to Homepage
+        </button>
+      </div>
       <div className="flex">
         <motion.div
           initial={false}
@@ -1098,32 +1177,30 @@ export default function ManagementDashboard() {
               )}
             </div>
             <nav className="p-4">
-              <AnimatePresence>
-                {sections.map((section) => (
-                  <motion.button
-                    key={section.id}
-                    onClick={() => {
-                      setActiveSection(section.id);
-                      if (isMobile) setSidebarOpen(false);
-                    }}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg mb-2 transition-all ${
-                      activeSection === section.id
-                        ? "bg-blue-100 text-blue-600"
-                        : "hover:bg-gray-100"
-                    }`}
-                  >
-                    {section.icon}
-                    <div className="text-left">
-                      <span className="block font-medium">{section.title}</span>
-                      <span className="text-xs text-gray-500">
-                        {section.description}
-                      </span>
-                    </div>
-                  </motion.button>
-                ))}
-              </AnimatePresence>
+              {sections.map((section) => (
+                <motion.button
+                  key={section.id}
+                  onClick={() => {
+                    setActiveSection(section.id);
+                    if (isMobile) setSidebarOpen(false);
+                  }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg mb-2 transition-all ${
+                    activeSection === section.id
+                      ? "bg-blue-100 text-blue-600"
+                      : "hover:bg-gray-100"
+                  }`}
+                >
+                  {section.icon}
+                  <div className="text-left">
+                    <span className="block font-medium">{section.title}</span>
+                    <span className="text-xs text-gray-500">
+                      {section.description}
+                    </span>
+                  </div>
+                </motion.button>
+              ))}
             </nav>
           </div>
         </motion.div>

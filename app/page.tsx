@@ -8,6 +8,8 @@ import Image from 'next/image';
 import { Tag, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import React from 'react';
+import { Session } from '@supabase/auth-helpers-nextjs';
+import { AuthChangeEvent } from '@supabase/supabase-js';
 
 interface Product {
   id: number;
@@ -50,8 +52,9 @@ export default function Home() {
   const [expandedCountries, setExpandedCountries] = useState<string[]>([]);
   const [expandedProducts, setExpandedProducts] = useState<number[]>([]);
   const supabase = createClientComponentClient();
-  const { addToCart, cart } = useCart();
+  const { addToCart, cart, updateQuantity } = useCart();
   const [session, setSession] = useState<any>(null);
+  const router = useRouter();
 
   useEffect(() => {
     async function fetchProducts() {
@@ -101,15 +104,13 @@ export default function Home() {
   }, [supabase.auth]);
 
   // Get category name by id
-  const getCategoryName = (categoryNumber: number) => {
-    const categoryKey = Object.keys(CATEGORIES)[categoryNumber - 1];
-    return categoryKey ? CATEGORIES[categoryKey as keyof typeof CATEGORIES] : 'Unknown Category';
+  const getCategoryName = (category: string) => {
+    return CATEGORIES[category as keyof typeof CATEGORIES] || 'Unknown Category';
   };
 
   // Get category Chinese name
-  const getCategoryChineseName = (categoryNumber: number) => {
-    const categoryKey = Object.keys(CATEGORIES)[categoryNumber - 1];
-    return categoryKey ? CATEGORIES[categoryKey as keyof typeof CATEGORIES] : '';
+  const getCategoryChineseName = (category: string) => {
+    return CATEGORIES[category as keyof typeof CATEGORIES] || '';
   };
 
   //Send Whatsapp enquiry
@@ -257,7 +258,7 @@ Please check the admin panel for more details.
         customerName,
         totalAmount,
         items: selectedProducts.map(item => ({
-          productName: isEnglish ? item.product.Product : item.product.Product_CH,
+          productName: isEnglish ? item.product.Product : (item.product.Product_CH || item.product.Product),
           quantity: item.quantity,
           price: item.product.price
         }))
@@ -306,8 +307,28 @@ Please check the admin panel for more details.
 
   return (
     <div className="container mx-auto p-4">
-      {/* Category Filter */}
-      <div className="mb-6">
+      {/* Language Toggle and Category Filter */}
+      <div className="flex justify-between items-center mb-6">
+        <button
+          onClick={() => setIsEnglish(!isEnglish)}
+          className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors flex items-center gap-2"
+        >
+          <span>{isEnglish ? '中文' : 'English'}</span>
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M3 5h12M9 3v18m0-18l-4 4m4-4l4 4"
+            />
+          </svg>
+        </button>
+
         <select 
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(e.target.value)}
@@ -378,7 +399,7 @@ Please check the admin panel for more details.
                   </div>
                 ) : (
                   <button
-                    onClick={() => setIsModalOpen(true)}
+                    onClick={() => router.push('/login')}
                     className="mb-4 text-blue-600 hover:text-blue-900"
                   >
                     {isEnglish ? 'Login to see price' : '登录查看价格'}
@@ -557,6 +578,71 @@ Please check the admin panel for more details.
           </motion.div>
         </div>
       )}
+
+      {/* Transaction History Section */}
+      {session && (
+        <TransactionHistory userId={session.user.id} />
+      )}
+    </div>
+  );
+}
+
+function TransactionHistory({ userId }: { userId: string }) {
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      const supabase = createClientComponentClient();
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+      if (!error) setOrders(data || []);
+      setLoading(false);
+    };
+    fetchOrders();
+  }, [userId]);
+
+  if (loading) return <div className="mt-8">Loading transaction history...</div>;
+  if (orders.length === 0) return null;
+
+  return (
+    <div className="mt-12">
+      <h2 className="text-2xl font-bold mb-4">Transaction History</h2>
+      <table className="min-w-full divide-y divide-gray-200 bg-white rounded-lg shadow">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order Number</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {orders.map(order => (
+            <tr key={order.id}>
+              <td className="px-6 py-4">{order.id}</td>
+              <td className="px-6 py-4">{new Date(order.created_at).toLocaleDateString()}</td>
+              <td className="px-6 py-4">{order.customer_name}{order.customer_phone ? ` (${order.customer_phone})` : ''}</td>
+              <td className="px-6 py-4">${order.total_amount?.toFixed(2)}</td>
+              <td className="px-6 py-4">
+                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                  order.status === 'completed'
+                    ? 'bg-green-100 text-green-800'
+                    : order.status === 'pending'
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {order.status}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

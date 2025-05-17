@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import React from "react";
 
 interface Product {
   id: number;
@@ -14,7 +15,6 @@ interface Product {
   lastUpdated: string;
 }
 
-// Sample data
 const sampleProducts: Product[] = [
   {
     id: 1,
@@ -68,34 +68,20 @@ export default function ProductListTable() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Product
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Category
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Price
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Stock
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Last Updated
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
+              {["Product", "Category", "Price", "Stock", "Status", "Last Updated", "Actions"].map((header) => (
+                <th
+                  key={header}
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  {header}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {products.map((product) => (
-              <>
+              <React.Fragment key={product.id}>
                 <tr
-                  key={product.id}
                   className="hover:bg-gray-50 cursor-pointer"
                   onClick={() => toggleRow(product.id)}
                 >
@@ -113,37 +99,24 @@ export default function ProductListTable() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {product.category}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      ${product.price.toFixed(2)}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{product.stock}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4 text-sm text-gray-900">{product.category}</td>
+                  <td className="px-6 py-4 text-sm text-gray-900">${product.price.toFixed(2)}</td>
+                  <td className="px-6 py-4 text-sm text-gray-900">{product.stock}</td>
+                  <td className="px-6 py-4">
                     <span
-                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                      ${
+                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                         product.status === "In Stock"
                           ? "bg-green-100 text-green-800"
                           : product.status === "Low Stock"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-red-100 text-red-800"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-red-100 text-red-800"
                       }`}
                     >
                       {product.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {product.lastUpdated}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 text-sm text-gray-500">{product.lastUpdated}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -159,111 +132,45 @@ export default function ProductListTable() {
                     </button>
                   </td>
                 </tr>
-                <AnimatePresence>
-                  {expandedRow === product.id && (
-                    <motion.tr
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="bg-gray-50"
-                    >
-                      <td colSpan={7} className="px-6 py-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <h4 className="text-sm font-medium text-gray-900 mb-2">
-                              Product Details
-                            </h4>
-                            <div className="space-y-2 text-sm text-gray-600">
-                              <p>
-                                <span className="font-medium">SKU:</span> PRD-
-                                {product.id.toString().padStart(4, "0")}
-                              </p>
-                              <p>
-                                <span className="font-medium">Supplier:</span>{" "}
-                                Global Spices Inc.
-                              </p>
-                              <p>
-                                <span className="font-medium">
-                                  Minimum Stock:
-                                </span>{" "}
-                                10 units
-                              </p>
-                            </div>
-                          </div>
-                          <div>
-                            <h4 className="text-sm font-medium text-gray-900 mb-2">
-                              Pricing History
-                            </h4>
-                            <div className="space-y-2 text-sm text-gray-600">
-                              <p>
-                                <span className="font-medium">
-                                  Original Price:
-                                </span>{" "}
-                                ${(product.price * 1.2).toFixed(2)}
-                              </p>
-                              <p>
-                                <span className="font-medium">Discount:</span>{" "}
-                                20%
-                              </p>
-                              <p>
-                                <span className="font-medium">
-                                  Last Price Update:
-                                </span>{" "}
-                                2024-03-01
-                              </p>
-                            </div>
-                          </div>
-                          <div>
-                            <h4 className="text-sm font-medium text-gray-900 mb-2">
-                              Customer Pricing
-                            </h4>
-                            <div className="space-y-2 text-sm text-gray-600">
-                              <p>
-                                <span className="font-medium">Customer A:</span>{" "}
-                                ${(product.price * 0.9).toFixed(2)}
-                              </p>
-                              <p>
-                                <span className="font-medium">Customer B:</span>{" "}
-                                ${(product.price * 0.95).toFixed(2)}
-                              </p>
-                              <p>
-                                <span className="font-medium">Customer C:</span>{" "}
-                                ${(product.price * 0.85).toFixed(2)}
-                              </p>
-                            </div>
-                          </div>
-                          <div>
-                            <h4 className="text-sm font-medium text-gray-900 mb-2">
-                              Stock History
-                            </h4>
-                            <div className="space-y-2 text-sm text-gray-600">
-                              <p>
-                                <span className="font-medium">
-                                  Last Restock:
-                                </span>{" "}
-                                2024-03-10
-                              </p>
-                              <p>
-                                <span className="font-medium">
-                                  Restock Quantity:
-                                </span>{" "}
-                                50 units
-                              </p>
-                              <p>
-                                <span className="font-medium">
-                                  Next Restock:
-                                </span>{" "}
-                                2024-03-25
-                              </p>
-                            </div>
-                          </div>
+                {expandedRow === product.id && (
+                  <motion.tr
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="bg-gray-50"
+                  >
+                    <td colSpan={7} className="px-6 py-4">
+                      <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                        <div>
+                          <h4 className="text-gray-900 font-medium mb-2">Product Details</h4>
+                          <p><span className="font-medium">SKU:</span> PRD-{product.id.toString().padStart(4, "0")}</p>
+                          <p><span className="font-medium">Supplier:</span> Global Spices Inc.</p>
+                          <p><span className="font-medium">Minimum Stock:</span> 10 units</p>
                         </div>
-                      </td>
-                    </motion.tr>
-                  )}
-                </AnimatePresence>
-              </>
+                        <div>
+                          <h4 className="text-gray-900 font-medium mb-2">Pricing History</h4>
+                          <p><span className="font-medium">Original Price:</span> ${(product.price * 1.2).toFixed(2)}</p>
+                          <p><span className="font-medium">Discount:</span> 20%</p>
+                          <p><span className="font-medium">Last Price Update:</span> 2024-03-01</p>
+                        </div>
+                        <div>
+                          <h4 className="text-gray-900 font-medium mb-2">Customer Pricing</h4>
+                          <p><span className="font-medium">Customer A:</span> ${(product.price * 0.9).toFixed(2)}</p>
+                          <p><span className="font-medium">Customer B:</span> ${(product.price * 0.95).toFixed(2)}</p>
+                          <p><span className="font-medium">Customer C:</span> ${(product.price * 0.85).toFixed(2)}</p>
+                        </div>
+                        <div>
+                          <h4 className="text-gray-900 font-medium mb-2">Stock History</h4>
+                          <p><span className="font-medium">Last Restock:</span> 2024-03-10</p>
+                          <p><span className="font-medium">Restock Quantity:</span> 50 units</p>
+                          <p><span className="font-medium">Next Restock:</span> 2024-03-25</p>
+                        </div>
+                      </div>
+                    </td>
+                  </motion.tr>
+                )}
+              </React.Fragment>
             ))}
           </tbody>
         </table>

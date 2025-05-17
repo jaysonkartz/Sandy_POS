@@ -19,8 +19,14 @@ export const metadata: Metadata = {
   title: `Edit ${PAGE_CONTEXT.ENTITY}`,
 };
 
-export default async function Page({ params }: { params: { id: string } }) {
-  const id = params.id;
+type Props = {
+  params: Promise<{ id: string }>;
+  searchParams: { [key: string]: string | string[] | undefined };
+}
+
+export default async function Page({ params }: Props) {
+  const resolvedParams = await params;
+  const id = resolvedParams.id;
   const entityOfId = await FETCH_BY_ID(id);
   const updateWithId = UPDATE_ACTION.bind(null, id);
 

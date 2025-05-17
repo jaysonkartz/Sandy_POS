@@ -19,7 +19,12 @@ export const metadata: Metadata = {
   title: `Edit ${PAGE_CONTEXT.ENTITY}`,
 };
 
-export default async function Page({ params }: { params: { id: string } }) {
+type Props = {
+  params: { id: string };
+  searchParams: { [key: string]: string | string[] | undefined };
+}
+
+export default async function Page({ params }: Props) {
   const id = params.id;
   const CURR_PAGE = `${PAGE_CONTEXT.BASE_URL}/${id}/edit`;
   const entityOfId = await FETCH_BY_ID(id);
