@@ -10,8 +10,8 @@ import {
   Tooltip,
   Legend,
   ArcElement,
-} from 'chart.js';
-import { Line, Bar, Pie } from 'react-chartjs-2';
+} from "chart.js";
+import { Line, Bar, Pie } from "react-chartjs-2";
 
 // Register ChartJS components
 ChartJS.register(
@@ -40,7 +40,7 @@ interface OrderHistoryChartsProps {
 export default function OrderHistoryCharts({ orders }: OrderHistoryChartsProps) {
   // Process data for monthly sales
   const monthlySales = orders.reduce((acc: { [key: string]: number }, order) => {
-    const month = new Date(order.created_at).toLocaleString('default', { month: 'short' });
+    const month = new Date(order.created_at).toLocaleString("default", { month: "short" });
     acc[month] = (acc[month] || 0) + order.total_amount;
     return acc;
   }, {});
@@ -56,9 +56,9 @@ export default function OrderHistoryCharts({ orders }: OrderHistoryChartsProps) 
     labels: Object.keys(monthlySales),
     datasets: [
       {
-        label: 'Monthly Sales',
+        label: "Monthly Sales",
         data: Object.values(monthlySales),
-        borderColor: 'rgb(75, 192, 192)',
+        borderColor: "rgb(75, 192, 192)",
         tension: 0.1,
       },
     ],
@@ -71,10 +71,10 @@ export default function OrderHistoryCharts({ orders }: OrderHistoryChartsProps) 
       {
         data: Object.values(orderStatus),
         backgroundColor: [
-          'rgb(255, 99, 132)',
-          'rgb(54, 162, 235)',
-          'rgb(255, 206, 86)',
-          'rgb(75, 192, 192)',
+          "rgb(255, 99, 132)",
+          "rgb(54, 162, 235)",
+          "rgb(255, 206, 86)",
+          "rgb(75, 192, 192)",
         ],
       },
     ],
@@ -91,9 +91,9 @@ export default function OrderHistoryCharts({ orders }: OrderHistoryChartsProps) 
     labels: Object.keys(dailyOrders),
     datasets: [
       {
-        label: 'Daily Orders',
+        label: "Daily Orders",
         data: Object.values(dailyOrders),
-        backgroundColor: 'rgba(53, 162, 235, 0.5)',
+        backgroundColor: "rgba(53, 162, 235, 0.5)",
       },
     ],
   };
@@ -110,7 +110,7 @@ export default function OrderHistoryCharts({ orders }: OrderHistoryChartsProps) 
               responsive: true,
               plugins: {
                 legend: {
-                  position: 'top' as const,
+                  position: "top" as const,
                 },
               },
               scales: {
@@ -131,7 +131,7 @@ export default function OrderHistoryCharts({ orders }: OrderHistoryChartsProps) 
               responsive: true,
               plugins: {
                 legend: {
-                  position: 'top' as const,
+                  position: "top" as const,
                 },
               },
             }}
@@ -147,7 +147,7 @@ export default function OrderHistoryCharts({ orders }: OrderHistoryChartsProps) 
               responsive: true,
               plugins: {
                 legend: {
-                  position: 'top' as const,
+                  position: "top" as const,
                 },
               },
               scales: {
@@ -175,10 +175,13 @@ export default function OrderHistoryCharts({ orders }: OrderHistoryChartsProps) 
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-lg font-medium text-gray-900">Average Order Value</h3>
           <p className="text-3xl font-bold text-purple-600">
-            ${(orders.reduce((sum, order) => sum + order.total_amount, 0) / orders.length).toFixed(2)}
+            $
+            {(orders.reduce((sum, order) => sum + order.total_amount, 0) / orders.length).toFixed(
+              2
+            )}
           </p>
         </div>
       </div>
     </div>
   );
-} 
+}

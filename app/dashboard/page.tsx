@@ -1,14 +1,11 @@
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
-import ProductCategory from './components/ProductCategory';
+import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
+import ProductCategory from "./components/ProductCategory";
 
 export default async function DashboardPage() {
   const supabase = createServerComponentClient({ cookies });
 
-  const { data: categories, error } = await supabase
-    .from('categories')
-    .select('*')
-    .order('name');
+  const { data: categories, error } = await supabase.from("categories").select("*").order("name");
 
   if (error) {
     return <div>Error loading categories</div>;
@@ -24,11 +21,11 @@ export default async function DashboardPage() {
       {categories.map((category) => (
         <ProductCategory
           key={category.id}
-          name={category.name}
           categoryId={Number(category.id)}
+          name={category.name}
           products={[]}
         />
       ))}
     </div>
   );
-} 
+}

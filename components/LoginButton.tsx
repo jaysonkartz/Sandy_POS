@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { User } from '@supabase/supabase-js';
-import { Database } from '@/types/supabase';
-import CustomerLoginModal from './CustomerLoginModal';
+import { useState, useEffect } from "react";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { User } from "@supabase/supabase-js";
+import { Database } from "@/types/supabase";
+import CustomerLoginModal from "./CustomerLoginModal";
 
 export default function LoginButton() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -13,13 +13,17 @@ export default function LoginButton() {
 
   useEffect(() => {
     const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       setUser(user);
     };
-    
+
     checkUser();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
 
@@ -31,26 +35,28 @@ export default function LoginButton() {
   return (
     <>
       <button
-        onClick={() => setIsModalOpen(true)}
         className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+        onClick={() => setIsModalOpen(true)}
       >
         {user ? (
           <div className="flex items-center space-x-2">
             <span>{user.email}</span>
             {/* Optional: Add a dropdown arrow or user icon */}
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              <path
+                d="M19 9l-7 7-7-7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+              />
             </svg>
           </div>
         ) : (
-          'Login'
+          "Login"
         )}
       </button>
 
-      <CustomerLoginModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-      />
+      <CustomerLoginModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </>
   );
-} 
+}

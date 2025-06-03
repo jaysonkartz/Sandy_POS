@@ -17,9 +17,7 @@ export default async function CustomersTable({
 
   return (
     <div className="w-full">
-      <h1 className={`${lusitana.className} mb-8 text-xl md:text-2xl`}>
-        Customers
-      </h1>
+      <h1 className={`${lusitana.className} mb-8 text-xl md:text-2xl`}>Customers</h1>
       <div className="mt-4 flex items-center justify-between gap-2 md:mt-8">
         <Search placeholder="Search customers..." />
       </div>
@@ -29,10 +27,7 @@ export default async function CustomersTable({
             <div className="overflow-hidden rounded-md bg-gray-50 p-2 md:pt-0">
               <div className="md:hidden">
                 {customers?.map((customer) => (
-                  <div
-                    key={customer.id}
-                    className="mb-2 w-full rounded-md bg-white p-4"
-                  >
+                  <div key={customer.id} className="mb-2 w-full rounded-md bg-white p-4">
                     <div className="flex items-center justify-between border-b pb-4">
                       <div>
                         <div className="mb-2 flex items-center">
@@ -47,9 +42,7 @@ export default async function CustomersTable({
                             <p>{customer.name}</p>
                           </div>
                         </div>
-                        <p className="text-sm text-gray-500">
-                          {customer.email}
-                        </p>
+                        <p className="text-sm text-gray-500">{customer.email}</p>
                       </div>
                     </div>
                     <div className="flex w-full items-center justify-between border-b py-5">
@@ -152,8 +145,7 @@ export default async function CustomersTable({
                       <td
                         className={
                           customer.oldest_unpaid_invoice_date !== null
-                            ? new Date(customer.oldest_unpaid_invoice_date) >
-                              agedDate
+                            ? new Date(customer.oldest_unpaid_invoice_date) > agedDate
                               ? "whitespace-nowrap bg-white px-4 py-5 text-sm group-first-of-type:rounded-md group-last-of-type:rounded-md"
                               : "whitespace-nowrap bg-yellow-300 px-4 py-5 text-sm group-first-of-type:rounded-md group-last-of-type:rounded-md"
                             : "whitespace-nowrap bg-white px-4 py-5 text-sm group-first-of-type:rounded-md group-last-of-type:rounded-md"

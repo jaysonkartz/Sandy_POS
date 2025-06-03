@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
-import Link from 'next/link';
-import CustomerLoginModal from './CustomerLoginModal';
+import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
+import CustomerLoginModal from "./CustomerLoginModal";
 
-import TopBarLogin from './TopBarLogin';
+import TopBarLogin from "./TopBarLogin";
 
 export default function Header() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -13,29 +13,28 @@ export default function Header() {
   const pathname = usePathname();
 
   useEffect(() => {
-    const token = localStorage.getItem('customerToken');
+    const token = localStorage.getItem("customerToken");
     setIsLoggedIn(!!token);
   }, []);
 
   return (
     <>
       <header className="flex justify-between items-center p-4 bg-white shadow-md">
-        <Link href="/management" className="logo hover:opacity-80 transition-opacity">
-          <img src="/HongGuan_Icon.jpg" alt="HongGuan Logo" className="h-12 rounded-lg" />
+        <Link className="logo hover:opacity-80 transition-opacity" href="/management">
+          <img alt="HongGuan Logo" className="h-12 rounded-lg" src="/HongGuan_Icon.jpg" />
         </Link>
-        {(pathname === '/dashboard' || pathname === '/') && (
+        {(pathname === "/dashboard" || pathname === "/") && (
           <>
             <a
-              href="https://wa.me/6587520417"
-              target="_blank"
-              rel="noopener noreferrer"
               className="inline-flex items-center justify-center"
-            >
-           </a>
+              href="https://wa.me/6587520417"
+              rel="noopener noreferrer"
+              target="_blank"
+            ></a>
             <TopBarLogin />
           </>
         )}
       </header>
     </>
   );
-} 
+}

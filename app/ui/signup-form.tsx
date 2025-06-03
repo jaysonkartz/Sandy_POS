@@ -1,22 +1,22 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/app/lib/supabase';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/app/lib/supabase";
 
 export default function SignUpForm() {
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
-    setError('');
+    setError("");
 
     const formData = new FormData(e.currentTarget);
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
 
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -33,13 +33,12 @@ export default function SignUpForm() {
       }
 
       if (data?.user) {
-        router.push('/verify-email'); 
+        router.push("/verify-email");
       }
     } catch (error) {
-      setError('An error occurred during sign up');
+      setError("An error occurred during sign up");
     } finally {
       setIsLoading(false);
     }
   };
-
-} 
+}

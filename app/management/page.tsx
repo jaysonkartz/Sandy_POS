@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 interface Country {
   id: number;
@@ -21,8 +21,9 @@ export default function ManagementDashboard() {
     const fetchCountries = async () => {
       try {
         const { data, error } = await supabase
-          .from('countries')
-          .select(`
+          .from("countries")
+          .select(
+            `
             *,
             products (
               id,
@@ -30,14 +31,15 @@ export default function ManagementDashboard() {
               price,
               stock
             )
-          `)
-          .order('name');
+          `
+          )
+          .order("name");
 
         if (error) throw error;
         setCountries(data || []);
       } catch (err) {
-        setError('Failed to fetch countries');
-        console.error('Error fetching countries:', err);
+        setError("Failed to fetch countries");
+        console.error("Error fetching countries:", err);
       } finally {
         setLoading(false);
       }
@@ -50,14 +52,14 @@ export default function ManagementDashboard() {
     <div className="min-h-screen bg-gray-100">
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-8">Management Dashboard</h1>
-        
+
         {/* Countries Management Section */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-semibold text-gray-800">Countries Management</h2>
-            <Link 
-              href="/management/countries" 
+            <Link
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              href="/management/countries"
             >
               View All Countries
             </Link>
@@ -77,10 +79,18 @@ export default function ManagementDashboard() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Country</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Products</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Country
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Code
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Products
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -99,8 +109,8 @@ export default function ManagementDashboard() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <Link
-                          href={`/management/countries/${country.id}`}
                           className="text-blue-600 hover:text-blue-900"
+                          href={`/management/countries/${country.id}`}
                         >
                           View Details
                         </Link>
@@ -116,12 +126,22 @@ export default function ManagementDashboard() {
         {/* Other Management Sections */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Products Management Card */}
-          <Link href="/management/products" className="block">
+          <Link className="block" href="/management/products">
             <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
               <div className="flex items-center space-x-4">
                 <div className="p-3 bg-green-100 rounded-lg">
-                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  <svg
+                    className="w-6 h-6 text-green-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                    />
                   </svg>
                 </div>
                 <div>
@@ -133,12 +153,22 @@ export default function ManagementDashboard() {
           </Link>
 
           {/* Orders Management Card */}
-          <Link href="/management/orders" className="block">
+          <Link className="block" href="/management/orders">
             <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
               <div className="flex items-center space-x-4">
                 <div className="p-3 bg-purple-100 rounded-lg">
-                  <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  <svg
+                    className="w-6 h-6 text-purple-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                    />
                   </svg>
                 </div>
                 <div>
@@ -152,4 +182,4 @@ export default function ManagementDashboard() {
       </div>
     </div>
   );
-} 
+}

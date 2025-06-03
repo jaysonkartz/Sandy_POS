@@ -1,15 +1,15 @@
 "use client";
 
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { useEffect, useState } from 'react';
-import { useCart } from '@/context/CartContext';
-import { motion } from 'framer-motion';
-import Image from 'next/image';
-import { Tag, Search } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import React from 'react';
-import { Session } from '@supabase/auth-helpers-nextjs';
-import { AuthChangeEvent } from '@supabase/supabase-js';
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { useEffect, useState } from "react";
+import { useCart } from "@/context/CartContext";
+import { motion } from "framer-motion";
+import Image from "next/image";
+import { Tag, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import React from "react";
+import { Session } from "@supabase/auth-helpers-nextjs";
+import { AuthChangeEvent } from "@supabase/supabase-js";
 
 interface Product {
   id: number;
@@ -29,56 +29,50 @@ interface Product {
   stock_quantity: number;
 }
 
-const CATEGORIES = {
-  'DRIED_CHILLI': 'Dried Chilli',
-  'BEANS_LEGUMES': 'Beans & Legumes',
-  'NUTS_SEEDS': 'Nuts & Seeds',
-  'HERBS_SPICES': 'Herbs and Spices',
-  'GRAINS': 'Grains',
-  'DRIED_SEAFOOD': 'Dried Seafood',
-  'VEGETABLES': 'Vegetables',
-  'DRIED_MUSHROOM': 'Dried Mushroom & Fungus'
+const CATEGORY_ID_NAME_MAP: { [key: string]: string } = {
+  1: "Dried Chilli",
+  2: "Beans & Legumes",
+  3: "Nuts & Seeds",
+  4: "Herbs and Spices",
+  5: "Grains",
+  6: "Dried Seafood",
+  7: "Vegetables",
+  8: "Dried Mushroom & Fungus"
 };
 
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [isEnglish, setIsEnglish] = useState(true);
   const [isOrderPanelOpen, setIsOrderPanelOpen] = useState(false);
-  const [selectedProducts, setSelectedProducts] = useState<{ product: Product; quantity: number }[]>([]);
-  const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
+  const [selectedProducts, setSelectedProducts] = useState<
+    { product: Product; quantity: number }[]
+  >([]);
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
   const [expandedCountries, setExpandedCountries] = useState<string[]>([]);
   const [expandedProducts, setExpandedProducts] = useState<number[]>([]);
   const supabase = createClientComponentClient();
   const { addToCart, cart, updateQuantity } = useCart();
   const [session, setSession] = useState<any>(null);
   const router = useRouter();
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   useEffect(() => {
     async function fetchProducts() {
       try {
-        let query = supabase.from('products').select('*');
-        
-        if (selectedCategory !== 'all') {
-          const categoryValue = CATEGORIES[selectedCategory as keyof typeof CATEGORIES];
-          // Add these debug logs
-          console.log('All unique categories in data:', 
-            [...new Set(products.map(p => p.Category))]
-          );
-          console.log('Attempting to filter by:', categoryValue);
-          query = query.eq('Category', categoryValue);
+        let query = supabase.from("products").select("*");
+
+        if (selectedCategory !== "all") {
+          query = query.eq("Category", String(selectedCategory));
         }
 
         const { data, error } = await query;
         if (error) throw error;
-        
-        // Log for debugging
-        console.log('Fetched products:', data);
         setProducts(data || []);
       } catch (error) {
-        console.error('Error fetching products:', error);
+        console.error("Error fetching products:", error);
       } finally {
         setLoading(false);
       }
@@ -103,50 +97,65 @@ export default function Home() {
     return () => subscription.unsubscribe();
   }, [supabase.auth]);
 
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 100);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   // Get category name by id
-  const getCategoryName = (category: string) => {
-    return CATEGORIES[category as keyof typeof CATEGORIES] || 'Unknown Category';
+  const getCategoryName = (category: string | number) => {
+    return CATEGORY_ID_NAME_MAP[String(category)] || "Unknown Category";
   };
 
   // Get category Chinese name
   const getCategoryChineseName = (category: string) => {
-    return CATEGORIES[category as keyof typeof CATEGORIES] || '';
+    // Map the category value to the correct folder name
+    const categoryMap: { [key: string]: string } = {
+      "1": "Dried Chilli",
+      "2": "Beans & Legumes",
+      "3": "Nuts & Seeds",
+      "4": "Herbs and Spices",
+      "5": "Grains",
+      "6": "Dried Seafood",
+      "7": "Vegetables",
+      "8": "Dried Mushroom & Fungus"
+    };
+    return categoryMap[category] || "Unknown Category";
   };
 
   //Send Whatsapp enquiry
   const handleCustomerService = () => {
-    const phoneNumber = '6592341145'; 
-    const message = 'Hi, I would like to inquire about your products.';
+    const phoneNumber = "6592341145";
+    const message = "Hi, I would like to inquire about your products.";
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
+    window.open(whatsappUrl, "_blank");
   };
 
   //Add to order
   const handleAddToOrder = (product: Product) => {
-    const existingProduct = selectedProducts.find(item => item.product.id === product.id);
+    const existingProduct = selectedProducts.find((item) => item.product.id === product.id);
     if (existingProduct) {
-      setSelectedProducts(prev => 
-        prev.map(item => 
-          item.product.id === product.id 
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
+      setSelectedProducts((prev) =>
+        prev.map((item) =>
+          item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
         )
       );
     } else {
-      setSelectedProducts(prev => [...prev, { product, quantity: 1 }]);
+      setSelectedProducts((prev) => [...prev, { product, quantity: 1 }]);
     }
   };
 
   //Update quantity
   const handleUpdateQuantity = (productId: number, newQuantity: number) => {
     if (newQuantity < 1) {
-      setSelectedProducts(prev => prev.filter(item => item.product.id !== productId));
+      setSelectedProducts((prev) => prev.filter((item) => item.product.id !== productId));
     } else {
-      setSelectedProducts(prev =>
-        prev.map(item =>
-          item.product.id === productId
-            ? { ...item, quantity: newQuantity }
-            : item
+      setSelectedProducts((prev) =>
+        prev.map((item) =>
+          item.product.id === productId ? { ...item, quantity: newQuantity } : item
         )
       );
     }
@@ -171,84 +180,86 @@ Customer: ${orderDetails.customerName}
 Total Amount: $${orderDetails.totalAmount.toFixed(2)}
 
 Order Items:
-${orderDetails.items.map(item => 
-  `- ${item.productName} x ${item.quantity} @ $${item.price.toFixed(2)}`
-).join('\n')}
+${orderDetails.items
+  .map((item) => `- ${item.productName} x ${item.quantity} @ $${item.price.toFixed(2)}`)
+  .join("\n")}
 
 Please check the admin panel for more details.
     `.trim();
 
     // Create WhatsApp URL (using your business phone number)
-    const phoneNumber = '6587520417'; // Replace with your business phone number
+    const phoneNumber = "6587520417"; // Replace with your business phone number
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
-    
+
     // Open WhatsApp in a new window
-    window.open(whatsappUrl, '_blank');
+    window.open(whatsappUrl, "_blank");
   };
 
   const handleSubmitOrder = async () => {
     // Check if user is authenticated
     if (!session) {
-      alert(isEnglish ? 'Please log in to submit an order' : '请登录以提交订单');
+      alert(isEnglish ? "Please log in to submit an order" : "请登录以提交订单");
       return;
     }
 
     if (selectedProducts.length === 0) {
-      alert(isEnglish ? 'Please add at least one product to the order' : '请至少添加一个产品到订单');
+      alert(
+        isEnglish ? "Please add at least one product to the order" : "请至少添加一个产品到订单"
+      );
       return;
     }
 
     if (!customerName || !customerPhone) {
-      alert(isEnglish ? 'Please provide customer name and phone number' : '请提供客户姓名和电话号码');
+      alert(
+        isEnglish ? "Please provide customer name and phone number" : "请提供客户姓名和电话号码"
+      );
       return;
     }
 
     try {
       // Calculate total amount
       const totalAmount = selectedProducts.reduce(
-        (sum, item) => sum + (item.product.price * item.quantity),
+        (sum, item) => sum + item.product.price * item.quantity,
         0
       );
 
       // Create order with user_id
       const { data: order, error: orderError } = await supabase
-        .from('orders')
+        .from("orders")
         .insert([
           {
-            status: 'pending',
+            status: "pending",
             total_amount: totalAmount,
             created_at: new Date().toISOString(),
             user_id: session.user.id,
             customer_name: customerName,
-            customer_phone: customerPhone
-          }
+            customer_phone: customerPhone,
+          },
         ])
         .select()
         .single();
 
       if (orderError) {
-        console.error('Error creating order:', orderError);
+        console.error("Error creating order:", orderError);
         throw orderError;
       }
 
       // Create order items
-      const orderItems = selectedProducts.map(item => ({
+      const orderItems = selectedProducts.map((item) => ({
         order_id: order.id,
         product_id: item.product.id,
         quantity: item.quantity,
         price: item.product.price,
         total_price: item.product.price * item.quantity,
         product_name: isEnglish ? item.product.Product : item.product.Product_CH,
-        product_code: item.product["Item Code"] || 'N/A',
-        created_at: new Date().toISOString()
+        product_code: item.product["Item Code"] || "N/A",
+        created_at: new Date().toISOString(),
       }));
 
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
+      const { error: itemsError } = await supabase.from("order_items").insert(orderItems);
 
       if (itemsError) {
-        console.error('Error creating order items:', itemsError);
+        console.error("Error creating order items:", itemsError);
         throw itemsError;
       }
 
@@ -257,41 +268,43 @@ Please check the admin panel for more details.
         orderId: order.id,
         customerName,
         totalAmount,
-        items: selectedProducts.map(item => ({
-          productName: isEnglish ? item.product.Product : (item.product.Product_CH || item.product.Product),
+        items: selectedProducts.map((item) => ({
+          productName: isEnglish
+            ? item.product.Product
+            : item.product.Product_CH || item.product.Product,
           quantity: item.quantity,
-          price: item.product.price
-        }))
+          price: item.product.price,
+        })),
       });
 
       // Reset form and close panel
       setSelectedProducts([]);
-      setCustomerName('');
-      setCustomerPhone('');
+      setCustomerName("");
+      setCustomerPhone("");
       setIsOrderPanelOpen(false);
 
       // Show success message
-      alert(isEnglish ? 'Order submitted successfully!' : '订单提交成功！');
+      alert(isEnglish ? "Order submitted successfully!" : "订单提交成功！");
     } catch (error) {
-      console.error('Error submitting order:', error);
-      alert(isEnglish ? 'Error submitting order. Please try again.' : '提交订单时出错，请重试。');
+      console.error("Error submitting order:", error);
+      alert(isEnglish ? "Error submitting order. Please try again." : "提交订单时出错，请重试。");
     }
   };
 
   const toggleCountryExpansion = (country: string) => {
-    setExpandedCountries(prev => 
-      prev.includes(country) 
-        ? prev.filter(c => c !== country)
-        : [...prev, country]
+    setExpandedCountries((prev) =>
+      prev.includes(country) ? prev.filter((c) => c !== country) : [...prev, country]
     );
   };
 
   const toggleProductExpansion = (productId: number) => {
-    setExpandedProducts(prev => 
-      prev.includes(productId)
-        ? prev.filter(id => id !== productId)
-        : [...prev, productId]
+    setExpandedProducts((prev) =>
+      prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]
     );
+  };
+
+  const handleScrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   if (loading) {
@@ -303,40 +316,37 @@ Please check the admin panel for more details.
   }
 
   // Get unique countries and sort them
-  const uniqueCountries = Array.from(new Set(products.map(p => p.Country))).sort();
+  const uniqueCountries = Array.from(new Set(products.map((p) => p.Country))).sort();
 
   return (
     <div className="container mx-auto p-4">
       {/* Language Toggle and Category Filter */}
       <div className="flex justify-between items-center mb-6">
         <button
-          onClick={() => setIsEnglish(!isEnglish)}
           className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors flex items-center gap-2"
+          onClick={() => setIsEnglish(!isEnglish)}
         >
-          <span>{isEnglish ? '中文' : 'English'}</span>
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
+          <span>{isEnglish ? "中文" : "English"}</span>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
+              d="M3 5h12M9 3v18m0-18l-4 4m4-4l4 4"
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth={2}
-              d="M3 5h12M9 3v18m0-18l-4 4m4-4l4 4"
             />
           </svg>
         </button>
 
-        <select 
+        <select
+          className="p-2 border rounded-md"
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(e.target.value)}
-          className="p-2 border rounded-md"
         >
           <option value="all">All Categories</option>
-          {Object.entries(CATEGORIES).map(([key, value]) => (
-            <option key={key} value={key}>{value}</option>
+          {Object.entries(CATEGORY_ID_NAME_MAP).map(([id, name]) => (
+            <option key={id} value={id}>
+              {name}
+            </option>
           ))}
         </select>
       </div>
@@ -345,17 +355,26 @@ Please check the admin panel for more details.
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {products.map((product) => {
           const cartItem = cart.find((item) => item.id === product.id);
-          
+
           return (
             <div key={product.id} className="bg-white rounded-lg shadow-md overflow-hidden">
               {/* Product Image */}
               <div className="relative h-48 bg-gray-200">
-                <Image
-                  src="/product-placeholder.png"
+                <img
                   alt={product.Product}
-                  layout="fill"
-                  objectFit="cover"
-                  className="hover:opacity-75 transition-opacity"
+                  className="w-full h-full object-cover hover:opacity-75 transition-opacity"
+                  src={`/Img/${getCategoryName(product.Category)}/${product.Product}${product.Variation ? ` (${product.Variation})` : ''}.png`}
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    // First fallback: try without variation
+                    if (!target.dataset.fallbackAttempted) {
+                      target.dataset.fallbackAttempted = 'true';
+                      target.src = `/Img/${getCategoryName(product.Category)}/${product.Product}.png`;
+                    } else if (!target.dataset.placeholderAttempted) {
+                      target.dataset.placeholderAttempted = 'true';
+                      target.src = "/product-placeholder.png";
+                    }
+                  }}
                 />
               </div>
 
@@ -365,28 +384,32 @@ Please check the admin panel for more details.
                   <h3 className="text-lg font-semibold text-gray-900">
                     {isEnglish ? product.Product : product.Product_CH}
                   </h3>
-                  <p className="text-sm text-gray-500">
-                    {product["Item Code"]}
-                  </p>
+                  <p className="text-sm text-gray-500">{product["Item Code"]}</p>
                 </div>
 
                 <div className="mb-4">
                   <div className="text-sm text-gray-600">
-                    <span>{isEnglish ? 'Category: ' : '类别：'}</span>
-                    <span>{isEnglish ? getCategoryName(product.Category) : getCategoryChineseName(product.Category)}</span>
+                    <span>{isEnglish ? "Category: " : "类别："}</span>
+                    <span>
+                      {isEnglish
+                        ? getCategoryName(product.Category)
+                        : getCategoryChineseName(product.Category)}
+                    </span>
                   </div>
                   <div className="text-sm text-gray-600">
-                    <span>{isEnglish ? 'Weight: ' : '重量：'}</span>
-                    <span>{product.Weight} {product.UOM}</span>
+                    <span>{isEnglish ? "Weight: " : "重量："}</span>
+                    <span>
+                      {product.Weight} {product.UOM}
+                    </span>
                   </div>
                   {product.Variation && (
                     <div className="text-sm text-gray-600">
-                      <span>{isEnglish ? 'Variation: ' : '规格：'}</span>
+                      <span>{isEnglish ? "Variation: " : "规格："}</span>
                       <span>{isEnglish ? product.Variation : product.Variation_CH}</span>
                     </div>
                   )}
                   <div className="text-sm text-gray-600">
-                    <span>{isEnglish ? 'Origin: ' : '产地：'}</span>
+                    <span>{isEnglish ? "Origin: " : "产地："}</span>
                     <span>{isEnglish ? product.Country : product.Country_CH}</span>
                   </div>
                 </div>
@@ -399,10 +422,10 @@ Please check the admin panel for more details.
                   </div>
                 ) : (
                   <button
-                    onClick={() => router.push('/login')}
                     className="mb-4 text-blue-600 hover:text-blue-900"
+                    onClick={() => router.push("/login")}
                   >
-                    {isEnglish ? 'Login to see price' : '登录查看价格'}
+                    {isEnglish ? "Login to see price" : "登录查看价格"}
                   </button>
                 )}
 
@@ -411,33 +434,33 @@ Please check the admin panel for more details.
                     cartItem ? (
                       <div className="flex items-center space-x-2">
                         <button
-                          onClick={() => updateQuantity(product.id, cartItem.quantity - 1)}
                           className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                          onClick={() => updateQuantity(product.id, cartItem.quantity - 1)}
                         >
                           -
                         </button>
                         <span>{cartItem.quantity}</span>
                         <button
-                          onClick={() => updateQuantity(product.id, cartItem.quantity + 1)}
                           className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                          onClick={() => updateQuantity(product.id, cartItem.quantity + 1)}
                         >
                           +
                         </button>
                       </div>
                     ) : (
                       <button
-                        onClick={() => handleAddToOrder(product)}
                         className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
+                        onClick={() => handleAddToOrder(product)}
                       >
-                        {isEnglish ? 'Add to Order' : '添加到订单'}
+                        {isEnglish ? "Add to Order" : "添加到订单"}
                       </button>
                     )
                   ) : null}
                   <button
-                    onClick={() => handleCustomerService()}
                     className="ml-2 bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors"
+                    onClick={() => handleCustomerService()}
                   >
-                    {isEnglish ? 'Inquire' : '询价'}
+                    {isEnglish ? "Inquire" : "询价"}
                   </button>
                 </div>
               </div>
@@ -449,17 +472,15 @@ Please check the admin panel for more details.
       {/* Floating Order Button */}
       {selectedProducts.length > 0 && (
         <motion.button
-          initial={{ scale: 0 }}
           animate={{ scale: 1 }}
+          className="fixed bottom-4 right-4 bg-blue-500 text-white p-4 rounded-full shadow-lg hover:bg-blue-600 transition-colors z-40"
+          initial={{ scale: 0 }}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => setIsOrderPanelOpen(true)}
-          className="fixed bottom-4 right-4 bg-blue-500 text-white p-4 rounded-full shadow-lg hover:bg-blue-600 transition-colors z-40"
         >
           <div className="flex items-center gap-2">
-            <span className="text-lg font-semibold">
-              {isEnglish ? 'View Order' : '查看订单'}
-            </span>
+            <span className="text-lg font-semibold">{isEnglish ? "View Order" : "查看订单"}</span>
             <span className="bg-white text-blue-500 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">
               {selectedProducts.length}
             </span>
@@ -469,7 +490,7 @@ Please check the admin panel for more details.
 
       {/* Order Panel */}
       {isOrderPanelOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-end"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
@@ -478,17 +499,17 @@ Please check the admin panel for more details.
           }}
         >
           <motion.div
-            initial={{ x: '100%' }}
             animate={{ x: 0 }}
-            exit={{ x: '100%' }}
             className="w-full max-w-md bg-white h-full p-4 overflow-y-auto"
+            exit={{ x: "100%" }}
+            initial={{ x: "100%" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">{isEnglish ? 'Create Order' : '创建订单'}</h2>
+              <h2 className="text-xl font-semibold">{isEnglish ? "Create Order" : "创建订单"}</h2>
               <button
-                onClick={() => setIsOrderPanelOpen(false)}
                 className="text-gray-500 hover:text-gray-700"
+                onClick={() => setIsOrderPanelOpen(false)}
               >
                 ✕
               </button>
@@ -496,32 +517,32 @@ Please check the admin panel for more details.
 
             {/* Customer Information */}
             <div className="mb-4 space-y-3">
-              <h3 className="font-semibold">{isEnglish ? 'Customer Information' : '客户信息'}</h3>
+              <h3 className="font-semibold">{isEnglish ? "Customer Information" : "客户信息"}</h3>
               <div className="space-y-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {isEnglish ? 'Customer Name' : '客户姓名'}
+                    {isEnglish ? "Customer Name" : "客户姓名"}
                   </label>
                   <input
+                    required
+                    className="w-full p-2 border rounded-md"
+                    placeholder={isEnglish ? "Enter customer name" : "输入客户姓名"}
                     type="text"
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
-                    className="w-full p-2 border rounded-md"
-                    placeholder={isEnglish ? 'Enter customer name' : '输入客户姓名'}
-                    required
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {isEnglish ? 'Phone Number' : '电话号码'}
+                    {isEnglish ? "Phone Number" : "电话号码"}
                   </label>
                   <input
+                    required
+                    className="w-full p-2 border rounded-md"
+                    placeholder={isEnglish ? "Enter phone number" : "输入电话号码"}
                     type="tel"
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value)}
-                    className="w-full p-2 border rounded-md"
-                    placeholder={isEnglish ? 'Enter phone number' : '输入电话号码'}
-                    required
                   />
                 </div>
               </div>
@@ -529,120 +550,76 @@ Please check the admin panel for more details.
 
             {selectedProducts.length > 0 && (
               <div className="mb-4 space-y-2">
-                <h3 className="font-semibold mb-2">{isEnglish ? 'Selected Products' : '已选产品'}</h3>
+                <h3 className="font-semibold mb-2">
+                  {isEnglish ? "Selected Products" : "已选产品"}
+                </h3>
                 {selectedProducts.map(({ product, quantity }) => (
                   <div key={product.id} className="p-3 bg-gray-50 rounded-lg">
                     <div className="flex justify-between items-start mb-1">
-                      <p className="text-sm font-medium">{isEnglish ? product.Product : product.Product_CH}</p>
-                      <span className="text-sm text-gray-600">${product.price.toFixed(2)}/{product.UOM}</span>
+                      <p className="text-sm font-medium">
+                        {isEnglish ? product.Product : product.Product_CH}
+                      </p>
+                      <span className="text-sm text-gray-600">
+                        ${product.price.toFixed(2)}/{product.UOM}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => handleUpdateQuantity(product.id, quantity - 1)}
                           className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm"
+                          onClick={() => handleUpdateQuantity(product.id, quantity - 1)}
                         >
                           -
                         </button>
                         <span className="text-sm">{quantity}</span>
                         <button
-                          onClick={() => handleUpdateQuantity(product.id, quantity + 1)}
                           className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm"
+                          onClick={() => handleUpdateQuantity(product.id, quantity + 1)}
                         >
                           +
                         </button>
                       </div>
                       <button
-                        onClick={() => handleUpdateQuantity(product.id, 0)}
                         className="text-red-500 hover:text-red-700 text-sm"
+                        onClick={() => handleUpdateQuantity(product.id, 0)}
                       >
-                        {isEnglish ? 'Remove' : '移除'}
+                        {isEnglish ? "Remove" : "移除"}
                       </button>
                     </div>
                   </div>
                 ))}
                 <div className="text-right font-semibold mt-2">
-                  {isEnglish ? 'Total:' : '总计:'} $
-                  {selectedProducts.reduce((sum, item) => sum + (item.product.price * item.quantity), 0).toFixed(2)}
+                  {isEnglish ? "Total:" : "总计:"} $
+                  {selectedProducts
+                    .reduce((sum, item) => sum + item.product.price * item.quantity, 0)
+                    .toFixed(2)}
                 </div>
               </div>
             )}
 
             <button
-              onClick={handleSubmitOrder}
-              disabled={selectedProducts.length === 0}
               className="w-full py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-300"
+              disabled={selectedProducts.length === 0}
+              onClick={handleSubmitOrder}
             >
-              {isEnglish ? 'Submit Order' : '提交订单'}
+              {isEnglish ? "Submit Order" : "提交订单"}
             </button>
           </motion.div>
         </div>
       )}
 
-      {/* Transaction History Section */}
-      {session && (
-        <TransactionHistory userId={session.user.id} />
+      {/* Scroll to Top Arrow */}
+      {showScrollTop && (
+        <button
+          onClick={handleScrollToTop}
+          className="fixed bottom-8 right-8 z-50 bg-blue-500 text-white p-3 rounded-full shadow-lg hover:bg-blue-600 transition-colors flex items-center justify-center"
+          aria-label="Scroll to top"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+          </svg>
+        </button>
       )}
-    </div>
-  );
-}
-
-function TransactionHistory({ userId }: { userId: string }) {
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchOrders = async () => {
-      const supabase = createClientComponentClient();
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-      if (!error) setOrders(data || []);
-      setLoading(false);
-    };
-    fetchOrders();
-  }, [userId]);
-
-  if (loading) return <div className="mt-8">Loading transaction history...</div>;
-  if (orders.length === 0) return null;
-
-  return (
-    <div className="mt-12">
-      <h2 className="text-2xl font-bold mb-4">Transaction History</h2>
-      <table className="min-w-full divide-y divide-gray-200 bg-white rounded-lg shadow">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order Number</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {orders.map(order => (
-            <tr key={order.id}>
-              <td className="px-6 py-4">{order.id}</td>
-              <td className="px-6 py-4">{new Date(order.created_at).toLocaleDateString()}</td>
-              <td className="px-6 py-4">{order.customer_name}{order.customer_phone ? ` (${order.customer_phone})` : ''}</td>
-              <td className="px-6 py-4">${order.total_amount?.toFixed(2)}</td>
-              <td className="px-6 py-4">
-                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                  order.status === 'completed'
-                    ? 'bg-green-100 text-green-800'
-                    : order.status === 'pending'
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-red-100 text-red-800'
-                }`}>
-                  {order.status}
-                </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }

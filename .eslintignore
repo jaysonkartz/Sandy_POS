@@ -19,3 +19,4 @@ build
 !react-shim.js
 !tsup.config.ts
 components/ui/*
+out

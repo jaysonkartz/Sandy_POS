@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
-import router from 'next/router';
+import { useState } from "react";
+import { supabase } from "../lib/supabaseClient";
+import router from "next/router";
 
 export default function Login() {
-  const [email, setEmail] = useState<string>('');
-  const [password, setPassword] = useState<string>('');
+  const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -21,7 +21,7 @@ export default function Login() {
       setError(error.message);
     } else {
       console.log("Logged in successfully");
-      router.push('/dashboard'); 
+      router.push("/dashboard");
     }
 
     setLoading(false);
@@ -31,21 +31,21 @@ export default function Login() {
     <div>
       <h1>Login</h1>
       <input
-        type="email"
         placeholder="Email"
+        type="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
       />
       <input
-        type="password"
         placeholder="Password"
+        type="password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
       />
-      <button onClick={handleLogin} disabled={loading}>
-        {loading ? 'Logging in...' : 'Login'}
+      <button disabled={loading} onClick={handleLogin}>
+        {loading ? "Logging in..." : "Login"}
       </button>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {error && <p style={{ color: "red" }}>{error}</p>}
     </div>
   );
 }

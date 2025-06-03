@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { LazyMotion, domAnimation, m } from 'framer-motion';
+import { useState, useEffect } from "react";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { LazyMotion, domAnimation, m } from "framer-motion";
 
 interface Customer {
   id: number;
@@ -29,11 +29,11 @@ export default function CustomerManagement() {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newCustomer, setNewCustomer] = useState<Partial<Customer>>({
-    name: '',
-    email: '',
-    phone: '',
-    address: '',
-    status: true
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    status: true,
   });
   const [editingCustomer, setEditingCustomer] = useState<EditCustomer | null>(null);
 
@@ -43,17 +43,17 @@ export default function CustomerManagement() {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
-        .from('customers')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .from("customers")
+        .select("*")
+        .order("created_at", { ascending: false });
 
       if (error) {
-        console.error('Supabase error:', error);
+        console.error("Supabase error:", error);
         throw error;
       }
-      
+
       if (!data) {
-        console.error('No data returned from customers table');
+        console.error("No data returned from customers table");
         setCustomers([]);
         return;
       }
@@ -63,14 +63,14 @@ export default function CustomerManagement() {
         data.map(async (customer) => {
           if (customer.user_id) {
             const { data: userData } = await supabase
-              .from('users')
-              .select('id, email, role')
-              .eq('id', customer.user_id)
+              .from("users")
+              .select("id, email, role")
+              .eq("id", customer.user_id)
               .single();
-            
+
             return {
               ...customer,
-              user: userData || null
+              user: userData || null,
             };
           }
           return customer;
@@ -79,7 +79,7 @@ export default function CustomerManagement() {
 
       setCustomers(customersWithUsers);
     } catch (error) {
-      console.error('Error fetching customers:', error);
+      console.error("Error fetching customers:", error);
       setCustomers([]);
     } finally {
       setIsLoading(false);
@@ -92,40 +92,38 @@ export default function CustomerManagement() {
 
   const handleAddCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (newCustomer.name && newCustomer.email) {
       // Check if user exists
       const { data: existingUser, error: userCheckError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', newCustomer.email)
+        .from("users")
+        .select("id")
+        .eq("email", newCustomer.email)
         .single();
 
-      if (userCheckError && userCheckError.code !== 'PGRST116') {
-        console.error('Error checking user:', userCheckError);
+      if (userCheckError && userCheckError.code !== "PGRST116") {
+        console.error("Error checking user:", userCheckError);
         return;
       }
 
       const customerData = {
         ...newCustomer,
-        user_id: existingUser?.id // Link to user if exists
+        user_id: existingUser?.id, // Link to user if exists
       };
 
-      const { error } = await supabase
-        .from('customers')
-        .insert([customerData]);
+      const { error } = await supabase.from("customers").insert([customerData]);
 
       if (error) {
-        console.error('Error adding customer:', error);
+        console.error("Error adding customer:", error);
         return;
       }
 
       setNewCustomer({
-        name: '',
-        email: '',
-        phone: '',
-        address: '',
-        status: true
+        name: "",
+        email: "",
+        phone: "",
+        address: "",
+        status: true,
       });
       setIsModalOpen(false);
       await fetchCustomers();
@@ -134,12 +132,12 @@ export default function CustomerManagement() {
 
   const handleStatusToggle = async (customerId: number, currentStatus: boolean) => {
     const { error } = await supabase
-      .from('customers')
+      .from("customers")
       .update({ status: !currentStatus })
-      .eq('id', customerId);
+      .eq("id", customerId);
 
     if (error) {
-      console.error('Error updating customer status:', error);
+      console.error("Error updating customer status:", error);
       return;
     }
 
@@ -155,21 +153,21 @@ export default function CustomerManagement() {
 
     try {
       const { error } = await supabase
-        .from('customers')
+        .from("customers")
         .update({
           name: editingCustomer.name,
           email: editingCustomer.email,
           phone: editingCustomer.phone,
           address: editingCustomer.address,
         })
-        .eq('id', editingCustomer.id);
+        .eq("id", editingCustomer.id);
 
       if (error) throw error;
 
       setEditingCustomer(null);
       await fetchCustomers();
     } catch (error) {
-      console.error('Error updating customer:', error);
+      console.error("Error updating customer:", error);
     }
   };
 
@@ -179,8 +177,8 @@ export default function CustomerManagement() {
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold">Customer Management</h2>
         <button
-          onClick={() => setIsModalOpen(true)}
           className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
+          onClick={() => setIsModalOpen(true)}
         >
           Add Customer
         </button>
@@ -191,69 +189,69 @@ export default function CustomerManagement() {
         {isModalOpen && (
           <m.div
             key="modal"
-            initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }}
           >
             <m.div
               key="modal-content"
-              initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
               className="bg-white rounded-lg p-6 w-full max-w-md"
+              exit={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, scale: 0.95 }}
             >
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">Add New Customer</h2>
                 <button
-                  onClick={() => setIsModalOpen(false)}
                   className="text-gray-500 hover:text-gray-700"
+                  onClick={() => setIsModalOpen(false)}
                 >
                   ✕
                 </button>
               </div>
-              <form onSubmit={handleAddCustomer} className="space-y-4">
+              <form className="space-y-4" onSubmit={handleAddCustomer}>
                 <input
-                  type="text"
+                  required
+                  className="w-full border p-2 rounded"
                   placeholder="Name"
+                  type="text"
                   value={newCustomer.name}
                   onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
-                  className="w-full border p-2 rounded"
-                  required
                 />
                 <input
-                  type="email"
+                  required
+                  className="w-full border p-2 rounded"
                   placeholder="Email"
+                  type="email"
                   value={newCustomer.email}
                   onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
-                  className="w-full border p-2 rounded"
-                  required
                 />
                 <input
-                  type="tel"
+                  className="w-full border p-2 rounded"
                   placeholder="Phone"
+                  type="tel"
                   value={newCustomer.phone}
                   onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
-                  className="w-full border p-2 rounded"
                 />
                 <input
-                  type="text"
+                  className="w-full border p-2 rounded"
                   placeholder="Address"
+                  type="text"
                   value={newCustomer.address}
                   onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
-                  className="w-full border p-2 rounded"
                 />
                 <div className="flex justify-end space-x-2">
                   <button
+                    className="px-4 py-2 border rounded hover:bg-gray-50"
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="px-4 py-2 border rounded hover:bg-gray-50"
                   >
                     Cancel
                   </button>
                   <button
-                    type="submit"
                     className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                    type="submit"
                   >
                     Add Customer
                   </button>
@@ -269,71 +267,82 @@ export default function CustomerManagement() {
         {editingCustomer && (
           <m.div
             key="edit-modal"
-            initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }}
           >
             <m.div
               key="edit-modal-content"
-              initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
               className="bg-white rounded-lg p-6 w-full max-w-md"
+              exit={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, scale: 0.95 }}
             >
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">Edit Customer</h2>
                 <button
-                  onClick={() => setEditingCustomer(null)}
                   className="text-gray-500 hover:text-gray-700"
+                  onClick={() => setEditingCustomer(null)}
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    <path
+                      d="M6 18L18 6M6 6l12 12"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                    />
                   </svg>
                 </button>
               </div>
               <div className="space-y-4">
                 <input
-                  type="text"
+                  required
+                  className="w-full border p-2 rounded"
                   placeholder="Name"
+                  type="text"
                   value={editingCustomer.name}
                   onChange={(e) => setEditingCustomer({ ...editingCustomer, name: e.target.value })}
-                  className="w-full border p-2 rounded"
-                  required
                 />
                 <input
-                  type="email"
+                  required
+                  className="w-full border p-2 rounded"
                   placeholder="Email"
+                  type="email"
                   value={editingCustomer.email}
-                  onChange={(e) => setEditingCustomer({ ...editingCustomer, email: e.target.value })}
-                  className="w-full border p-2 rounded"
-                  required
+                  onChange={(e) =>
+                    setEditingCustomer({ ...editingCustomer, email: e.target.value })
+                  }
                 />
                 <input
-                  type="tel"
+                  className="w-full border p-2 rounded"
                   placeholder="Phone"
+                  type="tel"
                   value={editingCustomer.phone}
-                  onChange={(e) => setEditingCustomer({ ...editingCustomer, phone: e.target.value })}
-                  className="w-full border p-2 rounded"
+                  onChange={(e) =>
+                    setEditingCustomer({ ...editingCustomer, phone: e.target.value })
+                  }
                 />
                 <input
-                  type="text"
-                  placeholder="Address"
-                  value={editingCustomer.address}
-                  onChange={(e) => setEditingCustomer({ ...editingCustomer, address: e.target.value })}
                   className="w-full border p-2 rounded"
+                  placeholder="Address"
+                  type="text"
+                  value={editingCustomer.address}
+                  onChange={(e) =>
+                    setEditingCustomer({ ...editingCustomer, address: e.target.value })
+                  }
                 />
                 <div className="flex justify-end space-x-2">
                   <button
+                    className="px-4 py-2 border rounded hover:bg-gray-50"
                     type="button"
                     onClick={() => setEditingCustomer(null)}
-                    className="px-4 py-2 border rounded hover:bg-gray-50"
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={handleSaveEdit}
                     className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                    onClick={handleSaveEdit}
                   >
                     Save Changes
                   </button>
@@ -358,47 +367,61 @@ export default function CustomerManagement() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Address</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Email
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Phone
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Address
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {customers.map((customer) => (
-                  <m.tr
-                    key={customer.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                  >
+                  <m.tr key={customer.id} animate={{ opacity: 1 }} initial={{ opacity: 0 }}>
                     <td className="px-6 py-4 whitespace-nowrap">{customer.name}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{customer.email}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{customer.phone}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{customer.address}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        customer.status ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {customer.status ? 'Active' : 'Inactive'}
+                      <span
+                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          customer.status
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {customer.status ? "Active" : "Inactive"}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex space-x-2">
                         <button
-                          onClick={() => handleEdit(customer)}
                           className="text-blue-600 hover:text-blue-900"
+                          onClick={() => handleEdit(customer)}
                         >
                           Edit
                         </button>
                         <button
-                          onClick={() => handleStatusToggle(customer.id, customer.status)}
                           className={`${
-                            customer.status ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'
+                            customer.status
+                              ? "text-red-600 hover:text-red-900"
+                              : "text-green-600 hover:text-green-900"
                           }`}
+                          onClick={() => handleStatusToggle(customer.id, customer.status)}
                         >
-                          {customer.status ? 'Deactivate' : 'Activate'}
+                          {customer.status ? "Deactivate" : "Activate"}
                         </button>
                       </div>
                     </td>
@@ -411,4 +434,4 @@ export default function CustomerManagement() {
       </div>
     </div>
   );
-} 
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 interface Product {
   id: number;
@@ -19,7 +19,11 @@ interface CategoryProps {
   products: Product[];
 }
 
-export default function ProductCategory({ name, categoryId, products: initialProducts }: CategoryProps) {
+export default function ProductCategory({
+  name,
+  categoryId,
+  products: initialProducts,
+}: CategoryProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>(initialProducts || []);
   const [loading, setLoading] = useState(false);
@@ -32,9 +36,9 @@ export default function ProductCategory({ name, categoryId, products: initialPro
       setLoading(true);
       try {
         const { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .eq('category', categoryId);
+          .from("products")
+          .select("*")
+          .eq("category", categoryId);
 
         if (error) return;
         setProducts(data || []);
@@ -49,14 +53,14 @@ export default function ProductCategory({ name, categoryId, products: initialPro
 
   return (
     <div className="border rounded-lg mb-4">
-      <div 
+      <div
         className="p-4 bg-gray-50 cursor-pointer flex justify-between items-center"
         onClick={() => setIsOpen(!isOpen)}
       >
         <h2 className="text-xl font-semibold">{name}</h2>
-        <span>{isOpen ? '▼' : '▶'}</span>
+        <span>{isOpen ? "▼" : "▶"}</span>
       </div>
-      
+
       {isOpen && (
         <div className="p-4">
           {loading ? (
@@ -77,4 +81,4 @@ export default function ProductCategory({ name, categoryId, products: initialPro
       )}
     </div>
   );
-} 
+}

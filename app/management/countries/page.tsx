@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 interface Country {
   id: number;
@@ -21,8 +21,9 @@ export default function CountriesManagement() {
     const fetchCountries = async () => {
       try {
         const { data, error } = await supabase
-          .from('countries')
-          .select(`
+          .from("countries")
+          .select(
+            `
             *,
             products (
               id,
@@ -30,14 +31,15 @@ export default function CountriesManagement() {
               price,
               stock
             )
-          `)
-          .order('name');
+          `
+          )
+          .order("name");
 
         if (error) throw error;
         setCountries(data || []);
       } catch (err) {
-        setError('Failed to fetch countries');
-        console.error('Error fetching countries:', err);
+        setError("Failed to fetch countries");
+        console.error("Error fetching countries:", err);
       } finally {
         setLoading(false);
       }
@@ -51,9 +53,9 @@ export default function CountriesManagement() {
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-gray-800">Countries Management</h1>
-          <Link 
-            href="/management" 
+          <Link
             className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+            href="/management"
           >
             Back to Dashboard
           </Link>
@@ -74,10 +76,18 @@ export default function CountriesManagement() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Country</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Products</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Country
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Code
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Products
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -96,8 +106,8 @@ export default function CountriesManagement() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <Link
-                          href={`/management/countries/${country.id}`}
                           className="text-blue-600 hover:text-blue-900"
+                          href={`/management/countries/${country.id}`}
                         >
                           View Details
                         </Link>
@@ -112,4 +122,4 @@ export default function CountriesManagement() {
       </div>
     </div>
   );
-} 
+}

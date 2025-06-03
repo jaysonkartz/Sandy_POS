@@ -1,6 +1,6 @@
-import { BookmarkIcon } from '@heroicons/react/24/outline';
-import { BookmarkIcon as BookmarkSolidIcon } from '@heroicons/react/24/solid';
-import { useState } from 'react';
+import { BookmarkIcon } from "@heroicons/react/24/outline";
+import { BookmarkIcon as BookmarkSolidIcon } from "@heroicons/react/24/solid";
+import { useState } from "react";
 
 interface ProductCardProps {
   product: {
@@ -23,13 +23,13 @@ export function ProductCard({ product }: ProductCardProps) {
     <div className="bg-white border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col">
       <div className="relative aspect-square">
         <img
-          src={product.imageUrl || '/placeholder-image.jpg'}
           alt={product.name}
           className="w-full h-full object-cover"
+          src={product.imageUrl || "/placeholder-image.jpg"}
         />
         <button
-          onClick={toggleBookmark}
           className="absolute top-2 right-2 p-1.5 rounded-full bg-white/80 hover:bg-white transition-colors duration-200"
+          onClick={toggleBookmark}
         >
           {isBookmarked ? (
             <BookmarkSolidIcon className="w-5 h-5 text-rose-500" />

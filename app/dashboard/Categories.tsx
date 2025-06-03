@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/app/lib/supabase';
-import ProductModal from '@/app/components/ProductModal';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/app/lib/supabase";
+import ProductModal from "@/app/components/ProductModal";
 
 interface Category {
   id: number;
@@ -25,26 +25,26 @@ export default function Categories() {
 
   async function fetchCategories() {
     try {
-      const { data, error } = await supabase
-        .from('categories')
-        .select('*');
+      const { data, error } = await supabase.from("categories").select("*");
 
       if (error) throw error;
       setCategories(data || []);
     } catch (error) {
-      console.error('Error fetching categories:', error);
-      setError('Failed to load categories');
+      console.error("Error fetching categories:", error);
+      setError("Failed to load categories");
     } finally {
       setIsLoading(false);
     }
   }
 
   async function handleViewProducts(categoryId: number) {
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
     if (!session) {
-      localStorage.setItem('intendedCategory', categoryId.toString());
-      router.push('/login');
+      localStorage.setItem("intendedCategory", categoryId.toString());
+      router.push("/login");
       return;
     }
 
@@ -63,25 +63,25 @@ export default function Categories() {
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-3xl font-bold mb-6">Categories</h1>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {categories.map((category) => (
-          <div 
-            key={category.id} 
+          <div
+            key={category.id}
             className="border rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow"
           >
             <div className="relative w-full h-48">
               <img
-                src={category.imageUrl}
                 alt={category.title}
                 className="w-full h-full object-cover"
+                src={category.imageUrl}
               />
             </div>
             <div className="p-4">
               <h2 className="text-xl font-semibold mb-2">{category.title}</h2>
-              <button 
-                onClick={() => handleViewProducts(category.id)}
+              <button
                 className="text-blue-500 hover:text-blue-700"
+                onClick={() => handleViewProducts(category.id)}
               >
                 View Products →
               </button>
@@ -91,13 +91,13 @@ export default function Categories() {
       </div>
 
       <ProductModal
+        categoryId={selectedCategoryId!}
         isOpen={isModalOpen}
         onClose={() => {
           setIsModalOpen(false);
           setSelectedCategoryId(null);
         }}
-        categoryId={selectedCategoryId!}
       />
     </div>
   );
-} 
+}

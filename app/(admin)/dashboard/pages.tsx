@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import Image from 'next/image';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/app/lib/supabase';
+import { useEffect, useState } from "react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/app/lib/supabase";
 
 interface Product {
   id: number;
@@ -26,33 +26,32 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function checkAuth() {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!session) {
-        router.push('/login');
+        router.push("/login");
       }
     }
-    
+
     async function fetchData() {
       try {
         // Replace this with your actual data fetching logic
-        const { data, error } = await supabase
-          .from('categories')
-          .select('*')
-          .single();
+        const { data, error } = await supabase.from("categories").select("*").single();
 
         if (error) throw error;
 
         setCategory(data);
 
         const { data: productsData, error: productsError } = await supabase
-          .from('products')
-          .select('*');
+          .from("products")
+          .select("*");
 
         if (productsError) throw productsError;
 
         setProducts(productsData);
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'An error occurred');
+        setError(e instanceof Error ? e.message : "An error occurred");
       } finally {
         setIsLoading(false);
       }
@@ -83,12 +82,7 @@ export default function DashboardPage() {
       {category && (
         <>
           <div className="relative w-full h-[200px] rounded-lg overflow-hidden mb-4">
-            <Image
-              src={category.imageUrl}
-              alt={category.name}
-              fill
-              className="object-cover"
-            />
+            <Image fill alt={category.name} className="object-cover" src={category.imageUrl} />
           </div>
           <h1 className="text-2xl font-bold mb-4">{category.name}</h1>
         </>
@@ -98,12 +92,7 @@ export default function DashboardPage() {
         {products.map((product) => (
           <div key={product.id} className="border rounded-lg overflow-hidden">
             <div className="relative w-full h-[150px]">
-              <Image
-                src={product.imageUrl}
-                alt={product.title}
-                fill
-                className="object-cover"
-              />
+              <Image fill alt={product.title} className="object-cover" src={product.imageUrl} />
             </div>
             <div className="p-4">
               <h2 className="font-bold">{product.title}</h2>

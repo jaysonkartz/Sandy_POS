@@ -6,10 +6,7 @@ export async function POST(req: Request) {
   const secret = process.env.CLOUDINARY_API_SECRET;
 
   try {
-    const signature = cloudinary.utils.api_sign_request(
-      paramsToSign,
-      !!secret ? secret : "",
-    );
+    const signature = cloudinary.utils.api_sign_request(paramsToSign, secret ? secret : "");
 
     return NextResponse.json({
       signature,

@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/app/lib/supabase';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/app/lib/supabase";
 
 interface Product {
   id: number;
@@ -29,9 +29,9 @@ export default function CategoryPage({ params }: { params: { id: string } }) {
       try {
         // Fetch category
         const { data: categoryData, error: categoryError } = await supabase
-          .from('categories')
-          .select('*')
-          .eq('id', params.id)
+          .from("categories")
+          .select("*")
+          .eq("id", params.id)
           .single();
 
         if (categoryError) throw categoryError;
@@ -39,14 +39,14 @@ export default function CategoryPage({ params }: { params: { id: string } }) {
 
         // Fetch products for this category
         const { data: productsData, error: productsError } = await supabase
-          .from('products')
-          .select('*')
-          .eq('category_id', params.id);
+          .from("products")
+          .select("*")
+          .eq("category_id", params.id);
 
         if (productsError) throw productsError;
         setProducts(productsData || []);
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'An error occurred');
+        setError(e instanceof Error ? e.message : "An error occurred");
       } finally {
         setIsLoading(false);
       }
@@ -75,17 +75,14 @@ export default function CategoryPage({ params }: { params: { id: string } }) {
     <div className="container mx-auto p-4">
       {category && (
         <div className="mb-8">
-          <button 
-            onClick={() => router.back()} 
-            className="mb-4 text-blue-500 hover:text-blue-700"
-          >
+          <button className="mb-4 text-blue-500 hover:text-blue-700" onClick={() => router.back()}>
             ← Back to Categories
           </button>
           <div className="relative w-[100px] h-[200px] rounded-lg overflow-hidden mb-4">
             <img
-              src={category.imageUrl}
               alt={category.name}
               className="w-full h-full object-cover"
+              src={category.imageUrl}
             />
           </div>
           <h1 className="text-3xl font-bold mb-4">{category.name}</h1>
@@ -97,9 +94,9 @@ export default function CategoryPage({ params }: { params: { id: string } }) {
           <div key={product.id} className="border rounded-lg overflow-hidden shadow-md">
             <div className="relative w-full h-[150px]">
               <img
-                src={product.imageUrl}
                 alt={product.title}
                 className="w-full h-full object-cover"
+                src={product.imageUrl}
               />
             </div>
             <div className="p-4">
@@ -117,4 +114,4 @@ export default function CategoryPage({ params }: { params: { id: string } }) {
       )}
     </div>
   );
-} 
+}

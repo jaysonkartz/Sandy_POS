@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/app/lib/supabase';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/app/lib/supabase";
 
 interface Product {
   id: number;
@@ -24,24 +24,26 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
   }, []);
 
   async function checkAuthAndFetchProducts() {
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
     if (!session) {
-      localStorage.setItem('intendedCategory', params.categoryId);
-      router.push('/login');
+      localStorage.setItem("intendedCategory", params.categoryId);
+      router.push("/login");
       return;
     }
 
     try {
       const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('category', params.categoryId);
+        .from("products")
+        .select("*")
+        .eq("category", params.categoryId);
 
       if (error) throw error;
       setProducts(data || []);
     } catch (error) {
-      console.error('Error:', error);
+      console.error("Error:", error);
     } finally {
       setIsLoading(false);
     }
@@ -56,8 +58,8 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Products</h1>
         <button
-          onClick={() => router.push('/dashboard')}
           className="text-blue-500 hover:text-blue-700"
+          onClick={() => router.push("/dashboard")}
         >
           ← Back to Categories
         </button>
@@ -66,10 +68,10 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {products.map((product) => (
           <div key={product.id} className="border rounded-lg p-4">
-            <img 
-              src={product.heroImage || product.imagesUrl} 
-              alt={product.title} 
-              className="w-full h-48 object-cover rounded mb-2" 
+            <img
+              alt={product.title}
+              className="w-full h-48 object-cover rounded mb-2"
+              src={product.heroImage || product.imagesUrl}
             />
             <h3 className="font-semibold">{product.title}</h3>
             <p className="text-gray-600">S${product.price}</p>
@@ -84,4 +86,4 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
       </div>
     </div>
   );
-} 
+}

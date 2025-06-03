@@ -76,7 +76,7 @@
 //   }, []);
 
 //   const toggleCategory = (categoryId: string) => {
-//     setOpenCategories(prev => 
+//     setOpenCategories(prev =>
 //       prev.includes(categoryId)
 //         ? prev.filter(id => id !== categoryId)
 //         : [...prev, categoryId]
@@ -85,12 +85,12 @@
 
 //   const handleAddProduct = async (e: React.FormEvent) => {
 //     e.preventDefault();
-    
+
 //     if (categories.length === 0) {
 //       console.error('No categories available. Please create a category first.');
 //       return;
 //     }
-    
+
 //     if (newProduct.title && newProduct.price) {
 //       const product = {
 //         title: newProduct.title,
@@ -108,7 +108,7 @@
 //       const { error } = await supabase
 //         .from('products')
 //         .insert([product]);
-        
+
 //       if (error) {
 //         console.error('Error adding product:', error);
 //         return;
@@ -127,7 +127,7 @@
 //         availability: false
 //       });
 //       setShowAddForm(false);
-      
+
 //       await fetchProducts();
 //     }
 //   };
@@ -143,7 +143,7 @@
 //       return;
 //     }
 
-//     setProducts(prev => prev.map(product => 
+//     setProducts(prev => prev.map(product =>
 //       product.id === productId ? { ...product, ...updatedData } : product
 //     ));
 //     setIsEditModalOpen(false);
@@ -399,7 +399,7 @@
 //                   </span>
 //                 </td>
 //                 <td className="px-6 py-4 whitespace-nowrap space-x-2">
-//                   <button 
+//                   <button
 //                     onClick={() => {
 //                       setEditingProduct(product);
 //                       setIsEditModalOpen(true);
@@ -408,7 +408,7 @@
 //                   >
 //                     Edit
 //                   </button>
-//                   <button 
+//                   <button
 //                     onClick={() => handleAvailabilityToggle(product.id, product.availability)}
 //                     className={`${
 //                       product.availability ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'
@@ -435,4 +435,4 @@
 //       )}
 //     </div>
 //   );
-// } 
+// }

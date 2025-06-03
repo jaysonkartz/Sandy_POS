@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { supabase } from '@/app/lib/supabase';
+import { useState, useEffect } from "react";
+import { supabase } from "@/app/lib/supabase";
 
 interface Product {
   id: number;
@@ -28,25 +28,25 @@ export default function ProductModal({ isOpen, onClose, categoryId }: ProductMod
     async function fetchProducts() {
       setIsLoading(true);
       setError(null);
-      
+
       if (!categoryId) return;
-      
+
       try {
         const { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .eq('category', categoryId);
-        
+          .from("products")
+          .select("*")
+          .eq("category", categoryId);
+
         if (error) throw error;
-        
+
         if (data) {
           setProducts(data);
         } else {
           setProducts([]);
         }
       } catch (err) {
-        console.error('Error fetching products:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch products');
+        console.error("Error fetching products:", err);
+        setError(err instanceof Error ? err.message : "Failed to fetch products");
       } finally {
         setIsLoading(false);
       }
@@ -61,12 +61,12 @@ export default function ProductModal({ isOpen, onClose, categoryId }: ProductMod
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
-      
+      <div aria-hidden="true" className="fixed inset-0 bg-black/30" />
+
       <div className="fixed inset-0 flex items-center justify-center p-4">
         <div className="mx-auto max-w-3xl rounded bg-white p-6 w-full">
           <h2 className="text-xl font-bold mb-4">Products</h2>
-          
+
           {isLoading ? (
             <div className="flex justify-center">
               <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
@@ -77,10 +77,10 @@ export default function ProductModal({ isOpen, onClose, categoryId }: ProductMod
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {products.map((product) => (
                 <div key={product.id} className="border rounded-lg p-4">
-                  <img 
-                    src={product.heroImage || product.imagesUrl} 
-                    alt={product.title} 
-                    className="w-full h-48 object-cover rounded mb-2" 
+                  <img
+                    alt={product.title}
+                    className="w-full h-48 object-cover rounded mb-2"
+                    src={product.heroImage || product.imagesUrl}
                   />
                   <h3 className="font-semibold">{product.title}</h3>
                   <p className="text-gray-600">${product.price}</p>
@@ -94,10 +94,10 @@ export default function ProductModal({ isOpen, onClose, categoryId }: ProductMod
               )}
             </div>
           )}
-          
+
           <button
-            onClick={onClose}
             className="mt-4 px-4 py-2 bg-gray-100 rounded hover:bg-gray-200"
+            onClick={onClose}
           >
             Close
           </button>
@@ -105,4 +105,4 @@ export default function ProductModal({ isOpen, onClose, categoryId }: ProductMod
       </div>
     </>
   );
-} 
+}

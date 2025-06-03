@@ -105,11 +105,15 @@ export default function ManagementDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10; // Number of orders per page
   const [totalOrders, setTotalOrders] = useState(0);
-  const [editingCustomer, setEditingCustomer] = useState<{orderItemId: number, price: number} | null>(null);
+  const [editingCustomer, setEditingCustomer] = useState<{
+    orderItemId: number;
+    price: number;
+  } | null>(null);
   const [newCustomerPrice, setNewCustomerPrice] = useState<number | null>(null);
   const [offerPrice, setOfferPrice] = useState<number | null>(null);
 
-  const priceHistoryMap: Record<number, { previous_price: number; last_price_update: string }[]> = {};
+  const priceHistoryMap: Record<number, { previous_price: number; last_price_update: string }[]> =
+    {};
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -145,8 +149,9 @@ export default function ManagementDashboard() {
     setIsLoading(true);
     try {
       const { data: countries, error } = await supabase
-        .from('countries')
-        .select(`
+        .from("countries")
+        .select(
+          `
           id,
           country,
           is_active,
@@ -164,43 +169,44 @@ export default function ManagementDashboard() {
               )
             )
           )
-        `)
-        .order('country', { ascending: true });
-    
-      console.log(countries)
-    
+        `
+        )
+        .order("country", { ascending: true });
+
+      console.log(countries);
+
       if (error) throw error;
       const { data: priceHistories, error: priceHistoryError } = await supabase
-        .from('product_price_history')
-        .select('product_id, previous_price, original_price, last_price_update')
-        .order('last_price_update', { ascending: false });
+        .from("product_price_history")
+        .select("product_id, previous_price, original_price, last_price_update")
+        .order("last_price_update", { ascending: false });
 
       if (priceHistoryError) {
-        console.error('Failed to fetch price history:', priceHistoryError);
+        console.error("Failed to fetch price history:", priceHistoryError);
       }
 
       // Group price histories by product_id
-      (priceHistories || []).forEach(ph => {
+      (priceHistories || []).forEach((ph) => {
         if (!priceHistoryMap[ph.product_id]) priceHistoryMap[ph.product_id] = [];
         priceHistoryMap[ph.product_id].push(ph);
       });
 
       // Attach last 3 previous prices to each product
       setCountries(
-        (countries || []).map(country => ({
+        (countries || []).map((country) => ({
           ...country,
-          products: (country.products_Country_fkey || []).map(product => ({
+          products: (country.products_Country_fkey || []).map((product) => ({
             ...product,
-            priceHistory: (priceHistoryMap[product.id] || []).slice(0, 3)
-          })) as (Product & { priceHistory: { previous_price: number; last_price_update: string }[] })[]
+            priceHistory: (priceHistoryMap[product.id] || []).slice(0, 3),
+          })) as (Product & {
+            priceHistory: { previous_price: number; last_price_update: string }[];
+          })[],
         }))
       );
       // Log all products for debugging
-      console.log(
-        (countries || []).flatMap(country => country.products_Country_fkey || [])
-      );
+      console.log((countries || []).flatMap((country) => country.products_Country_fkey || []));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch countries');
+      setError(err instanceof Error ? err.message : "Failed to fetch countries");
     } finally {
       setIsLoading(false);
     }
@@ -218,23 +224,25 @@ export default function ManagementDashboard() {
 
       // Fetch paginated orders
       const { data, error, count } = await supabase
-        .from('orders')
-        .select('id, created_at, customer_name, customer_phone, total_amount, status', { count: 'exact' })
-        .order('created_at', { ascending: false })
+        .from("orders")
+        .select("id, created_at, customer_name, customer_phone, total_amount, status", {
+          count: "exact",
+        })
+        .order("created_at", { ascending: false })
         .range(from, to);
 
       if (error) throw error;
       setOrderDetails(data || []);
       setTotalOrders(count || 0);
     } catch (error) {
-      console.error('Error fetching order details:', error);
+      console.error("Error fetching order details:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    if (activeSection === 'history') {
+    if (activeSection === "history") {
       fetchOrderDetails(currentPage);
     }
   }, [activeSection, currentPage]);
@@ -245,17 +253,12 @@ export default function ManagementDashboard() {
       title: "Overview",
       description: "Dashboard overview and statistics",
       icon: (
-        <svg
-          className="w-6 h-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
+            d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
-            d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
           />
         </svg>
       ),
@@ -265,17 +268,12 @@ export default function ManagementDashboard() {
       title: "Product List",
       description: "Manage product prices and discounts",
       icon: (
-        <svg
-          className="w-6 h-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
+            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
-            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
           />
         </svg>
       ),
@@ -285,17 +283,12 @@ export default function ManagementDashboard() {
       title: "Countries",
       description: "Manage countries and view products by country",
       icon: (
-        <svg
-          className="w-6 h-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
+            d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
-            d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
           />
         </svg>
       ),
@@ -325,17 +318,12 @@ export default function ManagementDashboard() {
       title: "History",
       description: "View your transaction history",
       icon: (
-        <svg
-          className="w-6 h-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
+            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
-            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
           />
         </svg>
       ),
@@ -345,17 +333,12 @@ export default function ManagementDashboard() {
       title: "Customers",
       description: "Manage your customer relationships",
       icon: (
-        <svg
-          className="w-6 h-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
+            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
-            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
           />
         </svg>
       ),
@@ -385,17 +368,12 @@ export default function ManagementDashboard() {
       title: "Users",
       description: "Manage system users",
       icon: (
-        <svg
-          className="w-6 h-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
+            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
-            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
           />
         </svg>
       ),
@@ -426,20 +404,16 @@ export default function ManagementDashboard() {
             "rgba(255, 206, 86, 0.5)",
             "rgba(255, 99, 132, 0.5)",
           ],
-          borderColor: [
-            "rgba(75, 192, 192, 1)",
-            "rgba(255, 206, 86, 1)",
-            "rgba(255, 99, 132, 1)",
-          ],
+          borderColor: ["rgba(75, 192, 192, 1)", "rgba(255, 206, 86, 1)", "rgba(255, 99, 132, 1)"],
         },
       ],
     };
 
     return (
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="space-y-6"
+        initial={{ opacity: 0, y: 20 }}
       >
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -529,15 +503,9 @@ export default function ManagementDashboard() {
                   },
                 ].map((activity, index) => (
                   <tr key={index}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {activity.date}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {activity.type}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {activity.description}
-                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">{activity.date}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{activity.type}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{activity.description}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
                         className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -562,15 +530,15 @@ export default function ManagementDashboard() {
   const renderUsers = () => {
     return (
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="space-y-6"
+        initial={{ opacity: 0, y: 20 }}
       >
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-semibold">User Management</h2>
           <button
-            onClick={fetchUsers}
             className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            onClick={fetchUsers}
           >
             Refresh
           </button>
@@ -605,15 +573,9 @@ export default function ManagementDashboard() {
                     <tr key={user.id}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <img
-                            className="h-8 w-8 rounded-full"
-                            src={user.avatar_url}
-                            alt=""
-                          />
+                          <img alt="" className="h-8 w-8 rounded-full" src={user.avatar_url} />
                           <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">
-                              {user.email}
-                            </div>
+                            <div className="text-sm font-medium text-gray-900">{user.email}</div>
                           </div>
                         </div>
                       </td>
@@ -633,19 +595,19 @@ export default function ManagementDashboard() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button
+                          className="text-indigo-600 hover:text-indigo-900 mr-4"
                           onClick={() => {
                             setSelectedUser(user);
                             setIsEditModalOpen(true);
                           }}
-                          className="text-indigo-600 hover:text-indigo-900 mr-4"
                         >
                           Edit
                         </button>
                         <button
+                          className="text-red-600 hover:text-red-900"
                           onClick={() => {
                             console.log("Delete user:", user);
                           }}
-                          className="text-red-600 hover:text-red-900"
                         >
                           Delete
                         </button>
@@ -660,8 +622,8 @@ export default function ManagementDashboard() {
 
         {/* Add the EditUserModal */}
         <EditUserModal
-          user={selectedUser}
           isOpen={isEditModalOpen}
+          user={selectedUser}
           onClose={() => {
             setIsEditModalOpen(false);
             setSelectedUser(null);
@@ -681,27 +643,24 @@ export default function ManagementDashboard() {
       case "pricing":
         return (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="space-y-6"
+            initial={{ opacity: 0, y: 20 }}
           >
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-900">Product Lists</h2>
             </div>
             <div>
-              {error && <div style={{ color: 'red' }}>{error}</div>}
-              {countries.length === 0 && !error && (
-                <div>No countries found.</div>
-              )}
+              {error && <div style={{ color: "red" }}>{error}</div>}
+              {countries.length === 0 && !error && <div>No countries found.</div>}
               <div className="space-y-6">
                 {countries.map((country) => (
-                  <div
-                    key={country.id}
-                    className="bg-white rounded-lg shadow p-4 mb-4"
-                  >
+                  <div key={country.id} className="bg-white rounded-lg shadow p-4 mb-4">
                     <div
                       className="flex justify-between items-center cursor-pointer"
-                      onClick={() => setExpandedCountry(expandedCountry === country.id ? null : country.id)}
+                      onClick={() =>
+                        setExpandedCountry(expandedCountry === country.id ? null : country.id)
+                      }
                     >
                       <div>
                         <span className="text-lg font-bold">{country.country}</span>
@@ -709,7 +668,9 @@ export default function ManagementDashboard() {
                       </div>
                       <span
                         className={`px-2 py-1 rounded text-xs font-semibold ${
-                          country.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                          country.is_active
+                            ? "bg-green-100 text-green-700"
+                            : "bg-red-100 text-red-700"
                         }`}
                       >
                         {country.is_active ? "Active" : "Inactive"}
@@ -720,9 +681,15 @@ export default function ManagementDashboard() {
                         <table className="min-w-full divide-y divide-gray-200">
                           <thead className="bg-gray-50">
                             <tr>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Product Name</th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Previous Prices</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                Product Name
+                              </th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                Price
+                              </th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                Previous Prices
+                              </th>
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-100">
@@ -732,10 +699,15 @@ export default function ManagementDashboard() {
                                   <td className="px-4 py-2">
                                     <div className="flex items-center space-x-2">
                                       <button
-                                        onClick={() => setSelectedProduct(selectedProduct === product.id ? null : product.id)}
                                         className="text-blue-600 hover:text-blue-800"
+                                        onClick={() =>
+                                          setSelectedProduct(
+                                            selectedProduct === product.id ? null : product.id
+                                          )
+                                        }
                                       >
-                                        {selectedProduct === product.id ? '▼' : '▶'} {product.Product}
+                                        {selectedProduct === product.id ? "▼" : "▶"}{" "}
+                                        {product.Product}
                                       </button>
                                     </div>
                                   </td>
@@ -743,13 +715,14 @@ export default function ManagementDashboard() {
                                     {editingProductId === product.id ? (
                                       <>
                                         <input
+                                          className="border rounded px-2 py-1 w-20"
                                           type="number"
                                           value={editingPrice ?? product.price}
-                                          onChange={e => setEditingPrice(Number(e.target.value))}
-                                          className="border rounded px-2 py-1 w-20"
+                                          onChange={(e) => setEditingPrice(Number(e.target.value))}
                                         />
                                         <button
                                           className="text-green-600 font-bold"
+                                          title="Save"
                                           onClick={async () => {
                                             if (editingPrice === null || isNaN(editingPrice)) {
                                               alert("Please enter a valid price.");
@@ -757,13 +730,17 @@ export default function ManagementDashboard() {
                                             }
                                             setIsLoading(true);
 
-                                            const { data: orderItems, error: orderItemsError } = await supabase
-                                              .from('order_items')
-                                              .select('order_id, orders(customer_id)')
-                                              .eq('product_id', product.id);
+                                            const { data: orderItems, error: orderItemsError } =
+                                              await supabase
+                                                .from("order_items")
+                                                .select("order_id, orders(customer_id)")
+                                                .eq("product_id", product.id);
 
                                             if (orderItemsError) {
-                                              alert("Failed to fetch order items: " + orderItemsError.message);
+                                              alert(
+                                                "Failed to fetch order items: " +
+                                                  orderItemsError.message
+                                              );
                                               setIsLoading(false);
                                               return;
                                             }
@@ -773,53 +750,64 @@ export default function ManagementDashboard() {
                                             const uniqueCustomerIds = [
                                               ...new Set(
                                                 (orderItems || [])
-                                                  .map(oi => {
-                                                    const orders = oi.orders as { customer_id?: string } | { customer_id?: string }[] | undefined;
+                                                  .map((oi) => {
+                                                    const orders = oi.orders as
+                                                      | { customer_id?: string }
+                                                      | { customer_id?: string }[]
+                                                      | undefined;
                                                     if (!orders) return null;
                                                     if (Array.isArray(orders)) {
                                                       return orders[0]?.customer_id ?? null;
                                                     }
                                                     return orders.customer_id ?? null;
                                                   })
-                                                  .filter(cid => !!cid)
+                                                  .filter((cid) => !!cid)
                                               ),
                                             ];
 
                                             if (uniqueCustomerIds.length === 0) {
-                                              await supabase.from('product_price_history').insert([
+                                              await supabase.from("product_price_history").insert([
                                                 {
                                                   product_id: product.id,
                                                   previous_price: product.price,
                                                   original_price: editingPrice,
                                                   last_price_update: new Date().toISOString(),
                                                   customer_id: null,
-                                                }
+                                                },
                                               ]);
                                             } else {
                                               for (const customerId of uniqueCustomerIds) {
-                                                const { error: insertError } = await supabase.from('product_price_history').insert([
-                                                  {
-                                                    product_id: product.id,
-                                                    previous_price: product.price,
-                                                    original_price: editingPrice,
-                                                    last_price_update: new Date().toISOString(),
-                                                    customer_id: customerId,
-                                                  }
-                                                ]);
+                                                const { error: insertError } = await supabase
+                                                  .from("product_price_history")
+                                                  .insert([
+                                                    {
+                                                      product_id: product.id,
+                                                      previous_price: product.price,
+                                                      original_price: editingPrice,
+                                                      last_price_update: new Date().toISOString(),
+                                                      customer_id: customerId,
+                                                    },
+                                                  ]);
                                                 if (insertError) {
-                                                  alert("Failed to insert price history: " + insertError.message);
+                                                  alert(
+                                                    "Failed to insert price history: " +
+                                                      insertError.message
+                                                  );
                                                 }
                                               }
                                             }
 
                                             // Now update the product price
                                             const { error: updateError } = await supabase
-                                              .from('products')
+                                              .from("products")
                                               .update({ price: editingPrice })
-                                              .eq('id', product.id);
+                                              .eq("id", product.id);
 
                                             if (updateError) {
-                                              alert("Failed to update product price: " + updateError.message);
+                                              alert(
+                                                "Failed to update product price: " +
+                                                  updateError.message
+                                              );
                                               setIsLoading(false);
                                               return;
                                             }
@@ -829,17 +817,16 @@ export default function ManagementDashboard() {
                                             setIsLoading(false);
                                             fetchCountries();
                                           }}
-                                          title="Save"
                                         >
                                           ✔
                                         </button>
                                         <button
                                           className="text-gray-400 font-bold"
+                                          title="Cancel"
                                           onClick={() => {
                                             setEditingProductId(null);
                                             setEditingPrice(null);
                                           }}
-                                          title="Cancel"
                                         >
                                           ✖
                                         </button>
@@ -849,47 +836,70 @@ export default function ManagementDashboard() {
                                         <span>${product.price.toFixed(2)}</span>
                                         <button
                                           className="ml-2 text-blue-600 underline"
+                                          title="Edit Price"
                                           onClick={() => {
                                             setEditingProductId(product.id);
                                             setEditingPrice(product.price);
                                           }}
-                                          title="Edit Price"
                                         >
                                           Edit
                                         </button>
                                         {(() => {
                                           // Find all customers for this product
                                           const allCustomers = product.order_items
-                                            ?.flatMap(oiRaw => {
-                                              const oi = oiRaw as { price?: number; orders?: { customer_name: string; customer_phone: string }[] };
-                                              return Array.isArray(oi.orders) ? oi.orders : oi.orders ? [oi.orders] : [];
+                                            ?.flatMap((oiRaw) => {
+                                              const oi = oiRaw as {
+                                                price?: number;
+                                                orders?: {
+                                                  customer_name: string;
+                                                  customer_phone: string;
+                                                }[];
+                                              };
+                                              return Array.isArray(oi.orders)
+                                                ? oi.orders
+                                                : oi.orders
+                                                  ? [oi.orders]
+                                                  : [];
                                             })
-                                            .filter(order => order.customer_phone);
-                                          const hasCustomers = allCustomers && allCustomers.length > 0;
+                                            .filter((order) => order.customer_phone);
+                                          const hasCustomers =
+                                            allCustomers && allCustomers.length > 0;
                                           const waText = hasCustomers
                                             ? allCustomers
                                                 .map(
-                                                  order =>
+                                                  (order) =>
                                                     `Hi ${order.customer_name}, the price for ${product.Product} has changed. Please check the latest update!`
                                                 )
                                                 .join("%0A")
-                                            : '';
+                                            : "";
                                           return (
                                             <a
-                                              href={hasCustomers ? `https://wa.me/?text=${waText}` : undefined}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
+                                              aria-disabled={!hasCustomers}
                                               className={`inline-flex items-center px-2 py-1 ${
                                                 hasCustomers
-                                                  ? 'bg-green-500 hover:bg-green-600 cursor-pointer'
-                                                  : 'bg-gray-400 cursor-not-allowed opacity-60'
+                                                  ? "bg-green-500 hover:bg-green-600 cursor-pointer"
+                                                  : "bg-gray-400 cursor-not-allowed opacity-60"
                                               } text-white rounded transition ml-2`}
-                                              title={hasCustomers ? 'Notify all customers via WhatsApp' : 'No customer to notify'}
+                                              href={
+                                                hasCustomers
+                                                  ? `https://wa.me/?text=${waText}`
+                                                  : undefined
+                                              }
+                                              rel="noopener noreferrer"
                                               tabIndex={hasCustomers ? 0 : -1}
-                                              aria-disabled={!hasCustomers}
+                                              target="_blank"
+                                              title={
+                                                hasCustomers
+                                                  ? "Notify all customers via WhatsApp"
+                                                  : "No customer to notify"
+                                              }
                                             >
-                                              <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24">
-                                                <path d="M20.52 3.48A12.07 12.07 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.16 1.6 5.97L0 24l6.18-1.62A11.94 11.94 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.19-1.24-6.19-3.48-8.52zM12 22c-1.85 0-3.68-.5-5.26-1.44l-.38-.22-3.67.96.98-3.58-.25-.37A9.94 9.94 0 0 1 2 12c0-5.52 4.48-10 10-10s10 4.48 10 10-4.48 10-10 10zm5.2-7.8c-.28-.14-1.65-.81-1.9-.9-.25-.09-.43-.14-.61.14-.18.28-.7.9-.86 1.08-.16.18-.32.2-.6.07-.28-.14-1.18-.44-2.25-1.4-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.12-.12.28-.32.42-.48.14-.16.18-.28.28-.46.09-.18.05-.34-.02-.48-.07-.14-.61-1.47-.84-2.01-.22-.53-.45-.46-.61-.47-.16-.01-.34-.01-.52-.01-.18 0-.48.07-.73.34-.25.28-.97.95-.97 2.3 0 1.35.99 2.65 1.13 2.83.14.18 1.95 2.98 4.74 4.06.66.28 1.18.45 1.58.58.66.21 1.26.18 1.73.11.53-.08 1.65-.67 1.88-1.32.23-.65.23-1.21.16-1.32-.07-.11-.25-.18-.53-.32z"/>
+                                              <svg
+                                                className="w-4 h-4 mr-1"
+                                                fill="currentColor"
+                                                viewBox="0 0 24 24"
+                                              >
+                                                <path d="M20.52 3.48A12.07 12.07 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.16 1.6 5.97L0 24l6.18-1.62A11.94 11.94 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.19-1.24-6.19-3.48-8.52zM12 22c-1.85 0-3.68-.5-5.26-1.44l-.38-.22-3.67.96.98-3.58-.25-.37A9.94 9.94 0 0 1 2 12c0-5.52 4.48-10 10-10s10 4.48 10 10-4.48 10-10 10zm5.2-7.8c-.28-.14-1.65-.81-1.9-.9-.25-.09-.43-.14-.61.14-.18.28-.7.9-.86 1.08-.16.18-.32.2-.6.07-.28-.14-1.18-.44-2.25-1.4-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.12-.12.28-.32.42-.48.14-.16.18-.28.28-.46.09-.18.05-.34-.02-.48-.07-.14-.61-1.47-.84-2.01-.22-.53-.45-.46-.61-.47-.16-.01-.34-.01-.52-.01-.18 0-.48.07-.73.34-.25.28-.97.95-.97 2.3 0 1.35.99 2.65 1.13 2.83.14.18 1.95 2.98 4.74 4.06.66.28 1.18.45 1.58.58.66.21 1.26.18 1.73.11.53-.08 1.65-.67 1.88-1.32.23-.65.23-1.21.16-1.32-.07-.11-.25-.18-.53-.32z" />
                                               </svg>
                                               Notify all
                                             </a>
@@ -905,7 +915,13 @@ export default function ManagementDashboard() {
                                           <span key={idx} className="text-xs text-gray-500">
                                             ${ph.previous_price?.toFixed(2)}{" "}
                                             <span className="text-gray-400">
-                                              ({ph.last_price_update ? new Date(ph.last_price_update).toLocaleDateString() : "No date"})
+                                              (
+                                              {ph.last_price_update
+                                                ? new Date(
+                                                    ph.last_price_update
+                                                  ).toLocaleDateString()
+                                                : "No date"}
+                                              )
                                             </span>
                                           </span>
                                         ))}
@@ -917,15 +933,34 @@ export default function ManagementDashboard() {
                                 </tr>
                                 {selectedProduct === product.id && (
                                   <tr>
-                                    <td colSpan={3} className="px-4 py-2 bg-gray-50">
+                                    <td className="px-4 py-2 bg-gray-50" colSpan={3}>
                                       <div className="pl-8">
-                                        <h4 className="font-medium text-gray-700 mb-2">Customers:</h4>
+                                        <h4 className="font-medium text-gray-700 mb-2">
+                                          Customers:
+                                        </h4>
                                         {product.order_items?.map((oiRaw, idx) => {
-                                          const oi = oiRaw as { order_id: number; price?: number; orders?: { customer_name: string; customer_phone: string; customer_id?: string }[] };
-                                          return (Array.isArray(oi.orders) ? oi.orders : oi.orders ? [oi.orders] : []).map((order, oidx) => {
+                                          const oi = oiRaw as {
+                                            order_id: number;
+                                            price?: number;
+                                            orders?: {
+                                              customer_name: string;
+                                              customer_phone: string;
+                                              customer_id?: string;
+                                            }[];
+                                          };
+                                          return (
+                                            Array.isArray(oi.orders)
+                                              ? oi.orders
+                                              : oi.orders
+                                                ? [oi.orders]
+                                                : []
+                                          ).map((order, oidx) => {
                                             // Use oi.price as the past price for this customer
                                             return (
-                                              <div key={oidx} className="flex items-center space-x-2 mb-1">
+                                              <div
+                                                key={oidx}
+                                                className="flex items-center space-x-2 mb-1"
+                                              >
                                                 <span>{order.customer_name}</span>
                                                 {oi.price !== undefined && (
                                                   <span className="text-xs text-gray-500">
@@ -933,25 +968,27 @@ export default function ManagementDashboard() {
                                                   </span>
                                                 )}
                                                 <input
-                                                  type="number"
-                                                  value={offerPrice ?? ''}
-                                                  onChange={e => setOfferPrice(Number(e.target.value))}
                                                   placeholder="Offer new price"
+                                                  type="number"
+                                                  value={offerPrice ?? ""}
+                                                  onChange={(e) =>
+                                                    setOfferPrice(Number(e.target.value))
+                                                  }
                                                 />
                                                 <button
                                                   onClick={async () => {
                                                     if (!order.customer_id) {
-                                                      alert('Customer ID not found!');
+                                                      alert("Customer ID not found!");
                                                       return;
                                                     }
-                                                    await supabase.from('price_offers').insert([
+                                                    await supabase.from("price_offers").insert([
                                                       {
                                                         customer_id: order.customer_id,
                                                         product_id: product.id,
                                                         offered_price: offerPrice,
-                                                        status: 'pending',
+                                                        status: "pending",
                                                         created_at: new Date().toISOString(),
-                                                      }
+                                                      },
                                                     ]);
                                                   }}
                                                 >
@@ -961,7 +998,8 @@ export default function ManagementDashboard() {
                                             );
                                           });
                                         })}
-                                        {(!product.order_items || product.order_items.length === 0) && (
+                                        {(!product.order_items ||
+                                          product.order_items.length === 0) && (
                                           <span className="text-gray-500">No customers found</span>
                                         )}
                                       </div>
@@ -985,15 +1023,15 @@ export default function ManagementDashboard() {
       case "history":
         return (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="space-y-6"
+            initial={{ opacity: 0, y: 20 }}
           >
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-semibold">Transaction History</h2>
               <button
-                onClick={() => fetchOrderDetails(currentPage)}
                 className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                onClick={() => fetchOrderDetails(currentPage)}
               >
                 Refresh
               </button>
@@ -1029,15 +1067,13 @@ export default function ManagementDashboard() {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {orderDetails.map((order) => (
                         <tr key={order.id}>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {order.id}
-                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">{order.id}</td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             {new Date(order.created_at).toLocaleDateString()}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             {order.customer_name}
-                            {order.customer_phone ? ` (${order.customer_phone})` : ''}
+                            {order.customer_phone ? ` (${order.customer_phone})` : ""}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             ${order.total_amount?.toFixed(2)}
@@ -1045,11 +1081,11 @@ export default function ManagementDashboard() {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span
                               className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                order.status === 'completed'
-                                  ? 'bg-green-100 text-green-800'
-                                  : order.status === 'pending'
-                                  ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-red-100 text-red-800'
+                                order.status === "completed"
+                                  ? "bg-green-100 text-green-800"
+                                  : order.status === "pending"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : "bg-red-100 text-red-800"
                               }`}
                             >
                               {order.status}
@@ -1065,9 +1101,9 @@ export default function ManagementDashboard() {
 
             <div className="flex justify-between items-center mt-4">
               <button
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
                 className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               >
                 Previous
               </button>
@@ -1075,9 +1111,9 @@ export default function ManagementDashboard() {
                 Page {currentPage} of {Math.ceil(totalOrders / pageSize)}
               </span>
               <button
-                onClick={() => setCurrentPage((p) => p + 1)}
-                disabled={currentPage * pageSize >= totalOrders}
                 className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
+                disabled={currentPage * pageSize >= totalOrders}
+                onClick={() => setCurrentPage((p) => p + 1)}
               >
                 Next
               </button>
@@ -1093,9 +1129,9 @@ export default function ManagementDashboard() {
       case "countries":
         return (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="space-y-6"
+            initial={{ opacity: 0, y: 20 }}
           >
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-900">Countries Management</h2>
@@ -1105,10 +1141,18 @@ export default function ManagementDashboard() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Country</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Chinese Name</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Active</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Country
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Chinese Name
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Active
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -1117,9 +1161,13 @@ export default function ManagementDashboard() {
                         <td className="px-6 py-4 whitespace-nowrap">{country.country}</td>
                         <td className="px-6 py-4 whitespace-nowrap">{country.chineseName}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            country.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                          }`}>
+                          <span
+                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              country.is_active
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
+                          >
                             {country.is_active ? "Active" : "Inactive"}
                           </span>
                         </td>
@@ -1143,34 +1191,29 @@ export default function ManagementDashboard() {
     <div className="min-h-screen bg-gray-50">
       <div className="p-4">
         <button
-          onClick={() => router.push("/")}
           className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition mb-4"
+          onClick={() => router.push("/")}
         >
           ← Back to Homepage
         </button>
       </div>
       <div className="flex">
         <motion.div
-          initial={false}
           animate={{ width: sidebarOpen ? "auto" : "0px" }}
           className={`${isMobile ? "fixed z-50" : ""} bg-white h-screen shadow-lg`}
+          initial={false}
         >
           <div className="w-64">
             <div className="p-4 border-b flex items-center justify-between">
               <h1 className="text-xl font-bold">Management Portal</h1>
               {isMobile && (
-                <button onClick={() => setSidebarOpen(false)} className="p-2">
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
+                <button className="p-2" onClick={() => setSidebarOpen(false)}>
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
+                      d="M6 18L18 6M6 6l12 12"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
                     />
                   </svg>
                 </button>
@@ -1180,24 +1223,20 @@ export default function ManagementDashboard() {
               {sections.map((section) => (
                 <motion.button
                   key={section.id}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg mb-2 transition-all ${
+                    activeSection === section.id ? "bg-blue-100 text-blue-600" : "hover:bg-gray-100"
+                  }`}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => {
                     setActiveSection(section.id);
                     if (isMobile) setSidebarOpen(false);
                   }}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg mb-2 transition-all ${
-                    activeSection === section.id
-                      ? "bg-blue-100 text-blue-600"
-                      : "hover:bg-gray-100"
-                  }`}
                 >
                   {section.icon}
                   <div className="text-left">
                     <span className="block font-medium">{section.title}</span>
-                    <span className="text-xs text-gray-500">
-                      {section.description}
-                    </span>
+                    <span className="text-xs text-gray-500">{section.description}</span>
                   </div>
                 </motion.button>
               ))}
@@ -1208,18 +1247,13 @@ export default function ManagementDashboard() {
         <div className="flex-1">
           {isMobile && (
             <div className="p-4 bg-white shadow-sm flex items-center">
-              <button onClick={() => setSidebarOpen(true)} className="p-2">
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+              <button className="p-2" onClick={() => setSidebarOpen(true)}>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
+                    d="M4 6h16M4 12h16M4 18h16"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M4 6h16M4 12h16M4 18h16"
                   />
                 </svg>
               </button>
@@ -1231,9 +1265,9 @@ export default function ManagementDashboard() {
 
           <motion.div
             layout
+            animate={{ opacity: 1, y: 0 }}
             className="p-8"
             initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
           >
             {renderContent()}

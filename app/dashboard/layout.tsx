@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 interface Product {
   id: number;
@@ -17,7 +17,11 @@ interface CategoryProps {
   products: Product[];
 }
 
-export default function ProductCategory({ name, categoryId, products: initialProducts }: CategoryProps) {
+export default function ProductCategory({
+  name,
+  categoryId,
+  products: initialProducts,
+}: CategoryProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>(initialProducts || []);
   const [loading, setLoading] = useState(true);
@@ -30,26 +34,26 @@ export default function ProductCategory({ name, categoryId, products: initialPro
   useEffect(() => {
     async function fetchProducts() {
       if (!categoryId) {
-        console.log('Category ID is undefined');
+        console.log("Category ID is undefined");
         setLoading(false);
         return;
       }
 
       try {
         const { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .eq('category_id', categoryId);
+          .from("products")
+          .select("*")
+          .eq("category_id", categoryId);
 
         if (error) {
-          console.error('Error fetching products:', error);
+          console.error("Error fetching products:", error);
           return;
         }
 
-        console.log('Fetched products:', data);
+        console.log("Fetched products:", data);
         setProducts(data || []);
       } catch (error) {
-        console.error('Error:', error);
+        console.error("Error:", error);
       } finally {
         setLoading(false);
       }
@@ -96,10 +100,10 @@ export default function ProductCategory({ name, categoryId, products: initialPro
             <div key={product.id} className="border rounded-lg p-4 text-center">
               <div className="relative w-full h-40 mb-2">
                 <Image
-                  src={product.image}
-                  alt={product.name}
                   fill
+                  alt={product.name}
                   className="object-cover rounded-lg"
+                  src={product.image}
                 />
               </div>
               <h3 className="font-semibold">{product.name}</h3>
