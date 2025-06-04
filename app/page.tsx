@@ -53,6 +53,7 @@ export default function Home() {
   const [customerPhone, setCustomerPhone] = useState("");
   const [expandedCountries, setExpandedCountries] = useState<string[]>([]);
   const [expandedProducts, setExpandedProducts] = useState<number[]>([]);
+  const [countryMap, setCountryMap] = useState<{ [key: string]: { name: string; chineseName: string } }>({});
   const supabase = createClientComponentClient();
   const { addToCart, cart, updateQuantity } = useCart();
   const [session, setSession] = useState<any>(null);
@@ -104,6 +105,32 @@ export default function Home() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    async function fetchCountries() {
+      try {
+        const { data, error } = await supabase
+          .from("countries")
+          .select("*");
+        
+        if (error) throw error;
+        
+        const countryMapping: { [key: string]: { name: string; chineseName: string } } = {};
+        data?.forEach((country: any) => {
+          countryMapping[country.id] = {
+            name: country.country,
+            chineseName: country.chineseName
+          };
+        });
+        
+        setCountryMap(countryMapping);
+      } catch (error) {
+        console.error("Error fetching countries:", error);
+      }
+    }
+
+    fetchCountries();
+  }, [supabase]);
 
   // Get category name by id
   const getCategoryName = (category: string | number) => {
@@ -410,7 +437,11 @@ Please check the admin panel for more details.
                   )}
                   <div className="text-sm text-gray-600">
                     <span>{isEnglish ? "Origin: " : "产地："}</span>
-                    <span>{isEnglish ? product.Country : product.Country_CH}</span>
+                    <span>
+                      {isEnglish 
+                        ? (countryMap[product.Country]?.name || product.Country)
+                        : (countryMap[product.Country]?.chineseName || product.Country_CH)}
+                    </span>
                   </div>
                 </div>
 
