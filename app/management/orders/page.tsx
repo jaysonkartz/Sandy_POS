@@ -23,8 +23,6 @@ export default function OrderHistoryPage() {
         <div className="mt-6">
           <OrderHistoryCharts orders={orders} />
         </div>
-
-        {/* Your existing order table or other components */}
       </div>
     </div>
   );

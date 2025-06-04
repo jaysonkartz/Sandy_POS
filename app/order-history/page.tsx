@@ -118,6 +118,15 @@ export default function OrderHistory() {
       return acc;
     }, {});
 
+    // Sort months chronologically
+    const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const sortedMonthlyData = Object.keys(monthlyData)
+      .sort((a, b) => monthOrder.indexOf(a) - monthOrder.indexOf(b))
+      .reduce((acc, month) => {
+        acc[month] = monthlyData[month];
+        return acc;
+      }, {} as { [key: string]: number });
+
     // Order status distribution
     const statusData = orders.reduce((acc: { [key: string]: number }, order) => {
       acc[order.status] = (acc[order.status] || 0) + 1;
@@ -125,7 +134,7 @@ export default function OrderHistory() {
     }, {});
 
     return {
-      monthly: monthlyData,
+      monthly: sortedMonthlyData,
       status: statusData,
     };
   };
@@ -164,13 +173,13 @@ export default function OrderHistory() {
       <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Monthly Sales Chart */}
         <div className="bg-white p-6 rounded-lg shadow-xl">
-          <h2 className="text-lg font-medium mb-4">Monthly Sales</h2>
+          <h2 className="text-lg font-medium mb-4">Monthly Spend</h2>
           <Line
             data={{
               labels: Object.keys(chartData.monthly),
               datasets: [
                 {
-                  label: "Sales ($)",
+                  label: "Spend ($)",
                   data: Object.values(chartData.monthly),
                   borderColor: "rgb(75, 192, 192)",
                   tension: 0.1,
@@ -229,7 +238,7 @@ export default function OrderHistory() {
             <p className="text-2xl font-bold text-gray-900">{orders.length}</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-xl">
-            <h3 className="text-sm font-medium text-gray-500">Total Revenue</h3>
+            <h3 className="text-sm font-medium text-gray-500">Total Spent</h3>
             <p className="text-2xl font-bold text-gray-900">
               ${orders.reduce((sum, order) => sum + order.total_amount, 0).toFixed(2)}
             </p>

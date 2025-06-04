@@ -111,6 +111,7 @@ export default function ManagementDashboard() {
   } | null>(null);
   const [newCustomerPrice, setNewCustomerPrice] = useState<number | null>(null);
   const [offerPrice, setOfferPrice] = useState<number | null>(null);
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
 
   const priceHistoryMap: Record<number, { previous_price: number; last_price_update: string }[]> =
     {};
@@ -1079,17 +1080,25 @@ export default function ManagementDashboard() {
                             ${order.total_amount?.toFixed(2)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span
-                              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            <select
+                              value={order.status}
+                              onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                              disabled={updatingStatus === order.id}
+                              className={`px-2 py-1 rounded-full text-xs font-semibold ${
                                 order.status === "completed"
                                   ? "bg-green-100 text-green-800"
                                   : order.status === "pending"
                                     ? "bg-yellow-100 text-yellow-800"
                                     : "bg-red-100 text-red-800"
-                              }`}
+                              } ${updatingStatus === order.id ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
-                              {order.status}
-                            </span>
+                              <option value="pending">Pending</option>
+                              <option value="completed">Completed</option>
+                              <option value="cancelled">Cancelled</option>
+                            </select>
+                            {updatingStatus === order.id && (
+                              <span className="ml-2 text-xs text-gray-500">Updating...</span>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -1184,6 +1193,47 @@ export default function ManagementDashboard() {
         );
       default:
         return renderOverview();
+    }
+  };
+
+  // Enhanced function to handle status update
+  const handleStatusChange = async (orderId: string, newStatus: string) => {
+    try {
+      setUpdatingStatus(orderId);
+      
+      // Validate status
+      if (!['pending', 'completed', 'cancelled'].includes(newStatus)) {
+        throw new Error('Invalid status value');
+      }
+
+      // Update status in database
+      const { error } = await supabase
+        .from("orders")
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString() // Add timestamp for when status was updated
+        })
+        .eq("id", orderId);
+
+      if (error) throw error;
+
+      // Update local state
+      setOrderDetails(prevOrders =>
+        prevOrders.map(order =>
+          order.id === orderId ? { ...order, status: newStatus } : order
+        )
+      );
+
+      // Show success message
+      alert(`Order status updated to ${newStatus}`);
+    } catch (error) {
+      console.error("Error updating order status:", error);
+      alert("Failed to update order status. Please try again.");
+      
+      // Refresh the order details to ensure UI is in sync with database
+      fetchOrderDetails(currentPage);
+    } finally {
+      setUpdatingStatus(null);
     }
   };
 
