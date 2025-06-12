@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createBrowserClient } from "@supabase/ssr";
 import { User } from "@supabase/supabase-js";
 import { Database } from "@/types/supabase";
 import CustomerLoginModal from "./CustomerLoginModal";
@@ -9,7 +9,10 @@ import CustomerLoginModal from "./CustomerLoginModal";
 export default function LoginButton() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
-  const supabase = createClientComponentClient<Database>();
+  const supabase = createBrowserClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 
   useEffect(() => {
     const checkUser = async () => {
