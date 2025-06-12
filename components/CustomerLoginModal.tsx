@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createBrowserClient } from "@supabase/ssr";
 import { Database } from "@/types/supabase";
-import type { User } from "@supabase/auth-helpers-nextjs";
+import type { User } from "@supabase/supabase-js";
 
 interface CustomerLoginModalProps {
   isOpen: boolean;
@@ -13,7 +13,10 @@ interface CustomerLoginModalProps {
 
 export default function CustomerLoginModal({ isOpen, onClose }: CustomerLoginModalProps) {
   const router = useRouter();
-  const supabase = createClientComponentClient<Database>();
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
   const [formData, setFormData] = useState({
     email: "",
     password: "",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createBrowserClient } from "@supabase/ssr";
 import { User } from "@supabase/supabase-js";
 import { Database } from "@/types/supabase";
 import CustomerLoginModal from "./CustomerLoginModal";
@@ -16,7 +16,10 @@ export default function TopBarLogin() {
   const [userRole, setUserRole] = useState<string>("");
   const [customerName, setCustomerName] = useState<string>("");
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const supabase = createClientComponentClient<Database>();
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
   const router = useRouter();
 
   useEffect(() => {

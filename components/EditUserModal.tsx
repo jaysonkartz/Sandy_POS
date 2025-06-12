@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createBrowserClient } from "@supabase/ssr";
 
 interface User {
   id: string;
@@ -20,7 +20,10 @@ export default function EditUserModal({ user, isOpen, onClose, onUpdate }: EditU
   const [role, setRole] = useState(user?.role || "USER");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const supabase = createClientComponentClient();
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

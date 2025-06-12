@@ -17,7 +17,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createBrowserClient } from "@supabase/ssr";
 import EditUserModal from "@/components/EditUserModal";
 import CustomerManagement from "@/components/CustomerManagement";
 //import ProductListTable from "@/components/ProductListTable";
@@ -96,7 +96,10 @@ export default function ManagementDashboard() {
   const [countries, setCountries] = useState<Country[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [orderDetails, setOrderDetails] = useState<OrderDetail[]>([]);
-  const supabase = createClientComponentClient();
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
   const [expandedCountry, setExpandedCountry] = useState<number | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<number | null>(null);
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
@@ -1234,41 +1237,21 @@ export default function ManagementDashboard() {
           ← Back to Homepage
         </button>
       </div>
-      <div className="flex">
-        <motion.div
-          animate={{ width: sidebarOpen ? "auto" : "0px" }}
-          className={`${isMobile ? "fixed z-50" : ""} bg-white h-screen shadow-lg`}
-          initial={false}
-        >
-          <div className="w-64">
-            <div className="p-4 border-b flex items-center justify-between">
-              <h1 className="text-xl font-bold">Management Portal</h1>
-              {isMobile && (
-                <button className="p-2" onClick={() => setSidebarOpen(false)}>
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      d="M6 18L18 6M6 6l12 12"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                    />
-                  </svg>
-                </button>
-              )}
-            </div>
-            <nav className="p-4">
+      {/* Horizontal Top Navigation Bar */}
+      <div className="bg-white shadow-sm w-full">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="py-4">
+            <h1 className="text-2xl font-bold mb-2">Management Portal</h1>
+            <nav className="flex flex-row no-wrap gap-2">
               {sections.map((section) => (
                 <motion.button
                   key={section.id}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg mb-2 transition-all ${
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${
                     activeSection === section.id ? "bg-blue-100 text-blue-600" : "hover:bg-gray-100"
                   }`}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => {
-                    setActiveSection(section.id);
-                    if (isMobile) setSidebarOpen(false);
-                  }}
+                  onClick={() => setActiveSection(section.id)}
                 >
                   {section.icon}
                   <div className="text-left">
@@ -1279,37 +1262,11 @@ export default function ManagementDashboard() {
               ))}
             </nav>
           </div>
-        </motion.div>
-
-        <div className="flex-1">
-          {isMobile && (
-            <div className="p-4 bg-white shadow-sm flex items-center">
-              <button className="p-2" onClick={() => setSidebarOpen(true)}>
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    d="M4 6h16M4 12h16M4 18h16"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                  />
-                </svg>
-              </button>
-              <h1 className="ml-4 text-xl font-bold">
-                {sections.find((s) => s.id === activeSection)?.title}
-              </h1>
-            </div>
-          )}
-
-          <motion.div
-            layout
-            animate={{ opacity: 1, y: 0 }}
-            className="p-8"
-            initial={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.3 }}
-          >
-            {renderContent()}
-          </motion.div>
         </div>
+      </div>
+      {/* Main Content */}
+      <div className="flex-1 p-8">
+        {renderContent()}
       </div>
     </div>
   );

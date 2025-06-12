@@ -1,6 +1,6 @@
 "use client";
 
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createBrowserClient } from "@supabase/ssr";
 import { useEffect, useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { motion } from "framer-motion";
@@ -8,7 +8,7 @@ import Image from "next/image";
 import { Tag, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React from "react";
-import { Session } from "@supabase/auth-helpers-nextjs";
+import { Session } from "@supabase/supabase-js";
 import { AuthChangeEvent } from "@supabase/supabase-js";
 
 interface Product {
@@ -54,7 +54,10 @@ export default function Home() {
   const [expandedCountries, setExpandedCountries] = useState<string[]>([]);
   const [expandedProducts, setExpandedProducts] = useState<number[]>([]);
   const [countryMap, setCountryMap] = useState<{ [key: string]: { name: string; chineseName: string } }>({});
-  const supabase = createClientComponentClient();
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
   const { addToCart, cart, updateQuantity } = useCart();
   const [session, setSession] = useState<any>(null);
   const router = useRouter();
@@ -643,7 +646,7 @@ Please check the admin panel for more details.
       {showScrollTop && (
         <button
           onClick={handleScrollToTop}
-          className="fixed bottom-8 right-8 z-50 bg-blue-500 text-white p-3 rounded-full shadow-lg hover:bg-blue-600 transition-colors flex items-center justify-center"
+          className="fixed bottom-20 right-4 z-50 bg-blue-500 text-white p-3 rounded-full shadow-lg hover:bg-blue-600 transition-colors flex items-center justify-center"
           aria-label="Scroll to top"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">

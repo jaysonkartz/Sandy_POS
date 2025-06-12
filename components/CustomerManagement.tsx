@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createBrowserClient } from "@supabase/ssr";
 import { LazyMotion, domAnimation, m } from "framer-motion";
 
 interface Customer {
@@ -37,7 +37,10 @@ export default function CustomerManagement() {
   });
   const [editingCustomer, setEditingCustomer] = useState<EditCustomer | null>(null);
 
-  const supabase = createClientComponentClient();
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 
   const fetchCustomers = async () => {
     setIsLoading(true);

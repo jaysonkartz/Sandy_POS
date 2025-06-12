@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createBrowserClient } from "@supabase/ssr";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import React from "react";
@@ -26,7 +26,11 @@ export default function ProductListPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterActive, setFilterActive] = useState<boolean | null>(null);
-  const supabase = createClientComponentClient();
+  const [isAnimating, setIsAnimating] = useState(false);
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
   const router = useRouter();
 
   useEffect(() => {
@@ -50,6 +54,8 @@ export default function ProductListPage() {
   };
 
   const toggleProduct = (productId: string) => {
+    if (isAnimating) return;
+    setIsAnimating(true);
     setExpandedProducts((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(productId)) {
@@ -59,16 +65,19 @@ export default function ProductListPage() {
       }
       return newSet;
     });
+    setTimeout(() => setIsAnimating(false), 300);
   };
 
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch =
-      product.Product.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.Product_CH.includes(searchTerm) ||
-      product.Country.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesActive = filterActive === null || product.availability === filterActive;
-    return matchesSearch && matchesActive;
-  });
+  const filteredProducts = products
+    .filter((product) => {
+      const matchesSearch =
+        product.Product.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.Product_CH.includes(searchTerm) ||
+        product.Country.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesActive = filterActive === null || product.availability === filterActive;
+      return matchesSearch && matchesActive;
+    })
+    .sort((a, b) => a.Product.trim().toLowerCase().localeCompare(b.Product.trim().toLowerCase()));
 
   if (loading) {
     return (
@@ -143,12 +152,12 @@ export default function ProductListPage() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredProducts.map((product, index) => (
-                <React.Fragment key={`${product.Product}-${index}`}>
+                <React.Fragment key={product.Product}>
                   <motion.tr
                     animate={{ opacity: 1 }}
                     className="hover:bg-gray-50 cursor-pointer"
                     initial={{ opacity: 0 }}
-                    transition={{ delay: index * 0.05 }}
+                    transition={{ duration: 0.2 }}
                     onClick={() => toggleProduct(product.Product)}
                   >
                     <td className="px-4 py-3 whitespace-nowrap w-1/5">
@@ -210,6 +219,7 @@ export default function ProductListPage() {
                       className="bg-gray-50"
                       exit={{ opacity: 0, height: 0 }}
                       initial={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
                     >
                       <td className="px-4 py-4" colSpan={5}>
                         <div className="bg-white rounded-lg shadow-sm p-4">
