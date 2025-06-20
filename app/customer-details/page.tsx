@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { Database } from "@/types/supabase";
 import { useRouter } from "next/navigation";
@@ -28,11 +28,7 @@ export default function CustomerDetails() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  useEffect(() => {
-    fetchCustomerData();
-  }, [router, supabase]);
-
-  const fetchCustomerData = async () => {
+  const fetchCustomerData = useCallback(async () => {
     try {
       const {
         data: { user },
@@ -56,7 +52,11 @@ export default function CustomerDetails() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [supabase, router]);
+
+  useEffect(() => {
+    fetchCustomerData();
+  }, [fetchCustomerData]);
 
   const handleEdit = () => {
     setEditMode(true);
