@@ -20,9 +20,9 @@ export default function Header() {
   return (
     <>
       <header className="flex justify-between items-center p-4 bg-white shadow-md">
-        <Link className="logo hover:opacity-80 transition-opacity" href="/management">
+        <div className="logo hover:opacity-80 transition-opacity">
           <img alt="HongGuan Logo" className="h-12 rounded-lg" src="/HongGuan_Icon.jpg" />
-        </Link>
+        </div>
         {(pathname === "/dashboard" || pathname === "/") && (
           <>
             <a

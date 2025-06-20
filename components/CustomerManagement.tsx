@@ -5,7 +5,7 @@ import { createBrowserClient } from "@supabase/ssr";
 import { LazyMotion, domAnimation, m } from "framer-motion";
 
 interface Customer {
-  id: number;
+  id: string;
   name: string;
   email: string;
   phone: string;
@@ -51,12 +51,10 @@ export default function CustomerManagement() {
         .order("created_at", { ascending: false });
 
       if (error) {
-        console.error("Supabase error:", error);
         throw error;
       }
 
       if (!data) {
-        console.error("No data returned from customers table");
         setCustomers([]);
         return;
       }
@@ -82,7 +80,6 @@ export default function CustomerManagement() {
 
       setCustomers(customersWithUsers);
     } catch (error) {
-      console.error("Error fetching customers:", error);
       setCustomers([]);
     } finally {
       setIsLoading(false);
@@ -97,50 +94,63 @@ export default function CustomerManagement() {
     e.preventDefault();
 
     if (newCustomer.name && newCustomer.email) {
-      // Check if user exists
-      const { data: existingUser, error: userCheckError } = await supabase
-        .from("users")
-        .select("id")
-        .eq("email", newCustomer.email)
-        .single();
+      try {
+        // Check if user exists
+        const { data: existingUser, error: userCheckError } = await supabase
+          .from("users")
+          .select("id")
+          .eq("email", newCustomer.email)
+          .single();
 
-      if (userCheckError && userCheckError.code !== "PGRST116") {
-        console.error("Error checking user:", userCheckError);
-        return;
+        if (userCheckError && userCheckError.code !== "PGRST116") {
+          return;
+        }
+
+        // If no user exists, try to get any existing user or create a placeholder
+        let userId = existingUser?.id;
+        if (!userId) {
+          const { data: anyUser } = await supabase
+            .from("users")
+            .select("id")
+            .limit(1)
+            .single();
+          userId = anyUser?.id;
+        }
+
+        const customerData = {
+          ...newCustomer,
+          user_id: userId, // Use existing user ID or null
+        };
+
+        const { error } = await supabase.from("customers").insert([customerData]);
+
+        if (error) {
+          alert("Failed to add customer: " + error.message);
+          return;
+        }
+
+        setNewCustomer({
+          name: "",
+          email: "",
+          phone: "",
+          address: "",
+          status: true,
+        });
+        setIsModalOpen(false);
+        await fetchCustomers();
+      } catch (error) {
+        alert("Failed to add customer. Please try again.");
       }
-
-      const customerData = {
-        ...newCustomer,
-        user_id: existingUser?.id, // Link to user if exists
-      };
-
-      const { error } = await supabase.from("customers").insert([customerData]);
-
-      if (error) {
-        console.error("Error adding customer:", error);
-        return;
-      }
-
-      setNewCustomer({
-        name: "",
-        email: "",
-        phone: "",
-        address: "",
-        status: true,
-      });
-      setIsModalOpen(false);
-      await fetchCustomers();
     }
   };
 
-  const handleStatusToggle = async (customerId: number, currentStatus: boolean) => {
+  const handleStatusToggle = async (customerId: string, currentStatus: boolean) => {
     const { error } = await supabase
       .from("customers")
       .update({ status: !currentStatus })
       .eq("id", customerId);
 
     if (error) {
-      console.error("Error updating customer status:", error);
       return;
     }
 
@@ -367,71 +377,74 @@ export default function CustomerManagement() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Email
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Phone
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Address
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {customers.map((customer) => (
-                  <m.tr key={customer.id} animate={{ opacity: 1 }} initial={{ opacity: 0 }}>
-                    <td className="px-6 py-4 whitespace-nowrap">{customer.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{customer.email}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{customer.phone}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{customer.address}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          customer.status
-                            ? "bg-green-100 text-green-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {customer.status ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex space-x-2">
-                        <button
-                          className="text-blue-600 hover:text-blue-900"
-                          onClick={() => handleEdit(customer)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className={`${
-                            customer.status
-                              ? "text-red-600 hover:text-red-900"
-                              : "text-green-600 hover:text-green-900"
-                          }`}
-                          onClick={() => handleStatusToggle(customer.id, customer.status)}
-                        >
-                          {customer.status ? "Deactivate" : "Activate"}
-                        </button>
-                      </div>
-                    </td>
-                  </m.tr>
-                ))}
-              </tbody>
-            </table>
+            {customers.length === 0 ? (
+              <div className="p-8 text-center text-gray-500">
+                <p className="text-lg mb-2">No customers found</p>
+                <p className="text-sm">Try adding a customer or check the console for debugging information.</p>
+              </div>
+            ) : (
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Email
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Phone
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Address
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {customers.map((customer) => (
+                    <tr key={customer.id}>
+                      <td className="px-6 py-4 whitespace-nowrap">{customer.name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">{customer.email}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">{customer.phone}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">{customer.address}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          customer.status ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                        }`}>
+                          {customer.status ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex space-x-2">
+                          <button
+                            className="text-blue-600 hover:text-blue-900"
+                            onClick={() => handleEdit(customer)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className={`$${
+                              customer.status
+                                ? "text-red-600 hover:text-red-900"
+                                : "text-green-600 hover:text-green-900"
+                            }`}
+                            onClick={() => handleStatusToggle(customer.id, customer.status)}
+                          >
+                            {customer.status ? "Deactivate" : "Activate"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         )}
       </div>

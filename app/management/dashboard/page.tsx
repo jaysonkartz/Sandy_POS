@@ -684,7 +684,7 @@ export default function ManagementDashboard() {
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-100">
-                            {country.products.map((product) => (
+                          {country.products.sort((a, b) => a.Product.localeCompare(b.Product)).map((product) => (
                               <React.Fragment key={product.id}>
                                 <tr>
                                   <td className="px-4 py-2">
@@ -1121,66 +1121,8 @@ export default function ManagementDashboard() {
         );
       case "customers":
         return <CustomerManagement />;
-      case "suppliers":
-        return <div>Supplier Management</div>;
       case "users":
         return renderUsers();
-      case "countries":
-        return (
-          <motion.div
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
-            initial={{ opacity: 0, y: 20 }}
-          >
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-gray-900">Countries Management</h2>
-            </div>
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        Country
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        Chinese Name
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        Active
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {countries.map((country) => (
-                      <tr key={country.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">{country.country}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{country.chineseName}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              country.is_active
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
-                            }`}
-                          >
-                            {country.is_active ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <button className="text-blue-600 hover:text-blue-900">View</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </motion.div>
-        );
       default:
         return renderOverview();
     }

@@ -58,7 +58,7 @@ export default function CountriesManagement() {
           <h1 className="text-3xl font-bold text-gray-800">Countries Management</h1>
           <Link
             className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
-            href="/management"
+            href="/management/dashboard"
           >
             Back to Dashboard
           </Link>

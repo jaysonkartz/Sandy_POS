@@ -38,7 +38,11 @@ export default function TopBarLogin() {
 
         if (userData) {
           setUserRole(userData.role);
+        } else {
+          setUserRole("");
         }
+      } else {
+        setUserRole("");
       }
     };
 
@@ -67,6 +71,7 @@ export default function TopBarLogin() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      checkUser();
       setUser(session?.user ?? null);
     });
 

@@ -1,11 +1,11 @@
 "use client";
 
 import { createBrowserClient } from "@supabase/ssr";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useCart } from "@/context/CartContext";
 import { motion } from "framer-motion";
 import Image from "next/image";
-import { Tag, Search } from "lucide-react";
+import { Tag, Search, ShoppingCart, MessageSquare } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React from "react";
 import { Session } from "@supabase/supabase-js";
@@ -16,7 +16,7 @@ interface Product {
   "Item Code": string;
   Product: string;
   Category: string;
-  Weight: string;
+  weight: string;
   UOM: string;
   Country: string;
   Product_CH?: string;
@@ -54,6 +54,7 @@ export default function Home() {
   const [expandedCountries, setExpandedCountries] = useState<string[]>([]);
   const [expandedProducts, setExpandedProducts] = useState<number[]>([]);
   const [countryMap, setCountryMap] = useState<{ [key: string]: { name: string; chineseName: string } }>({});
+  const [selectedOptions, setSelectedOptions] = useState<{ [title: string]: { variation?: string; countryId?: string; weight?: string } }>({});
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -62,6 +63,26 @@ export default function Home() {
   const [session, setSession] = useState<any>(null);
   const router = useRouter();
   const [showScrollTop, setShowScrollTop] = useState(false);
+
+  interface ProductGroup {
+    title: string;
+    products: Product[];
+  }
+
+  const productGroups = useMemo(() => {
+    const groups: { [title: string]: Product[] } = {};
+    products.forEach((p) => {
+      const title = isEnglish ? p.Product : (p.Product_CH || p.Product);
+      if (!groups[title]) {
+        groups[title] = [];
+      }
+      groups[title].push(p);
+    });
+    return Object.values(groups).map((products) => ({
+      title: isEnglish ? products[0].Product : (products[0].Product_CH || products[0].Product),
+      products,
+    }));
+  }, [products, isEnglish]);
 
   useEffect(() => {
     async function fetchProducts() {
@@ -383,20 +404,47 @@ Please check the admin panel for more details.
 
       {/* Product Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {products.map((product) => {
+        {productGroups.map((group) => {
+          const { title, products: groupProducts } = group;
+
+          // Helper to get selected product based on dropdowns
+          const getSelectedProduct = () => {
+            const selected = selectedOptions[title] || {};
+            let product = groupProducts.find(p => 
+              (!selected.variation || p.Variation === selected.variation) &&
+              (!selected.countryId || p.Country === selected.countryId) &&
+              (!selected.weight || p.weight === selected.weight)
+            );
+            return product || groupProducts[0];
+          };
+
+          const product = getSelectedProduct();
           const cartItem = cart.find((item) => item.id === product.id);
 
+          const variations = [...new Set(groupProducts.map(p => p.Variation).filter(Boolean))];
+          const origins = [...new Set(groupProducts.map(p => p.Country).filter(Boolean))];
+          const weights = [...new Set(groupProducts.map(p => p.weight).filter(Boolean))];
+
+          const handleOptionChange = (type: 'variation' | 'countryId' | 'weight', value: string) => {
+            setSelectedOptions(prev => ({
+              ...prev,
+              [title]: {
+                ...prev[title],
+                [type]: value,
+              }
+            }));
+          };
+
           return (
-            <div key={product.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+            <div key={title} className="bg-white rounded-lg shadow-lg overflow-hidden flex flex-col transition-all duration-300 hover:shadow-2xl">
               {/* Product Image */}
-              <div className="relative h-48 bg-gray-200">
+              <div className="relative h-48 bg-gray-100">
                 <img
                   alt={product.Product}
-                  className="w-full h-full object-cover hover:opacity-75 transition-opacity"
+                  className="w-full h-full object-cover"
                   src={`/Img/${getCategoryName(product.Category)}/${product.Product}${product.Variation ? ` (${product.Variation})` : ''}.png`}
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
-                    // First fallback: try without variation
                     if (!target.dataset.fallbackAttempted) {
                       target.dataset.fallbackAttempted = 'true';
                       target.src = `/Img/${getCategoryName(product.Category)}/${product.Product}.png`;
@@ -409,93 +457,115 @@ Please check the admin panel for more details.
               </div>
 
               {/* Product Info */}
-              <div className="p-4">
-                <div className="mb-2">
-                  <h3 className="text-lg font-semibold text-gray-900">
+              <div className="p-4 flex flex-col flex-grow">
+                <div className="flex-grow">
+                  <h3 className="text-xl font-bold text-gray-800 truncate">
                     {isEnglish ? product.Product : product.Product_CH}
                   </h3>
-                  <p className="text-sm text-gray-500">{product["Item Code"]}</p>
-                </div>
+                  <p className="text-xs text-gray-400 mb-3">{product["Item Code"]}</p>
 
-                <div className="mb-4">
-                  <div className="text-sm text-gray-600">
-                    <span>{isEnglish ? "Category: " : "类别："}</span>
-                    <span>
-                      {isEnglish
-                        ? getCategoryName(product.Category)
-                        : getCategoryChineseName(product.Category)}
-                    </span>
+                  {/* Dropdowns */}
+                  <div className="space-y-2 mb-4">
+                    {variations.length > 0 && (
+                      <div>
+                        <label className="text-xs font-medium text-gray-500">{isEnglish ? "Variation" : "规格"}</label>
+                        <select
+                          className="w-full p-2 mt-1 text-sm border-gray-200 border bg-gray-50 rounded-md focus:border-blue-500 focus:ring-blue-500 transition"
+                          value={selectedOptions[title]?.variation || variations[0]}
+                          onChange={(e) => handleOptionChange('variation', e.target.value)}
+                        >
+                          {variations.map(v => (
+                            <option key={v} value={v}>{isEnglish ? v : (groupProducts.find(p=>p.Variation === v)?.Variation_CH || v)}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    {origins.length > 0 && (
+                      <div>
+                        <label className="text-xs font-medium text-gray-500">{isEnglish ? "Origin" : "产地"}</label>
+                        <select
+                           className="w-full p-2 mt-1 text-sm border-gray-200 border bg-gray-50 rounded-md focus:border-blue-500 focus:ring-blue-500 transition"
+                           value={selectedOptions[title]?.countryId || origins[0]}
+                           onChange={(e) => handleOptionChange('countryId', e.target.value)}
+                        >
+                          {origins.map(o => (
+                            <option key={o} value={o}>{isEnglish ? (countryMap[o]?.name || o) : (countryMap[o]?.chineseName || o)}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    {weights.length > 0 && (
+                      <div>
+                        <label className="text-xs font-medium text-gray-500">{isEnglish ? "Weight" : "重量"}</label>
+                        <select
+                           className="w-full p-2 mt-1 text-sm border-gray-200 border bg-gray-50 rounded-md focus:border-blue-500 focus:ring-blue-500 transition"
+                           value={selectedOptions[title]?.weight || weights[0]}
+                           onChange={(e) => handleOptionChange('weight', e.target.value)}
+                        >
+                          {weights.map(w => (
+                            <option key={w} value={w}>{w}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
-                  <div className="text-sm text-gray-600">
-                    <span>{isEnglish ? "Weight: " : "重量："}</span>
-                    <span>
-                      {product.Weight} {product.UOM}
-                    </span>
-                  </div>
-                  {product.Variation && (
-                    <div className="text-sm text-gray-600">
-                      <span>{isEnglish ? "Variation: " : "规格："}</span>
-                      <span>{isEnglish ? product.Variation : product.Variation_CH}</span>
+
+                  {/* Price */}
+                  {session && (
+                    <div className="mb-4">
+                      <p className="text-2xl font-extrabold text-gray-800">
+                        ${product.price.toFixed(2)}
+                        <span className="text-base font-medium text-gray-500">/{product.UOM}</span>
+                      </p>
                     </div>
                   )}
-                  <div className="text-sm text-gray-600">
-                    <span>{isEnglish ? "Origin: " : "产地："}</span>
-                    <span>
-                      {isEnglish 
-                        ? (countryMap[product.Country]?.name || product.Country)
-                        : (countryMap[product.Country]?.chineseName || product.Country_CH)}
-                    </span>
-                  </div>
                 </div>
 
-                {session ? (
-                  <div className="mb-4">
-                    <div className="text-lg font-semibold text-green-600">
-                      ${product.price.toFixed(2)}/{product.UOM}
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    className="mb-4 text-blue-600 hover:text-blue-900"
-                    onClick={() => router.push("/login")}
-                  >
-                    {isEnglish ? "Login to see price" : "登录查看价格"}
-                  </button>
-                )}
-
-                <div className="flex items-center justify-between">
-                  {session ? (
-                    cartItem ? (
-                      <div className="flex items-center space-x-2">
-                        <button
-                          className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
-                          onClick={() => updateQuantity(product.id, cartItem.quantity - 1)}
-                        >
-                          -
-                        </button>
-                        <span>{cartItem.quantity}</span>
-                        <button
-                          className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
-                          onClick={() => updateQuantity(product.id, cartItem.quantity + 1)}
-                        >
-                          +
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
-                        onClick={() => handleAddToOrder(product)}
+                {/* Action Buttons */}
+                <div className="mt-auto pt-4 border-t border-gray-100">
+                  {!session ? (
+                     <button
+                        className="w-full text-center text-blue-600 font-semibold hover:text-blue-800 transition-colors"
+                        onClick={() => router.push("/login")}
                       >
-                        {isEnglish ? "Add to Order" : "添加到订单"}
+                        {isEnglish ? "Login to see price" : "登录查看价格"}
                       </button>
-                    )
-                  ) : null}
-                  <button
-                    className="ml-2 bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors"
-                    onClick={() => handleCustomerService()}
-                  >
-                    {isEnglish ? "Inquire" : "询价"}
-                  </button>
+                  ) : (
+                    <div className="flex items-center justify-between space-x-2">
+                      {selectedProducts.find(p => p.product.id === product.id) ? (
+                         <div className="flex items-center space-x-2 w-full">
+                            <button
+                              className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                              onClick={() => handleUpdateQuantity(product.id, (selectedProducts.find(p => p.product.id === product.id)?.quantity || 0) - 1)}
+                            >
+                              -
+                            </button>
+                            <span className="flex-grow text-center font-semibold">{selectedProducts.find(p => p.product.id === product.id)?.quantity}</span>
+                            <button
+                              className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                              onClick={() => handleUpdateQuantity(product.id, (selectedProducts.find(p => p.product.id === product.id)?.quantity || 0) + 1)}
+                            >
+                              +
+                            </button>
+                          </div>
+                      ) : (
+                         <button
+                            className="flex-1 flex items-center justify-center bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors text-sm font-semibold"
+                            onClick={() => handleAddToOrder(product)}
+                          >
+                            <ShoppingCart className="w-4 h-4 mr-2" />
+                            {isEnglish ? "Add to Order" : "添加到订单"}
+                          </button>
+                      )}
+                      <button
+                        className="flex-shrink-0 bg-gray-100 text-gray-600 px-3 py-2 rounded-md hover:bg-gray-200 transition-colors"
+                        onClick={() => handleCustomerService()}
+                        title={isEnglish ? "Inquire" : "询价"}
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
