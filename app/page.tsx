@@ -107,7 +107,6 @@ export default function Home() {
   }, [supabase, selectedCategory]);
 
   useEffect(() => {
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }: { data: { session: any } }) => {
       setSession(session);
     });
