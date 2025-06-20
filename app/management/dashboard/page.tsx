@@ -1206,7 +1206,6 @@ export default function ManagementDashboard() {
           </div>
         </div>
       </div>
-      {/* Main Content */}
       <div className="flex-1 p-8">
         {renderContent()}
       </div>
