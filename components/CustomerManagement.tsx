@@ -37,10 +37,17 @@ export default function CustomerManagement() {
   });
   const [editingCustomer, setEditingCustomer] = useState<EditCustomer | null>(null);
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    console.error('Missing Supabase environment variables');
+    throw new Error('Missing Supabase environment variables');
+  }
+
+  const supabase = createBrowserClient(supabaseUrl, supabaseKey);
+
+  const [error, setError] = useState<string | null>(null);
 
   const fetchCustomers = async () => {
     setIsLoading(true);
@@ -52,7 +59,8 @@ export default function CustomerManagement() {
 
       if (error) {
         console.error("Supabase error:", error);
-        throw error;
+        setError(error.message || 'Failed to fetch customers');
+        return;
       }
 
       if (!data) {
@@ -65,16 +73,28 @@ export default function CustomerManagement() {
       const customersWithUsers = await Promise.all(
         data.map(async (customer) => {
           if (customer.user_id) {
-            const { data: userData } = await supabase
-              .from("users")
-              .select("id, email, role")
-              .eq("id", customer.user_id)
-              .single();
+            try {
+              const { data: userData, error: userError } = await supabase
+                .from("users")
+                .select("id, email, role")
+                .eq("id", customer.user_id)
+                .maybeSingle();
 
-            return {
-              ...customer,
-              user: userData || null,
-            };
+              if (userError && userError.code !== 'PGRST116') {
+                console.error(`Error fetching user data for customer ${customer.id}:`, userError);
+                return { ...customer, user: null };
+              }
+
+              // If user not found (PGRST116), just attach null user without logging error
+              return {
+                ...customer,
+                user: userData || null,
+              };
+
+            } catch (error) {
+              console.error(`Error fetching user data for customer ${customer.id}:`, error);
+              return { ...customer, user: null };
+            }
           }
           return customer;
         })
@@ -83,7 +103,7 @@ export default function CustomerManagement() {
       setCustomers(customersWithUsers);
     } catch (error) {
       console.error("Error fetching customers:", error);
-      setCustomers([]);
+      setError('Failed to fetch customers');
     } finally {
       setIsLoading(false);
     }
@@ -91,7 +111,7 @@ export default function CustomerManagement() {
 
   useEffect(() => {
     fetchCustomers();
-  }, []);
+  }, []); // Empty dependency array to run only once on mount
 
   const handleAddCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,6 +138,7 @@ export default function CustomerManagement() {
 
       if (error) {
         console.error("Error adding customer:", error);
+        setError(error.message || 'Failed to add customer');
         return;
       }
 
@@ -141,6 +162,7 @@ export default function CustomerManagement() {
 
     if (error) {
       console.error("Error updating customer status:", error);
+      setError(error.message || 'Failed to update customer status');
       return;
     }
 
@@ -171,6 +193,11 @@ export default function CustomerManagement() {
       await fetchCustomers();
     } catch (error) {
       console.error("Error updating customer:", error);
+      if (error instanceof Error) {
+        setError(error.message || 'Failed to update customer');
+      } else {
+        setError('Failed to update customer');
+      }
     }
   };
 
@@ -361,7 +388,11 @@ export default function CustomerManagement() {
         <div className="p-4 border-b">
           <h2 className="text-xl font-semibold">Customers List</h2>
         </div>
-        {isLoading ? (
+        {error ? (
+          <div className="p-4 text-red-500">
+            Error loading customers: {error}
+          </div>
+        ) : isLoading ? (
           <div className="flex justify-center items-center h-32">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
           </div>
