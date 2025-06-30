@@ -137,6 +137,24 @@ export default function LoginPage() {
             )}
           </motion.button>
         </form>
+
+        {/* Signup Link */}
+        <motion.div 
+          className="text-center"
+          animate={{ opacity: 1 }}
+          initial={{ opacity: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <p className="text-sm text-gray-600">
+            Don't have an account?{" "}
+            <button
+              onClick={() => router.push("/signup")}
+              className="font-medium text-blue-600 hover:text-blue-500 transition-colors duration-200"
+            >
+              Sign up here
+            </button>
+          </p>
+        </motion.div>
       </div>
     </motion.div>
   );

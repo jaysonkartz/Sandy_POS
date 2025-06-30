@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import React from "react";
 import { Session } from "@supabase/supabase-js";
 import { AuthChangeEvent } from "@supabase/supabase-js";
+import SignupModal from "@/components/SignupModal";
 
 interface Product {
   id: number;
@@ -63,6 +64,7 @@ export default function Home() {
   const [session, setSession] = useState<any>(null);
   const router = useRouter();
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
 
   interface ProductGroup {
     title: string;
@@ -525,7 +527,7 @@ Please check the admin panel for more details.
                   {!session ? (
                      <button
                         className="w-full text-center text-blue-600 font-semibold hover:text-blue-800 transition-colors"
-                        onClick={() => router.push("/login")}
+                        onClick={() => setIsSignupModalOpen(true)}
                       >
                         {isEnglish ? "Login to see price" : "登录查看价格"}
                       </button>
@@ -723,6 +725,12 @@ Please check the admin panel for more details.
           </svg>
         </button>
       )}
+
+      {/* Signup Modal */}
+      <SignupModal 
+        isOpen={isSignupModalOpen} 
+        onClose={() => setIsSignupModalOpen(false)} 
+      />
     </div>
   );
 }
