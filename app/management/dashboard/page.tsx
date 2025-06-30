@@ -115,6 +115,7 @@ export default function ManagementDashboard() {
   const [newCustomerPrice, setNewCustomerPrice] = useState<number | null>(null);
   const [offerPrice, setOfferPrice] = useState<number | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+  const [isNavOpen, setIsNavOpen] = useState(false);
 
   const priceHistoryMap: Record<number, { previous_price: number; last_price_update: string }[]> =
     {};
@@ -1171,7 +1172,7 @@ export default function ManagementDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="p-4">
+      <div className="p-2 sm:p-4">
         <button
           className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition mb-4"
           onClick={() => router.push("/")}
@@ -1181,10 +1182,44 @@ export default function ManagementDashboard() {
       </div>
       {/* Horizontal Top Navigation Bar */}
       <div className="bg-white shadow-sm w-full">
-        <div className="max-w-7xl mx-auto px-4">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4">
           <div className="py-4">
             <h1 className="text-2xl font-bold mb-2">Management Portal</h1>
-            <nav className="flex flex-row no-wrap gap-2">
+            {/* Burger menu button for mobile */}
+            <button
+              className="md:hidden flex items-center px-3 py-2 border rounded text-gray-600 border-gray-400 hover:text-blue-600 hover:border-blue-600 mb-2"
+              onClick={() => setIsNavOpen((open) => !open)}
+              aria-label="Open navigation menu"
+            >
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            {/* Mobile vertical menu */}
+            {isNavOpen && (
+              <nav className="flex flex-col gap-2 md:hidden bg-white rounded shadow p-2 absolute z-50 w-11/12 left-1/2 -translate-x-1/2 mt-2">
+                {sections.map((section) => (
+                  <button
+                    key={section.id}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all w-full text-left ${
+                      activeSection === section.id ? "bg-blue-100 text-blue-600" : "hover:bg-gray-100"
+                    }`}
+                    onClick={() => {
+                      setActiveSection(section.id);
+                      setIsNavOpen(false);
+                    }}
+                  >
+                    {section.icon}
+                    <div className="text-left">
+                      <span className="block font-medium">{section.title}</span>
+                      <span className="text-xs text-gray-500">{section.description}</span>
+                    </div>
+                  </button>
+                ))}
+              </nav>
+            )}
+            {/* Desktop horizontal menu */}
+            <nav className="hidden md:flex flex-row flex-wrap gap-2 overflow-x-auto">
               {sections.map((section) => (
                 <motion.button
                   key={section.id}
@@ -1206,7 +1241,7 @@ export default function ManagementDashboard() {
           </div>
         </div>
       </div>
-      <div className="flex-1 p-8">
+      <div className="flex-1 p-2 sm:p-4 md:p-8 max-w-7xl mx-auto w-full">
         {renderContent()}
       </div>
     </div>

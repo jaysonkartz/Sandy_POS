@@ -88,20 +88,20 @@ export default function ProductListPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
-      <div className="flex flex-col md:flex-row items-center justify-between mb-6 gap-4">
-        <h1 className="text-2xl font-bold text-gray-800">Product List</h1>
-        <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
+    <div className="container mx-auto p-4 sm:p-6 max-w-7xl">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-6 gap-4">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Product List</h1>
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full lg:w-auto">
           <div className="relative">
             <input
-              className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full sm:w-64 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
               placeholder="Search products..."
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
             <svg
-              className="absolute right-3 top-2.5 h-5 w-5 text-gray-400"
+              className="absolute right-3 top-2.5 h-4 w-4 sm:h-5 sm:w-5 text-gray-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -115,7 +115,7 @@ export default function ProductListPage() {
             </svg>
           </div>
           <select
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
             value={filterActive === null ? "all" : filterActive.toString()}
             onChange={(e) =>
               setFilterActive(e.target.value === "all" ? null : e.target.value === "true")
@@ -133,19 +133,19 @@ export default function ProductListPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
                   Product
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
                   Chinese Product Name
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
                   Variation
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
                   Weight/UOM
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
                   Status
                 </th>
               </tr>
@@ -160,10 +160,10 @@ export default function ProductListPage() {
                     transition={{ duration: 0.2 }}
                     onClick={() => toggleProduct(product.Product)}
                   >
-                    <td className="px-4 py-3 whitespace-nowrap w-1/5">
+                    <td className="px-3 sm:px-4 py-3 whitespace-nowrap w-1/5">
                       <div className="flex items-center">
                         <svg
-                          className={`w-5 h-5 transform transition-transform ${
+                          className={`w-4 h-4 sm:w-5 sm:h-5 transform transition-transform ${
                             expandedProducts.has(product.Product) ? "rotate-180" : ""
                           } mr-2`}
                           fill="none"
@@ -177,23 +177,23 @@ export default function ProductListPage() {
                             strokeWidth={2}
                           />
                         </svg>
-                        <div className="text-sm font-medium text-gray-900">{product.Product}</div>
+                        <div className="text-sm font-medium text-gray-900 truncate">{product.Product}</div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap w-1/5">
-                      <div className="text-sm text-gray-500">{product.Product_CH}</div>
+                    <td className="px-3 sm:px-4 py-3 whitespace-nowrap w-1/5">
+                      <div className="text-sm text-gray-500 truncate">{product.Product_CH}</div>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap w-1/5">
+                    <td className="px-3 sm:px-4 py-3 whitespace-nowrap w-1/5">
                       {product.Variation ? (
                         <div>
-                          <div className="text-sm text-gray-900">{product.Variation}</div>
-                          <div className="text-sm text-gray-500">{product.Variation_CH}</div>
+                          <div className="text-sm text-gray-900 truncate">{product.Variation}</div>
+                          <div className="text-sm text-gray-500 truncate">{product.Variation_CH}</div>
                         </div>
                       ) : (
                         <span className="text-sm text-gray-500">-</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap w-1/5">
+                    <td className="px-3 sm:px-4 py-3 whitespace-nowrap w-1/5">
                       <div className="text-sm text-gray-900">
                         {product.weight} {product.UOM}
                       </div>
@@ -201,9 +201,9 @@ export default function ProductListPage() {
                         <div className="text-sm text-gray-500">({product.Weight_KG} KG)</div>
                       )}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap w-1/5">
+                    <td className="px-3 sm:px-4 py-3 whitespace-nowrap w-1/5">
                       <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                           product.availability
                             ? "bg-green-100 text-green-800"
                             : "bg-red-100 text-red-800"
@@ -221,9 +221,9 @@ export default function ProductListPage() {
                       initial={{ opacity: 0, height: 0 }}
                       transition={{ duration: 0.2 }}
                     >
-                      <td className="px-4 py-4" colSpan={5}>
-                        <div className="bg-white rounded-lg shadow-sm p-4">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <td className="px-3 sm:px-4 py-4" colSpan={5}>
+                        <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4">
+                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                             <div>
                               <h4 className="text-sm font-medium text-gray-900 mb-2">
                                 Product Information
@@ -231,11 +231,11 @@ export default function ProductListPage() {
                               <dl className="space-y-1">
                                 <div className="flex justify-between">
                                   <dt className="text-sm text-gray-500">Product Code:</dt>
-                                  <dd className="text-sm text-gray-900">{product.Product}</dd>
+                                  <dd className="text-sm text-gray-900 truncate">{product.Product}</dd>
                                 </div>
                                 <div className="flex justify-between">
                                   <dt className="text-sm text-gray-500">Chinese Name:</dt>
-                                  <dd className="text-sm text-gray-900">{product.Product_CH}</dd>
+                                  <dd className="text-sm text-gray-900 truncate">{product.Product_CH}</dd>
                                 </div>
                                 <div className="flex justify-between">
                                   <dt className="text-sm text-gray-500">Category:</dt>
@@ -245,7 +245,7 @@ export default function ProductListPage() {
                                   <dt className="text-sm text-gray-500">Status:</dt>
                                   <dd className="text-sm text-gray-900">
                                     <span
-                                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                                         product.availability
                                           ? "bg-green-100 text-green-800"
                                           : "bg-red-100 text-red-800"

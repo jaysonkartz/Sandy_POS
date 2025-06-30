@@ -53,15 +53,15 @@ export default function ManagementDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-8">Management Dashboard</h1>
+      <div className="container mx-auto px-4 py-4 sm:py-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6 sm:mb-8">Management Dashboard</h1>
 
         {/* Countries Management Section */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-semibold text-gray-800">Countries Management</h2>
+        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-4">
+            <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">Countries Management</h2>
             <Link
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-center text-sm sm:text-base"
               href="/management/countries"
             >
               View All Countries
@@ -82,16 +82,16 @@ export default function ManagementDashboard() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Country
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Code
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Products
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -99,18 +99,18 @@ export default function ManagementDashboard() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {countries.map((country) => (
                     <tr key={country.id}>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{country.name}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-500">{country.code}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-500">
                           {country.products?.length || 0} products
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <Link
                           className="text-blue-600 hover:text-blue-900"
                           href={`/management/countries/${country.id}`}
@@ -127,14 +127,14 @@ export default function ManagementDashboard() {
         </div>
 
         {/* Other Management Sections */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Products Management Card */}
           <Link className="block" href="/management/products">
-            <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-green-100 rounded-lg">
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 hover:shadow-lg transition-shadow">
+              <div className="flex items-center space-x-3 sm:space-x-4">
+                <div className="p-2 sm:p-3 bg-green-100 rounded-lg flex-shrink-0">
                   <svg
-                    className="w-6 h-6 text-green-600"
+                    className="w-5 h-5 sm:w-6 sm:h-6 text-green-600"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -147,9 +147,9 @@ export default function ManagementDashboard() {
                     />
                   </svg>
                 </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-800">Products Management</h2>
-                  <p className="text-gray-600">Manage product inventory and details</p>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Products Management</h2>
+                  <p className="text-sm sm:text-base text-gray-600">Manage product inventory and details</p>
                 </div>
               </div>
             </div>
@@ -157,11 +157,11 @@ export default function ManagementDashboard() {
 
           {/* Orders Management Card */}
           <Link className="block" href="/management/orders">
-            <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-purple-100 rounded-lg">
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 hover:shadow-lg transition-shadow">
+              <div className="flex items-center space-x-3 sm:space-x-4">
+                <div className="p-2 sm:p-3 bg-purple-100 rounded-lg flex-shrink-0">
                   <svg
-                    className="w-6 h-6 text-purple-600"
+                    className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -174,9 +174,9 @@ export default function ManagementDashboard() {
                     />
                   </svg>
                 </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-800">Orders Management</h2>
-                  <p className="text-gray-600">View and manage customer orders</p>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Orders Management</h2>
+                  <p className="text-sm sm:text-base text-gray-600">View and manage customer orders</p>
                 </div>
               </div>
             </div>

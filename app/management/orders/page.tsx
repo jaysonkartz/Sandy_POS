@@ -16,11 +16,11 @@ export default function OrderHistoryPage() {
   ];
 
   return (
-    <div className="py-6">
+    <div className="py-4 sm:py-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h1 className="text-2xl font-semibold text-gray-900">Order History</h1>
+        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Order History</h1>
 
-        <div className="mt-6">
+        <div className="mt-4 sm:mt-6">
           <OrderHistoryCharts orders={orders} />
         </div>
       </div>
