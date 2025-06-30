@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 
@@ -19,11 +19,7 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    checkAuthAndFetchProducts();
-  }, []);
-
-  async function checkAuthAndFetchProducts() {
+  const checkAuthAndFetchProducts = useCallback(async () => {
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -47,7 +43,11 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [params.categoryId, router]);
+
+  useEffect(() => {
+    checkAuthAndFetchProducts();
+  }, [checkAuthAndFetchProducts]);
 
   if (isLoading) {
     return <div>Loading...</div>;

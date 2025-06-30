@@ -1,6 +1,8 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+"use client";
+
+import { createBrowserClient } from "@supabase/ssr";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Database } from "@/types/supabase";
 import {
   Chart as ChartJS,
@@ -29,39 +31,64 @@ ChartJS.register(
   ArcElement
 );
 
-export default async function OrderHistory() {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
+export default function OrderHistory() {
+  const [orders, setOrders] = useState<any[]>([]);
+  const [itemsData, setItemsData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  
+  const supabase = createBrowserClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-      },
-    }
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-  if (!user) redirect("/");
+        if (!user) {
+          router.push("/");
+          return;
+        }
 
-  const { data: orders = [] } = await supabase
-    .from("orders")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
+        const { data: ordersData = [] } = await supabase
+          .from("orders")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
 
-  const { data: itemsData = [] } = await supabase
-    .from("order_items")
-    .select("*")
-    .in(
-      "order_id",
-      orders?.map((o) => o.id) || []
+        const { data: itemsDataResult = [] } = await supabase
+          .from("order_items")
+          .select("*")
+          .in(
+            "order_id",
+            ordersData?.map((o) => o.id) || []
+          );
+
+        setOrders(ordersData || []);
+        setItemsData(itemsDataResult || []);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [supabase, router]);
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        </div>
+      </div>
     );
+  }
 
   if (!orders || !itemsData) {
     return <div>No orders found</div>;

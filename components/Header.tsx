@@ -27,7 +27,7 @@ export default function Header() {
           <>
             <a
               className="inline-flex items-center justify-center"
-              href="https://wa.me/6587520417"
+              href="https://wa.me/6593254825"
               rel="noopener noreferrer"
               target="_blank"
             ></a>

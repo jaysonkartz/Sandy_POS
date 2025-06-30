@@ -178,7 +178,7 @@ export default function Home() {
 
   //Send Whatsapp enquiry
   const handleCustomerService = () => {
-    const phoneNumber = "6592341145";
+    const phoneNumber = "6593254825";
     const message = "Hi, I would like to inquire about your products.";
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, "_blank");
@@ -238,7 +238,7 @@ Please check the admin panel for more details.
     `.trim();
 
     // Create WhatsApp URL (using your business phone number)
-    const phoneNumber = "6587520417"; // Replace with your business phone number
+    const phoneNumber = "6593254825"; // Replace with your business phone number
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
 
     // Open WhatsApp in a new window

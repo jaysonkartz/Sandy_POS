@@ -255,7 +255,7 @@ export default function ManagementDashboard() {
     {
       id: "overview",
       title: "Overview",
-      description: "Dashboard overview and statistics",
+      description: "",
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -270,7 +270,7 @@ export default function ManagementDashboard() {
     {
       id: "pricing",
       title: "Product List",
-      description: "Manage product prices and discounts",
+      description: "",
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -307,7 +307,7 @@ export default function ManagementDashboard() {
     {
       id: "history",
       title: "History",
-      description: "View your transaction history",
+      description: "",
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -322,7 +322,7 @@ export default function ManagementDashboard() {
     {
       id: "customers",
       title: "Customers",
-      description: "Manage your customer relationships",
+      description: "",
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -357,7 +357,7 @@ export default function ManagementDashboard() {
     {
       id: "users",
       title: "Users",
-      description: "Manage system users",
+      description: "",
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
