@@ -17,7 +17,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import { createBrowserClient } from "@supabase/ssr";
+import { supabase } from "@/app/lib/supabaseClient";
 import EditUserModal from "@/components/EditUserModal";
 import CustomerManagement from "@/components/CustomerManagement";
 //import ProductListTable from "@/components/ProductListTable";
@@ -55,24 +55,26 @@ interface Product {
   id: number;
   Product: string;
   price: number;
+  Category: string;
   priceHistory?: {
     previous_price: number;
     last_price_update: string;
   }[];
   order_items?: {
     order_id: number;
+    price?: number;
     orders?: {
       customer_name: string;
       customer_phone: string;
+      customer_id?: string;
     }[];
   }[];
 }
 
-interface Country {
-  id: number;
-  country: string;
-  is_active: boolean;
-  chineseName: string;
+interface Category {
+  id: string;
+  name: string;
+  chineseName?: string;
   products: Product[];
 }
 
@@ -93,14 +95,10 @@ export default function ManagementDashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [countries, setCountries] = useState<Country[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [orderDetails, setOrderDetails] = useState<OrderDetail[]>([]);
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-  const [expandedCountry, setExpandedCountry] = useState<number | null>(null);
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<number | null>(null);
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [editingPrice, setEditingPrice] = useState<number | null>(null);
@@ -150,35 +148,29 @@ export default function ManagementDashboard() {
     }
   }, [activeSection]);
 
-  const fetchCountries = async () => {
+  const fetchCategories = async () => {
     setIsLoading(true);
     try {
-      const { data: countries, error } = await supabase
-        .from("countries")
+      const { data: products, error } = await supabase
+        .from("products")
         .select(
           `
           id,
-          country,
-          is_active,
-          chineseName,
-          products_Country_fkey (
-            id,
-            Product,
+          Product,
+          price,
+          Category,
+          order_items (
+            order_id,
             price,
-            order_items (
-              order_id,
-              price,
-              orders (
-                customer_name,
-                customer_phone
-              )
+            orders (
+              customer_name,
+              customer_phone,
+              customer_id
             )
           )
         `
         )
-        .order("country", { ascending: true });
-
-      console.log(countries);
+        .order("Category", { ascending: true });
 
       if (error) throw error;
       const { data: priceHistories, error: priceHistoryError } = await supabase
@@ -191,34 +183,43 @@ export default function ManagementDashboard() {
       }
 
       // Group price histories by product_id
-      (priceHistories || []).forEach((ph) => {
+      const priceHistoryMap: { [key: number]: any[] } = {};
+      (priceHistories || []).forEach((ph: any) => {
         if (!priceHistoryMap[ph.product_id]) priceHistoryMap[ph.product_id] = [];
         priceHistoryMap[ph.product_id].push(ph);
       });
 
-      // Attach last 3 previous prices to each product
-      setCountries(
-        (countries || []).map((country) => ({
-          ...country,
-          products: (country.products_Country_fkey || []).map((product) => ({
-            ...product,
-            priceHistory: (priceHistoryMap[product.id] || []).slice(0, 3),
-          })) as (Product & {
-            priceHistory: { previous_price: number; last_price_update: string }[];
-          })[],
-        }))
-      );
-      // Log all products for debugging
-      console.log((countries || []).flatMap((country) => country.products_Country_fkey || []));
+      // Group products by category
+      const categoryGroups: { [key: string]: Product[] } = {};
+      (products || []).forEach((product: any) => {
+        const category = product.Category || "Uncategorized";
+        if (!categoryGroups[category]) {
+          categoryGroups[category] = [];
+        }
+        categoryGroups[category].push({
+          ...product,
+          priceHistory: (priceHistoryMap[product.id] || []).slice(0, 3),
+        });
+      });
+
+      // Convert to array format
+      const categoriesArray = Object.entries(categoryGroups).map(([name, products]) => ({
+        id: name,
+        name: name,
+        products: products.sort((a: Product, b: Product) => a.Product.localeCompare(b.Product)),
+      }));
+
+      setCategories(categoriesArray);
+      console.log("Categories with products:", categoriesArray);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch countries");
+      setError(err instanceof Error ? err.message : "Failed to fetch categories");
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCountries();
+    fetchCategories();
   }, []);
 
   const fetchOrderDetails = async (page = 1) => {
@@ -641,372 +642,383 @@ export default function ManagementDashboard() {
           >
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-900">Product Lists</h2>
+              <button
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                onClick={() => fetchCategories()}
+              >
+                Refresh
+              </button>
             </div>
+
             <div>
-              {error && <div style={{ color: "red" }}>{error}</div>}
-              {countries.length === 0 && !error && <div>No countries found.</div>}
-              <div className="space-y-6">
-                {countries.map((country) => (
-                  <div key={country.id} className="bg-white rounded-lg shadow p-4 mb-4">
-                    <div
-                      className="flex justify-between items-center cursor-pointer"
-                      onClick={() =>
-                        setExpandedCountry(expandedCountry === country.id ? null : country.id)
-                      }
-                    >
-                      <div>
-                        <span className="text-lg font-bold">{country.country}</span>
-                        <span className="ml-2 text-gray-500">{country.chineseName}</span>
-                      </div>
-                      <span
-                        className={`px-2 py-1 rounded text-xs font-semibold ${
-                          country.is_active
-                            ? "bg-green-100 text-green-700"
-                            : "bg-red-100 text-red-700"
-                        }`}
+              {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">{error}</div>}
+              {categories.length === 0 && !error && !isLoading && <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">No categories found.</div>}
+              {isLoading && <div className="flex justify-center items-center h-32"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div></div>}
+              
+              {!isLoading && categories.length > 0 && (
+                <div className="space-y-6">
+                  {categories.map((category) => (
+                    <div key={category.id} className="bg-white rounded-lg shadow p-4 mb-4">
+                      <div
+                        className="flex justify-between items-center cursor-pointer"
+                        onClick={() =>
+                          setExpandedCategory(expandedCategory === category.id ? null : category.id)
+                        }
                       >
-                        {country.is_active ? "Active" : "Inactive"}
-                      </span>
-                    </div>
-                    {expandedCountry === country.id && (
-                      <div className="mt-4">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                                Product Name
-                              </th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                                Price
-                              </th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                                Previous Prices
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-100">
-                          {country.products.sort((a, b) => a.Product.localeCompare(b.Product)).map((product) => (
-                              <React.Fragment key={product.id}>
-                                <tr>
-                                  <td className="px-4 py-2">
-                                    <div className="flex items-center space-x-2">
-                                      <button
-                                        className="text-blue-600 hover:text-blue-800"
-                                        onClick={() =>
-                                          setSelectedProduct(
-                                            selectedProduct === product.id ? null : product.id
-                                          )
-                                        }
-                                      >
-                                        {selectedProduct === product.id ? "▼" : "▶"}{" "}
-                                        {product.Product}
-                                      </button>
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-2 flex items-center space-x-2">
-                                    {editingProductId === product.id ? (
-                                      <>
-                                        <input
-                                          className="border rounded px-2 py-1 w-20"
-                                          type="number"
-                                          value={editingPrice ?? product.price}
-                                          onChange={(e) => setEditingPrice(Number(e.target.value))}
-                                        />
+                        <div>
+                          <span className="text-lg font-bold">{category.name}</span>
+                          <span className="ml-2 text-gray-500">{category.chineseName}</span>
+                        </div>
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-semibold ${
+                            category.products.length > 0
+                              ? "bg-green-100 text-green-700"
+                              : "bg-red-100 text-red-700"
+                          }`}
+                        >
+                          {category.products.length > 0 ? `${category.products.length} Products` : "No Products"}
+                        </span>
+                      </div>
+                      {expandedCategory === category.id && (
+                        <div className="mt-4">
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                  Product Name
+                                </th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                  Price
+                                </th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                  Previous Prices
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-100">
+                              {category.products.sort((a, b) => a.Product.localeCompare(b.Product)).map((product) => (
+                                <React.Fragment key={product.id}>
+                                  <tr>
+                                    <td className="px-4 py-2">
+                                      <div className="flex items-center space-x-2">
                                         <button
-                                          className="text-green-600 font-bold"
-                                          title="Save"
-                                          onClick={async () => {
-                                            if (editingPrice === null || isNaN(editingPrice)) {
-                                              alert("Please enter a valid price.");
-                                              return;
-                                            }
-                                            setIsLoading(true);
+                                          className="text-blue-600 hover:text-blue-800"
+                                          onClick={() =>
+                                            setSelectedProduct(
+                                              selectedProduct === product.id ? null : product.id
+                                            )
+                                          }
+                                        >
+                                          {selectedProduct === product.id ? "▼" : "▶"}{" "}
+                                          {product.Product}
+                                        </button>
+                                      </div>
+                                    </td>
+                                    <td className="px-4 py-2 flex items-center space-x-2">
+                                      {editingProductId === product.id ? (
+                                        <>
+                                          <input
+                                            className="border rounded px-2 py-1 w-20"
+                                            type="number"
+                                            value={editingPrice ?? product.price}
+                                            onChange={(e) => setEditingPrice(Number(e.target.value))}
+                                          />
+                                          <button
+                                            className="text-green-600 font-bold"
+                                            title="Save"
+                                            onClick={async () => {
+                                              if (editingPrice === null || isNaN(editingPrice)) {
+                                                alert("Please enter a valid price.");
+                                                return;
+                                              }
+                                              setIsLoading(true);
 
-                                            const { data: orderItems, error: orderItemsError } =
-                                              await supabase
-                                                .from("order_items")
-                                                .select("order_id, orders(customer_id)")
-                                                .eq("product_id", product.id);
+                                              const { data: orderItems, error: orderItemsError } =
+                                                await supabase
+                                                  .from("order_items")
+                                                  .select("order_id, orders(customer_id)")
+                                                  .eq("product_id", product.id);
 
-                                            if (orderItemsError) {
-                                              alert(
-                                                "Failed to fetch order items: " +
-                                                  orderItemsError.message
-                                              );
-                                              setIsLoading(false);
-                                              return;
-                                            }
+                                              if (orderItemsError) {
+                                                alert(
+                                                  "Failed to fetch order items: " +
+                                                    orderItemsError.message
+                                                );
+                                                setIsLoading(false);
+                                                return;
+                                              }
 
-                                            console.log("orderItems", orderItems);
+                                              console.log("orderItems", orderItems);
 
-                                            const uniqueCustomerIds = [
-                                              ...new Set(
-                                                (orderItems || [])
-                                                  .map((oi) => {
-                                                    const orders = oi.orders as
-                                                      | { customer_id?: string }
-                                                      | { customer_id?: string }[]
-                                                      | undefined;
-                                                    if (!orders) return null;
-                                                    if (Array.isArray(orders)) {
-                                                      return orders[0]?.customer_id ?? null;
-                                                    }
-                                                    return orders.customer_id ?? null;
-                                                  })
-                                                  .filter((cid) => !!cid)
-                                              ),
-                                            ];
+                                              const uniqueCustomerIds = [
+                                                ...new Set(
+                                                  (orderItems || [])
+                                                    .map((oi: any) => {
+                                                      const orders = oi.orders as
+                                                        | { customer_id?: string }
+                                                        | { customer_id?: string }[]
+                                                        | undefined;
+                                                      if (!orders) return null;
+                                                      if (Array.isArray(orders)) {
+                                                        return orders[0]?.customer_id ?? null;
+                                                      }
+                                                      return orders.customer_id ?? null;
+                                                    })
+                                                    .filter((cid: any) => !!cid)
+                                                ),
+                                              ];
 
-                                            if (uniqueCustomerIds.length === 0) {
-                                              await supabase.from("product_price_history").insert([
-                                                {
-                                                  product_id: product.id,
-                                                  previous_price: product.price,
-                                                  original_price: editingPrice,
-                                                  last_price_update: new Date().toISOString(),
-                                                  customer_id: null,
-                                                },
-                                              ]);
-                                            } else {
-                                              for (const customerId of uniqueCustomerIds) {
-                                                const { error: insertError } = await supabase
-                                                  .from("product_price_history")
-                                                  .insert([
-                                                    {
-                                                      product_id: product.id,
-                                                      previous_price: product.price,
-                                                      original_price: editingPrice,
-                                                      last_price_update: new Date().toISOString(),
-                                                      customer_id: customerId,
-                                                    },
-                                                  ]);
-                                                if (insertError) {
-                                                  alert(
-                                                    "Failed to insert price history: " +
-                                                      insertError.message
-                                                  );
+                                              if (uniqueCustomerIds.length === 0) {
+                                                await supabase.from("product_price_history").insert([
+                                                  {
+                                                    product_id: product.id,
+                                                    previous_price: product.price,
+                                                    original_price: editingPrice,
+                                                    last_price_update: new Date().toISOString(),
+                                                    customer_id: null,
+                                                  },
+                                                ]);
+                                              } else {
+                                                for (const customerId of uniqueCustomerIds) {
+                                                  const { error: insertError } = await supabase
+                                                    .from("product_price_history")
+                                                    .insert([
+                                                      {
+                                                        product_id: product.id,
+                                                        previous_price: product.price,
+                                                        original_price: editingPrice,
+                                                        last_price_update: new Date().toISOString(),
+                                                        customer_id: customerId,
+                                                      },
+                                                    ]);
+                                                  if (insertError) {
+                                                    alert(
+                                                      "Failed to insert price history: " +
+                                                        insertError.message
+                                                    );
+                                                  }
                                                 }
                                               }
-                                            }
 
-                                            // Now update the product price
-                                            const { error: updateError } = await supabase
-                                              .from("products")
-                                              .update({ price: editingPrice })
-                                              .eq("id", product.id);
+                                              // Now update the product price
+                                              const { error: updateError } = await supabase
+                                                .from("products")
+                                                .update({ price: editingPrice })
+                                                .eq("id", product.id);
 
-                                            if (updateError) {
-                                              alert(
-                                                "Failed to update product price: " +
-                                                  updateError.message
-                                              );
+                                              if (updateError) {
+                                                alert(
+                                                  "Failed to update product price: " +
+                                                    updateError.message
+                                                );
+                                                setIsLoading(false);
+                                                return;
+                                              }
+
+                                              setEditingProductId(null);
+                                              setEditingPrice(null);
                                               setIsLoading(false);
-                                              return;
-                                            }
-
-                                            setEditingProductId(null);
-                                            setEditingPrice(null);
-                                            setIsLoading(false);
-                                            fetchCountries();
-                                          }}
-                                        >
-                                          ✔
-                                        </button>
-                                        <button
-                                          className="text-gray-400 font-bold"
-                                          title="Cancel"
-                                          onClick={() => {
-                                            setEditingProductId(null);
-                                            setEditingPrice(null);
-                                          }}
-                                        >
-                                          ✖
-                                        </button>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <span>${product.price.toFixed(2)}</span>
-                                        <button
-                                          className="ml-2 text-blue-600 underline"
-                                          title="Edit Price"
-                                          onClick={() => {
-                                            setEditingProductId(product.id);
-                                            setEditingPrice(product.price);
-                                          }}
-                                        >
-                                          Edit
-                                        </button>
-                                        {(() => {
-                                          // Find all customers for this product
-                                          const allCustomers = product.order_items
-                                            ?.flatMap((oiRaw) => {
-                                              const oi = oiRaw as {
-                                                price?: number;
-                                                orders?: {
-                                                  customer_name: string;
-                                                  customer_phone: string;
-                                                }[];
-                                              };
-                                              return Array.isArray(oi.orders)
+                                              fetchCategories();
+                                            }}
+                                          >
+                                            ✔
+                                          </button>
+                                          <button
+                                            className="text-gray-400 font-bold"
+                                            title="Cancel"
+                                            onClick={() => {
+                                              setEditingProductId(null);
+                                              setEditingPrice(null);
+                                            }}
+                                          >
+                                            ✖
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <span>${product.price.toFixed(2)}</span>
+                                          <button
+                                            className="ml-2 text-blue-600 underline"
+                                            title="Edit Price"
+                                            onClick={() => {
+                                              setEditingProductId(product.id);
+                                              setEditingPrice(product.price);
+                                            }}
+                                          >
+                                            Edit
+                                          </button>
+                                          {(() => {
+                                            // Find all customers for this product
+                                            const allCustomers = product.order_items
+                                              ?.flatMap((oiRaw) => {
+                                                const oi = oiRaw as {
+                                                  price?: number;
+                                                  orders?: {
+                                                    customer_name: string;
+                                                    customer_phone: string;
+                                                  }[];
+                                                };
+                                                return Array.isArray(oi.orders)
+                                                  ? oi.orders
+                                                  : oi.orders
+                                                    ? [oi.orders]
+                                                    : [];
+                                              })
+                                              .filter((order) => order.customer_phone);
+                                            const hasCustomers =
+                                              allCustomers && allCustomers.length > 0;
+                                            const waText = hasCustomers
+                                              ? allCustomers
+                                                  .map(
+                                                    (order) =>
+                                                      `Hi ${order.customer_name}, the price for ${product.Product} has changed. Please check the latest update!`
+                                                  )
+                                                  .join("%0A")
+                                              : "";
+                                            return (
+                                              <a
+                                                aria-disabled={!hasCustomers}
+                                                className={`inline-flex items-center px-2 py-1 ${
+                                                  hasCustomers
+                                                    ? "bg-green-500 hover:bg-green-600 cursor-pointer"
+                                                    : "bg-gray-400 cursor-not-allowed opacity-60"
+                                                } text-white rounded transition ml-2`}
+                                                href={
+                                                  hasCustomers
+                                                    ? `https://wa.me/?text=${waText}`
+                                                    : undefined
+                                                }
+                                                rel="noopener noreferrer"
+                                                tabIndex={hasCustomers ? 0 : -1}
+                                                target="_blank"
+                                                title={
+                                                  hasCustomers
+                                                    ? "Notify all customers via WhatsApp"
+                                                    : "No customer to notify"
+                                                }
+                                              >
+                                                <svg
+                                                  className="w-4 h-4 mr-1"
+                                                  fill="currentColor"
+                                                  viewBox="0 0 24 24"
+                                                >
+                                                  <path d="M20.52 3.48A12.07 12.07 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.16 1.6 5.97L0 24l6.18-1.62A11.94 11.94 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.19-1.24-6.19-3.48-8.52zM12 22c-1.85 0-3.68-.5-5.26-1.44l-.38-.22-3.67.96.98-3.58-.25-.37A9.94 9.94 0 0 1 2 12c0-5.52 4.48-10 10-10s10 4.48 10 10-4.48 10-10 10zm5.2-7.8c-.28-.14-1.65-.81-1.9-.9-.25-.09-.43-.14-.61.14-.18.28-.7.9-.86 1.08-.16.18-.32.2-.6.07-.28-.14-1.18-.44-2.25-1.4-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.12-.12.28-.32.42-.48.14-.16.18-.28.28-.46.09-.18.05-.34-.02-.48-.07-.14-.61-1.47-.84-2.01-.22-.53-.45-.46-.61-.47-.16-.01-.34-.01-.52-.01-.18 0-.48.07-.73.34-.25.28-.97.95-.97 2.3 0 1.35.99 2.65 1.13 2.83.14.18 1.95 2.98 4.74 4.06.66.28 1.18.45 1.58.58.66.21 1.26.18 1.73.11.53-.08 1.65-.67 1.88-1.32.23-.65.23-1.21.16-1.32-.07-.11-.25-.18-.53-.32z" />
+                                                </svg>
+                                                Notify all
+                                              </a>
+                                            );
+                                          })()}
+                                        </>
+                                      )}
+                                    </td>
+                                    <td className="px-4 py-2">
+                                      {product.priceHistory && product.priceHistory.length > 0 ? (
+                                        <div className="flex flex-col space-y-1">
+                                          {product.priceHistory.map((ph, idx) => (
+                                            <span key={idx} className="text-xs text-gray-500">
+                                              ${ph.previous_price?.toFixed(2)}{" "}
+                                              <span className="text-gray-400">
+                                                (
+                                                {ph.last_price_update
+                                                  ? new Date(
+                                                      ph.last_price_update
+                                                    ).toLocaleDateString()
+                                                  : "No date"}
+                                                )
+                                              </span>
+                                            </span>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <span className="text-xs text-gray-400">No history</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                  {selectedProduct === product.id && (
+                                    <tr>
+                                      <td className="px-4 py-2 bg-gray-50" colSpan={3}>
+                                        <div className="pl-8">
+                                          <h4 className="font-medium text-gray-700 mb-2">
+                                            Customers:
+                                          </h4>
+                                          {product.order_items?.map((oiRaw, idx) => {
+                                            const oi = oiRaw as {
+                                              order_id: number;
+                                              price?: number;
+                                              orders?: {
+                                                customer_name: string;
+                                                customer_phone: string;
+                                                customer_id?: string;
+                                              }[];
+                                            };
+                                            return (
+                                              Array.isArray(oi.orders)
                                                 ? oi.orders
                                                 : oi.orders
                                                   ? [oi.orders]
-                                                  : [];
-                                            })
-                                            .filter((order) => order.customer_phone);
-                                          const hasCustomers =
-                                            allCustomers && allCustomers.length > 0;
-                                          const waText = hasCustomers
-                                            ? allCustomers
-                                                .map(
-                                                  (order) =>
-                                                    `Hi ${order.customer_name}, the price for ${product.Product} has changed. Please check the latest update!`
-                                                )
-                                                .join("%0A")
-                                            : "";
-                                          return (
-                                            <a
-                                              aria-disabled={!hasCustomers}
-                                              className={`inline-flex items-center px-2 py-1 ${
-                                                hasCustomers
-                                                  ? "bg-green-500 hover:bg-green-600 cursor-pointer"
-                                                  : "bg-gray-400 cursor-not-allowed opacity-60"
-                                              } text-white rounded transition ml-2`}
-                                              href={
-                                                hasCustomers
-                                                  ? `https://wa.me/?text=${waText}`
-                                                  : undefined
-                                              }
-                                              rel="noopener noreferrer"
-                                              tabIndex={hasCustomers ? 0 : -1}
-                                              target="_blank"
-                                              title={
-                                                hasCustomers
-                                                  ? "Notify all customers via WhatsApp"
-                                                  : "No customer to notify"
-                                              }
-                                            >
-                                              <svg
-                                                className="w-4 h-4 mr-1"
-                                                fill="currentColor"
-                                                viewBox="0 0 24 24"
-                                              >
-                                                <path d="M20.52 3.48A12.07 12.07 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.16 1.6 5.97L0 24l6.18-1.62A11.94 11.94 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.19-1.24-6.19-3.48-8.52zM12 22c-1.85 0-3.68-.5-5.26-1.44l-.38-.22-3.67.96.98-3.58-.25-.37A9.94 9.94 0 0 1 2 12c0-5.52 4.48-10 10-10s10 4.48 10 10-4.48 10-10 10zm5.2-7.8c-.28-.14-1.65-.81-1.9-.9-.25-.09-.43-.14-.61.14-.18.28-.7.9-.86 1.08-.16.18-.32.2-.6.07-.28-.14-1.18-.44-2.25-1.4-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.12-.12.28-.32.42-.48.14-.16.18-.28.28-.46.09-.18.05-.34-.02-.48-.07-.14-.61-1.47-.84-2.01-.22-.53-.45-.46-.61-.47-.16-.01-.34-.01-.52-.01-.18 0-.48.07-.73.34-.25.28-.97.95-.97 2.3 0 1.35.99 2.65 1.13 2.83.14.18 1.95 2.98 4.74 4.06.66.28 1.18.45 1.58.58.66.21 1.26.18 1.73.11.53-.08 1.65-.67 1.88-1.32.23-.65.23-1.21.16-1.32-.07-.11-.25-.18-.53-.32z" />
-                                              </svg>
-                                              Notify all
-                                            </a>
-                                          );
-                                        })()}
-                                      </>
-                                    )}
-                                  </td>
-                                  <td className="px-4 py-2">
-                                    {product.priceHistory && product.priceHistory.length > 0 ? (
-                                      <div className="flex flex-col space-y-1">
-                                        {product.priceHistory.map((ph, idx) => (
-                                          <span key={idx} className="text-xs text-gray-500">
-                                            ${ph.previous_price?.toFixed(2)}{" "}
-                                            <span className="text-gray-400">
-                                              (
-                                              {ph.last_price_update
-                                                ? new Date(
-                                                    ph.last_price_update
-                                                  ).toLocaleDateString()
-                                                : "No date"}
-                                              )
-                                            </span>
-                                          </span>
-                                        ))}
-                                      </div>
-                                    ) : (
-                                      <span className="text-xs text-gray-400">No history</span>
-                                    )}
-                                  </td>
-                                </tr>
-                                {selectedProduct === product.id && (
-                                  <tr>
-                                    <td className="px-4 py-2 bg-gray-50" colSpan={3}>
-                                      <div className="pl-8">
-                                        <h4 className="font-medium text-gray-700 mb-2">
-                                          Customers:
-                                        </h4>
-                                        {product.order_items?.map((oiRaw, idx) => {
-                                          const oi = oiRaw as {
-                                            order_id: number;
-                                            price?: number;
-                                            orders?: {
-                                              customer_name: string;
-                                              customer_phone: string;
-                                              customer_id?: string;
-                                            }[];
-                                          };
-                                          return (
-                                            Array.isArray(oi.orders)
-                                              ? oi.orders
-                                              : oi.orders
-                                                ? [oi.orders]
-                                                : []
-                                          ).map((order, oidx) => {
-                                            // Use oi.price as the past price for this customer
-                                            return (
-                                              <div
-                                                key={oidx}
-                                                className="flex items-center space-x-2 mb-1"
-                                              >
-                                                <span>{order.customer_name}</span>
-                                                {oi.price !== undefined && (
-                                                  <span className="text-xs text-gray-500">
-                                                    Past price: ${oi.price?.toFixed(2)}
-                                                  </span>
-                                                )}
-                                                <input
-                                                  placeholder="Offer new price"
-                                                  type="number"
-                                                  value={offerPrice ?? ""}
-                                                  onChange={(e) =>
-                                                    setOfferPrice(Number(e.target.value))
-                                                  }
-                                                />
-                                                <button
-                                                  onClick={async () => {
-                                                    if (!order.customer_id) {
-                                                      alert("Customer ID not found!");
-                                                      return;
-                                                    }
-                                                    await supabase.from("price_offers").insert([
-                                                      {
-                                                        customer_id: order.customer_id,
-                                                        product_id: product.id,
-                                                        offered_price: offerPrice,
-                                                        status: "pending",
-                                                        created_at: new Date().toISOString(),
-                                                      },
-                                                    ]);
-                                                  }}
+                                                  : []
+                                            ).map((order, oidx) => {
+                                              // Use oi.price as the past price for this customer
+                                              return (
+                                                <div
+                                                  key={oidx}
+                                                  className="flex items-center space-x-2 mb-1"
                                                 >
-                                                  Send Offer
-                                                </button>
-                                              </div>
-                                            );
-                                          });
-                                        })}
-                                        {(!product.order_items ||
-                                          product.order_items.length === 0) && (
-                                          <span className="text-gray-500">No customers found</span>
-                                        )}
-                                      </div>
-                                    </td>
-                                  </tr>
-                                )}
-                              </React.Fragment>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+                                                  <span>{order.customer_name}</span>
+                                                  {oi.price !== undefined && (
+                                                    <span className="text-xs text-gray-500">
+                                                      Past price: ${oi.price?.toFixed(2)}
+                                                    </span>
+                                                  )}
+                                                  <input
+                                                    placeholder="Offer new price"
+                                                    type="number"
+                                                    value={offerPrice ?? ""}
+                                                    onChange={(e) =>
+                                                      setOfferPrice(Number(e.target.value))
+                                                    }
+                                                  />
+                                                  <button
+                                                    onClick={async () => {
+                                                      if (!order.customer_id) {
+                                                        alert("Customer ID not found!");
+                                                        return;
+                                                      }
+                                                      await supabase.from("price_offers").insert([
+                                                        {
+                                                          customer_id: order.customer_id,
+                                                          product_id: product.id,
+                                                          offered_price: offerPrice,
+                                                          status: "pending",
+                                                          created_at: new Date().toISOString(),
+                                                        },
+                                                      ]);
+                                                    }}
+                                                  >
+                                                    Send Offer
+                                                  </button>
+                                                </div>
+                                              );
+                                            });
+                                          })}
+                                          {(!product.order_items ||
+                                            product.order_items.length === 0) && (
+                                            <span className="text-gray-500">No customers found</span>
+                                          )}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  )}
+                                </React.Fragment>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </motion.div>
         );

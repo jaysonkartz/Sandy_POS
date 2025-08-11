@@ -1,16 +1,31 @@
 "use client";
 
-import { createBrowserClient } from "@supabase/ssr";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useCart } from "@/context/CartContext";
-import { motion } from "framer-motion";
+import { supabase } from "@/app/lib/supabaseClient";
+import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
-import { Tag, Search, ShoppingCart, MessageSquare } from "lucide-react";
+import { Tag, Search, ShoppingCart, Loader2, Camera } from "lucide-react";
+import ProductImage from "@/components/ProductImage";
 import { useRouter } from "next/navigation";
 import React from "react";
 import { Session } from "@supabase/supabase-js";
 import { AuthChangeEvent } from "@supabase/supabase-js";
 import SignupModal from "@/components/SignupModal";
+import { CATEGORY_ID_NAME_MAP } from "./(admin)/const/category";
+import ProductPhotoEditor from "@/components/ProductPhotoEditor";
+
+// Custom WhatsApp Icon Component
+const WhatsAppIcon = ({ className }: { className?: string }) => (
+  <svg 
+    className={className} 
+    viewBox="0 0 24 24" 
+    fill="currentColor"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
+  </svg>
+);
 
 interface Product {
   id: number;
@@ -28,18 +43,9 @@ interface Product {
   price: number;
   uom: string;
   stock_quantity: number;
+  image_url?: string;
 }
 
-const CATEGORY_ID_NAME_MAP: { [key: string]: string } = {
-  1: "Dried Chilli",
-  2: "Beans & Legumes",
-  3: "Nuts & Seeds",
-  4: "Herbs and Spices",
-  5: "Grains",
-  6: "Dried Seafood",
-  7: "Vegetables",
-  8: "Dried Mushroom & Fungus"
-};
 
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -56,39 +62,105 @@ export default function Home() {
   const [expandedProducts, setExpandedProducts] = useState<number[]>([]);
   const [countryMap, setCountryMap] = useState<{ [key: string]: { name: string; chineseName: string } }>({});
   const [selectedOptions, setSelectedOptions] = useState<{ [title: string]: { variation?: string; countryId?: string; weight?: string } }>({});
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout>();
+  
+
   const { addToCart, cart, updateQuantity } = useCart();
   const [session, setSession] = useState<any>(null);
+  const [userRole, setUserRole] = useState<string>("");
   const router = useRouter();
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
+  // Add error state for better error handling
+  const [error, setError] = useState<string | null>(null);
+  
+
+  
+  // Photo editor state
+  const [isPhotoEditorOpen, setIsPhotoEditorOpen] = useState(false);
+  const [selectedProductForPhoto, setSelectedProductForPhoto] = useState<Product | null>(null);
 
   interface ProductGroup {
     title: string;
     products: Product[];
+    category: string;
   }
 
+  // Memoized filtered products
+  const filteredProducts = useMemo(() => {
+    if (!searchTerm.trim()) return products;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return products.filter(product => 
+      product.Product.toLowerCase().includes(searchLower) ||
+      (product.Product_CH && product.Product_CH.toLowerCase().includes(searchLower)) ||
+      product["Item Code"].toLowerCase().includes(searchLower) ||
+      product.Category.toLowerCase().includes(searchLower)
+    );
+  }, [products, searchTerm]);
+
   const productGroups = useMemo(() => {
-    const groups: { [title: string]: Product[] } = {};
-    products.forEach((p) => {
-      const title = isEnglish ? p.Product : (p.Product_CH || p.Product);
-      if (!groups[title]) {
-        groups[title] = [];
+    // First, group products by category
+    const categoryGroups: { [category: string]: Product[] } = {};
+    filteredProducts.forEach((p) => {
+      const category = isEnglish ? p.Category : (p.Category_CH || p.Category);
+      if (!categoryGroups[category]) {
+        categoryGroups[category] = [];
       }
-      groups[title].push(p);
+      categoryGroups[category].push(p);
     });
-    return Object.values(groups).map((products) => ({
-      title: isEnglish ? products[0].Product : (products[0].Product_CH || products[0].Product),
-      products,
-    }));
-  }, [products, isEnglish]);
+
+    // Then, within each category, group by product name
+    const result: { title: string; products: Product[]; category: string }[] = [];
+    
+    Object.entries(categoryGroups).forEach(([category, categoryProducts]) => {
+      const productGroups: { [title: string]: Product[] } = {};
+      
+      categoryProducts.forEach((p) => {
+        const title = isEnglish ? p.Product : (p.Product_CH || p.Product);
+        if (!productGroups[title]) {
+          productGroups[title] = [];
+        }
+        productGroups[title].push(p);
+      });
+
+      // Add each product group with category info
+      Object.values(productGroups).forEach((products) => {
+        result.push({
+          title: isEnglish ? products[0].Product : (products[0].Product_CH || products[0].Product),
+          products,
+          category: category
+        });
+      });
+    });
+
+    // Sort by category first, then by product name
+    return result.sort((a, b) => {
+      if (a.category !== b.category) {
+        return a.category.localeCompare(b.category);
+      }
+      return a.title.localeCompare(b.title);
+    });
+  }, [filteredProducts, isEnglish]);
+
+  // Debounced search handler
+  const handleSearchChange = useCallback((value: string) => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchTerm(value);
+    }, 300);
+  }, []);
 
   useEffect(() => {
     async function fetchProducts() {
       try {
+        setError(null);
         let query = supabase.from("products").select("*");
 
         if (selectedCategory !== "all") {
@@ -100,6 +172,7 @@ export default function Home() {
         setProducts(data || []);
       } catch (error) {
         console.error("Error fetching products:", error);
+        setError(error instanceof Error ? error.message : "Failed to load products");
       } finally {
         setLoading(false);
       }
@@ -108,20 +181,149 @@ export default function Home() {
     fetchProducts();
   }, [supabase, selectedCategory]);
 
+  // Function to fetch user role
+  const fetchUserRole = useCallback(async (userId: string) => {
+    try {
+
+      const { data: userData, error } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", userId)
+        .single();
+
+      if (userData && !error) {
+        setUserRole(userData.role);
+      } else {
+        setUserRole("");
+
+      }
+    } catch (error) {
+      console.error('Error fetching user role:', error);
+      setUserRole("");
+    }
+  }, [supabase]);
+
+  // Function to fetch user role with retry
+  const fetchUserRoleWithRetry = useCallback(async (userId: string, retries = 3) => {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const { data: userData, error } = await supabase
+          .from("users")
+          .select("role")
+          .eq("id", userId)
+          .single();
+
+        if (userData && !error) {
+          setUserRole(userData.role);
+          return userData.role; // Return the role on success
+        } else {
+          if (i < retries - 1) {
+            // Wait 1 second before retrying
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+      } catch (error) {
+        console.error(`Attempt ${i + 1} error:`, error);
+        if (i < retries - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+    }
+    setUserRole("");
+    return null; // Return null on failure
+  }, [supabase]);
+
+  // Helper function to check if session is valid
+  const isSessionValid = useCallback(() => {
+    const isValid = !!(session && 
+           session.user && 
+           session.user.id && 
+           session.user.email &&
+           session.access_token);
+    
+    // Add temporary debug logging to understand the issue
+    if (process.env.NODE_ENV === 'development') {
+      console.log('isSessionValid check:', {
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        hasUserId: !!session?.user?.id,
+        hasEmail: !!session?.user?.email,
+        hasToken: !!session?.access_token,
+        result: isValid
+      });
+    }
+    
+    return isValid;
+  }, [session]);
+
+  // Function to force refresh session and role
+  const forceRefreshSession = useCallback(async () => {
+
+    
+    try {
+      // Get fresh session
+      const { data: { session: freshSession }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Error getting session:', sessionError);
+        return;
+      }
+      
+
+      setSession(freshSession);
+      
+      // If session exists, fetch role
+      if (freshSession?.user?.id) {
+  
+        await fetchUserRoleWithRetry(freshSession.user.id);
+      } else {
+        setUserRole("");
+
+      }
+    } catch (error) {
+      console.error('Error in force refresh:', error);
+    }
+  }, [supabase.auth, fetchUserRoleWithRetry]);
+
   useEffect(() => {
+
+    
     supabase.auth.getSession().then(({ data: { session } }: { data: { session: any } }) => {
+
       setSession(session);
+      
+      // Fetch user role if session exists
+      if (session?.user?.id) {
+
+        fetchUserRole(session.user.id);
+      } else {
+
+      }
     });
 
     // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
+
+      
       setSession(session);
+      
+      // Fetch user role if session exists
+      if (session?.user?.id) {
+
+        fetchUserRole(session.user.id);
+      } else {
+
+        setUserRole("");
+      }
     });
 
-    return () => subscription.unsubscribe();
-  }, [supabase.auth]);
+    return () => {
+
+      subscription.unsubscribe();
+    };
+  }, [supabase.auth, fetchUserRole]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -130,6 +332,17 @@ export default function Home() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Debug effect to monitor session and role changes
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Session or role changed:', {
+        session: session ? { hasUser: !!session.user, hasId: !!session.user?.id, hasEmail: !!session.user?.email, hasToken: !!session.access_token } : null,
+        userRole,
+        isSessionValid: isSessionValid()
+      });
+    }
+  }, [session, userRole, isSessionValid]);
 
   useEffect(() => {
     async function fetchCountries() {
@@ -179,15 +392,15 @@ export default function Home() {
   };
 
   //Send Whatsapp enquiry
-  const handleCustomerService = () => {
+  const handleCustomerService = useCallback(() => {
     const phoneNumber = "6593254825";
     const message = "Hi, I would like to inquire about your products.";
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, "_blank");
-  };
+  }, []);
 
   //Add to order
-  const handleAddToOrder = (product: Product) => {
+  const handleAddToOrder = useCallback((product: Product) => {
     const existingProduct = selectedProducts.find((item) => item.product.id === product.id);
     if (existingProduct) {
       setSelectedProducts((prev) =>
@@ -198,10 +411,10 @@ export default function Home() {
     } else {
       setSelectedProducts((prev) => [...prev, { product, quantity: 1 }]);
     }
-  };
+  }, [selectedProducts]);
 
   //Update quantity
-  const handleUpdateQuantity = (productId: number, newQuantity: number) => {
+  const handleUpdateQuantity = useCallback((productId: number, newQuantity: number) => {
     if (newQuantity < 1) {
       setSelectedProducts((prev) => prev.filter((item) => item.product.id !== productId));
     } else {
@@ -211,10 +424,10 @@ export default function Home() {
         )
       );
     }
-  };
+  }, []);
 
   //Send Whatsapp notification after submit order
-  const sendWhatsAppNotification = (orderDetails: {
+  const sendWhatsAppNotification = useCallback((orderDetails: {
     orderId: number;
     customerName: string;
     totalAmount: number;
@@ -245,9 +458,35 @@ Please check the admin panel for more details.
 
     // Open WhatsApp in a new window
     window.open(whatsappUrl, "_blank");
-  };
+  }, []);
 
-  const handleSubmitOrder = async () => {
+  // Open photo editor for a product
+  const openPhotoEditor = useCallback((product: Product) => {
+    setSelectedProductForPhoto(product);
+    setIsPhotoEditorOpen(true);
+  }, []);
+
+  // Close photo editor
+  const closePhotoEditor = useCallback(() => {
+    setIsPhotoEditorOpen(false);
+    setSelectedProductForPhoto(null);
+  }, []);
+
+  // Handle image update from photo editor
+  const handleImageUpdate = useCallback((imageUrl: string) => {
+    if (selectedProductForPhoto) {
+      // Update the product in the local state
+      setProducts(prevProducts => 
+        prevProducts.map(p => 
+          p.id === selectedProductForPhoto.id 
+            ? { ...p, image_url: imageUrl }
+            : p
+        )
+      );
+    }
+  }, [selectedProductForPhoto]);
+
+  const handleSubmitOrder = useCallback(async () => {
     // Check if user is authenticated
     if (!session) {
       alert(isEnglish ? "Please log in to submit an order" : "请登录以提交订单");
@@ -267,6 +506,8 @@ Please check the admin panel for more details.
       );
       return;
     }
+
+    setIsSubmitting(true);
 
     try {
       // Calculate total amount
@@ -340,29 +581,73 @@ Please check the admin panel for more details.
     } catch (error) {
       console.error("Error submitting order:", error);
       alert(isEnglish ? "Error submitting order. Please try again." : "提交订单时出错，请重试。");
+    } finally {
+      setIsSubmitting(false);
     }
-  };
+  }, [session, selectedProducts, customerName, customerPhone, isEnglish, supabase, sendWhatsAppNotification]);
 
-  const toggleCountryExpansion = (country: string) => {
+  const toggleCountryExpansion = useCallback((country: string) => {
     setExpandedCountries((prev) =>
       prev.includes(country) ? prev.filter((c) => c !== country) : [...prev, country]
     );
-  };
+  }, []);
 
-  const toggleProductExpansion = (productId: number) => {
+  const toggleProductExpansion = useCallback((productId: number) => {
     setExpandedProducts((prev) =>
       prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]
     );
-  };
+  }, []);
 
-  const handleScrollToTop = () => {
+  const handleScrollToTop = useCallback(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  }, []);
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="container mx-auto p-4">
+        <div className="flex justify-between items-center mb-6">
+          <div className="h-10 w-32 bg-gray-200 rounded animate-pulse"></div>
+          <div className="h-10 w-48 bg-gray-200 rounded animate-pulse"></div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-lg shadow-lg overflow-hidden">
+              <div className="h-48 bg-gray-200 animate-pulse"></div>
+              <div className="p-4 space-y-3">
+                <div className="h-6 bg-gray-200 rounded animate-pulse"></div>
+                <div className="h-4 bg-gray-200 rounded animate-pulse w-2/3"></div>
+                <div className="h-4 bg-gray-200 rounded animate-pulse w-1/2"></div>
+                <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="container mx-auto p-4">
+        <div className="text-center py-12">
+          <div className="text-red-500 mb-4">
+            <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            {isEnglish ? "Error Loading Products" : "加载产品时出错"}
+          </h3>
+          <p className="text-gray-500 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+          >
+            {isEnglish ? "Try Again" : "重试"}
+          </button>
+        </div>
       </div>
     );
   }
@@ -372,29 +657,51 @@ Please check the admin panel for more details.
 
   return (
     <div className="container mx-auto p-4">
-      {/* Language Toggle and Category Filter */}
-      <div className="flex justify-between items-center mb-6">
-        <button
-          className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors flex items-center gap-2"
-          onClick={() => setIsEnglish(!isEnglish)}
-        >
-          <span>{isEnglish ? "中文" : "English"}</span>
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              d="M3 5h12M9 3v18m0-18l-4 4m4-4l4 4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
+
+
+      {/* Language Toggle, Search, and Category Filter */}
+      <div className="flex flex-col lg:flex-row justify-between items-center mb-6 gap-4">
+        <div className="flex items-center gap-4">
+          <button
+            className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors flex items-center gap-2"
+            onClick={() => setIsEnglish(!isEnglish)}
+          >
+            <span>{isEnglish ? "中文" : "English"}</span>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M3 5h12M9 3v18m0-18l-4 4m4-4l4 4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+              />
+            </svg>
+          </button>
+
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder={isEnglish ? "Search products..." : "搜索产品..."}
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
+              onChange={(e) => handleSearchChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.currentTarget.blur();
+                  setSearchTerm("");
+                }
+              }}
+              aria-label={isEnglish ? "Search products" : "搜索产品"}
             />
-          </svg>
-        </button>
+          </div>
+        </div>
 
         <select
           className="p-2 border rounded-md"
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(e.target.value)}
         >
-          <option value="all">All Categories</option>
+          <option value="all">{isEnglish ? "All Categories" : "所有类别"}</option>
           {Object.entries(CATEGORY_ID_NAME_MAP).map(([id, name]) => (
             <option key={id} value={id}>
               {name}
@@ -403,176 +710,238 @@ Please check the admin panel for more details.
         </select>
       </div>
 
-      {/* Product Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {productGroups.map((group) => {
-          const { title, products: groupProducts } = group;
+      {/* Search Results Info */}
+      {searchTerm && (
+        <div className="mb-4 text-sm text-gray-600">
+          {isEnglish ? "Search results for" : "搜索结果："} "{searchTerm}" - {productGroups.length} {isEnglish ? "products" : "产品"}
+        </div>
+      )}
 
-          // Helper to get selected product based on dropdowns
-          const getSelectedProduct = () => {
-            const selected = selectedOptions[title] || {};
-            let product = groupProducts.find(p => 
-              (!selected.variation || p.Variation === selected.variation) &&
-              (!selected.countryId || p.Country === selected.countryId) &&
-              (!selected.weight || p.weight === selected.weight)
-            );
-            return product || groupProducts[0];
-          };
+      {/* Product Grid - Grouped by Category */}
+      <div className="space-y-8">
+        {(() => {
+          // Group products by category for display
+          const categoryDisplayGroups: { [category: string]: typeof productGroups } = {};
+          productGroups.forEach((group) => {
+            if (!categoryDisplayGroups[group.category]) {
+              categoryDisplayGroups[group.category] = [];
+            }
+            categoryDisplayGroups[group.category].push(group);
+          });
 
-          const product = getSelectedProduct();
-          const cartItem = cart.find((item) => item.id === product.id);
-
-          const variations = [...new Set(groupProducts.map(p => p.Variation).filter(Boolean))];
-          const origins = [...new Set(groupProducts.map(p => p.Country).filter(Boolean))];
-          const weights = [...new Set(groupProducts.map(p => p.weight).filter(Boolean))];
-
-          const handleOptionChange = (type: 'variation' | 'countryId' | 'weight', value: string) => {
-            setSelectedOptions(prev => ({
-              ...prev,
-              [title]: {
-                ...prev[title],
-                [type]: value,
-              }
-            }));
-          };
-
-          return (
-            <div key={title} className="bg-white rounded-lg shadow-lg overflow-hidden flex flex-col transition-all duration-300 hover:shadow-2xl">
-              {/* Product Image */}
-              <div className="relative h-48 bg-gray-100">
-                <img
-                  alt={product.Product}
-                  className="w-full h-full object-cover"
-                  src={`/Img/${getCategoryName(product.Category)}/${product.Product}${product.Variation ? ` (${product.Variation})` : ''}.png`}
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    if (!target.dataset.fallbackAttempted) {
-                      target.dataset.fallbackAttempted = 'true';
-                      target.src = `/Img/${getCategoryName(product.Category)}/${product.Product}.png`;
-                    } else if (!target.dataset.placeholderAttempted) {
-                      target.dataset.placeholderAttempted = 'true';
-                      target.src = "/product-placeholder.png";
-                    }
-                  }}
-                />
+          return Object.entries(categoryDisplayGroups).map(([category, groups]) => (
+            <div key={category} className="space-y-4">
+              {/* Category Header */}
+              <div className="border-b border-gray-200 pb-2">
+                <h2 className="text-2xl font-bold text-gray-800">
+                  {isEnglish ? category : (groups[0]?.products[0]?.Category_CH || category)}
+                </h2>
               </div>
+              
+              {/* Products in this category */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {groups.map((group) => {
+                  const { title, products: groupProducts } = group;
 
-              {/* Product Info */}
-              <div className="p-4 flex flex-col flex-grow">
-                <div className="flex-grow">
-                  <h3 className="text-xl font-bold text-gray-800 truncate">
-                    {isEnglish ? product.Product : product.Product_CH}
-                  </h3>
-                  <p className="text-xs text-gray-400 mb-3">{product["Item Code"]}</p>
+                  // Helper to get selected product based on dropdowns
+                  const getSelectedProduct = () => {
+                    const selected = selectedOptions[title] || {};
+                    let product = groupProducts.find(p => 
+                      (!selected.variation || p.Variation === selected.variation) &&
+                      (!selected.countryId || p.Country === selected.countryId) &&
+                      (!selected.weight || p.weight === selected.weight)
+                    );
+                    return product || groupProducts[0];
+                  };
 
-                  {/* Dropdowns */}
-                  <div className="space-y-2 mb-4">
-                    {variations.length > 0 && (
-                      <div>
-                        <label className="text-xs font-medium text-gray-500">{isEnglish ? "Variation" : "规格"}</label>
-                        <select
-                          className="w-full p-2 mt-1 text-sm border-gray-200 border bg-gray-50 rounded-md focus:border-blue-500 focus:ring-blue-500 transition"
-                          value={selectedOptions[title]?.variation || variations[0]}
-                          onChange={(e) => handleOptionChange('variation', e.target.value)}
-                        >
-                          {variations.map(v => (
-                            <option key={v} value={v}>{isEnglish ? v : (groupProducts.find(p=>p.Variation === v)?.Variation_CH || v)}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                    {origins.length > 0 && (
-                      <div>
-                        <label className="text-xs font-medium text-gray-500">{isEnglish ? "Origin" : "产地"}</label>
-                        <select
-                           className="w-full p-2 mt-1 text-sm border-gray-200 border bg-gray-50 rounded-md focus:border-blue-500 focus:ring-blue-500 transition"
-                           value={selectedOptions[title]?.countryId || origins[0]}
-                           onChange={(e) => handleOptionChange('countryId', e.target.value)}
-                        >
-                          {origins.map(o => (
-                            <option key={o} value={o}>{isEnglish ? (countryMap[o]?.name || o) : (countryMap[o]?.chineseName || o)}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                    {weights.length > 0 && (
-                      <div>
-                        <label className="text-xs font-medium text-gray-500">{isEnglish ? "Weight" : "重量"}</label>
-                        <select
-                           className="w-full p-2 mt-1 text-sm border-gray-200 border bg-gray-50 rounded-md focus:border-blue-500 focus:ring-blue-500 transition"
-                           value={selectedOptions[title]?.weight || weights[0]}
-                           onChange={(e) => handleOptionChange('weight', e.target.value)}
-                        >
-                          {weights.map(w => (
-                            <option key={w} value={w}>{w}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                  </div>
+                  const product = getSelectedProduct();
+                  const cartItem = cart.find((item) => item.id === product.id);
 
-                  {/* Price */}
-                  {session && (
-                    <div className="mb-4">
-                      <p className="text-2xl font-extrabold text-gray-800">
-                        ${product.price.toFixed(2)}
-                        <span className="text-base font-medium text-gray-500">/{product.UOM}</span>
-                      </p>
-                    </div>
-                  )}
-                </div>
+                  const variations = [...new Set(groupProducts.map(p => p.Variation).filter(Boolean))];
+                  const origins = [...new Set(groupProducts.map(p => p.Country).filter(Boolean))];
+                  const weights = [...new Set(groupProducts.map(p => p.weight).filter(Boolean))];
 
-                {/* Action Buttons */}
-                <div className="mt-auto pt-4 border-t border-gray-100">
-                  {!session ? (
-                     <button
-                        className="w-full text-center text-blue-600 font-semibold hover:text-blue-800 transition-colors"
-                        onClick={() => setIsSignupModalOpen(true)}
-                      >
-                        {isEnglish ? "Login to see price" : "登录查看价格"}
-                      </button>
-                  ) : (
-                    <div className="flex items-center justify-between space-x-2">
-                      {selectedProducts.find(p => p.product.id === product.id) ? (
-                         <div className="flex items-center space-x-2 w-full">
-                            <button
-                              className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300"
-                              onClick={() => handleUpdateQuantity(product.id, (selectedProducts.find(p => p.product.id === product.id)?.quantity || 0) - 1)}
-                            >
-                              -
-                            </button>
-                            <span className="flex-grow text-center font-semibold">{selectedProducts.find(p => p.product.id === product.id)?.quantity}</span>
-                            <button
-                              className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300"
-                              onClick={() => handleUpdateQuantity(product.id, (selectedProducts.find(p => p.product.id === product.id)?.quantity || 0) + 1)}
-                            >
-                              +
-                            </button>
-                          </div>
-                      ) : (
-                         <button
-                            className="flex-1 flex items-center justify-center bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors text-sm font-semibold"
-                            onClick={() => handleAddToOrder(product)}
+                  const handleOptionChange = (type: 'variation' | 'countryId' | 'weight', value: string) => {
+                    setSelectedOptions(prev => ({
+                      ...prev,
+                      [title]: {
+                        ...prev[title],
+                        [type]: value,
+                      }
+                    }));
+                  };
+
+                  return (
+                    <motion.div 
+                      key={title} 
+                      className="bg-white rounded-lg shadow-lg overflow-hidden flex flex-col transition-all duration-300 hover:shadow-2xl"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                      role="article"
+                      aria-label={`${isEnglish ? product.Product : product.Product_CH} product card`}
+                    >
+                      {/* Product Image */}
+                      <div className="relative h-48 bg-gray-100">
+                        <ProductImage
+                          src={product.image_url || `/Img/${getCategoryName(product.Category)}/${product.Product}${product.Variation ? ` (${product.Variation})` : ''}.png`}
+                          alt={isEnglish ? product.Product : (product.Product_CH || product.Product)}
+                          className="w-full h-full object-cover"
+                        />
+                        
+                        {/* Photo Editor Button - Only show for admin users */}
+                        {isSessionValid() && userRole === 'ADMIN' && (
+                          <button
+                            onClick={() => openPhotoEditor(product)}
+                            className="absolute top-2 right-2 bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600 transition-colors shadow-lg"
+                            title={isEnglish ? "Edit Photo (Admin Only)" : "编辑照片（仅管理员）"}
                           >
-                            <ShoppingCart className="w-4 h-4 mr-2" />
-                            {isEnglish ? "Add to Order" : "添加到订单"}
+                            <Camera className="w-4 h-4" />
                           </button>
-                      )}
-                      <button
-                        className="flex-shrink-0 bg-gray-100 text-gray-600 px-3 py-2 rounded-md hover:bg-gray-200 transition-colors"
-                        onClick={() => handleCustomerService()}
-                        title={isEnglish ? "Inquire" : "询价"}
-                      >
-                        <MessageSquare className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
-                </div>
+                        )}
+                      </div>
+
+                      {/* Product Info */}
+                      <div className="p-4 flex flex-col flex-grow">
+                        <div className="flex-grow">
+                          <h3 className="text-xl font-bold text-gray-800 truncate">
+                            {isEnglish ? product.Product : product.Product_CH}
+                          </h3>
+                          <p className="text-xs text-gray-400 mb-3">{product["Item Code"]}</p>
+
+                          {/* Dropdowns */}
+                          <div className="space-y-2 mb-4">
+                            {variations.length > 0 && (
+                              <div>
+                                <label className="text-xs font-medium text-gray-500">{isEnglish ? "Variation" : "规格"}</label>
+                                <select
+                                  className="w-full p-2 mt-1 text-sm border-gray-200 border bg-gray-50 rounded-md focus:border-blue-500 focus:ring-blue-500 transition"
+                                  value={selectedOptions[title]?.variation || variations[0]}
+                                  onChange={(e) => handleOptionChange('variation', e.target.value)}
+                                >
+                                  {variations.map(v => (
+                                    <option key={v} value={v}>{isEnglish ? v : (groupProducts.find(p=>p.Variation === v)?.Variation_CH || v)}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                            {origins.length > 0 && (
+                              <div>
+                                <label className="text-xs font-medium text-gray-500">{isEnglish ? "Origin" : "产地"}</label>
+                                <select
+                                   className="w-full p-2 mt-1 text-sm border-gray-200 border bg-gray-50 rounded-md focus:border-blue-500 focus:ring-blue-500 transition"
+                                   value={selectedOptions[title]?.countryId || origins[0]}
+                                   onChange={(e) => handleOptionChange('countryId', e.target.value)}
+                                >
+                                  {origins.map(o => (
+                                    <option key={o} value={o}>{isEnglish ? (countryMap[o]?.name || o) : (countryMap[o]?.chineseName || o)}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                            {weights.length > 0 && (
+                              <div>
+                                <label className="text-xs font-medium text-gray-500">{isEnglish ? "Weight" : "重量"}</label>
+                                <select
+                                   className="w-full p-2 mt-1 text-sm border-gray-200 border bg-gray-50 rounded-md focus:border-blue-500 focus:ring-blue-500 transition"
+                                   value={selectedOptions[title]?.weight || weights[0]}
+                                   onChange={(e) => handleOptionChange('weight', e.target.value)}
+                                >
+                                  {weights.map(w => (
+                                    <option key={w} value={w}>{w}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Price */}
+                          {isSessionValid() && (
+                            <div className="mb-4">
+                              <p className="text-2xl font-extrabold text-gray-800">
+                                ${product.price.toFixed(2)}
+                                <span className="text-base font-medium text-gray-500">/{product.UOM}</span>
+                              </p>
+                              
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Action Buttons */}
+
+                        <div className="mt-auto pt-4 border-t border-gray-100">
+                          {!isSessionValid() ? (
+                             <button
+                                className="w-full text-center text-blue-600 font-semibold hover:text-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                onClick={() => setIsSignupModalOpen(true)}
+                                disabled={isLoggingIn}
+                              >
+                                {isLoggingIn 
+                                  ? (isEnglish ? "Logging in..." : "登录中...") 
+                                  : (isEnglish ? "Login to see price" : "登录查看价格")
+                                }
+                              </button>
+                          ) : (
+                            <div className="flex items-center justify-between space-x-2">
+                              {selectedProducts.find(p => p.product.id === product.id) ? (
+                                 <div className="flex items-center space-x-2 w-full">
+                                    <button
+                                      className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 transition-colors"
+                                      onClick={() => handleUpdateQuantity(product.id, (selectedProducts.find(p => p.product.id === product.id)?.quantity || 0) - 1)}
+                                    >
+                                      -
+                                    </button>
+                                    <span className="flex-grow text-center font-semibold">{selectedProducts.find(p => p.product.id === product.id)?.quantity}</span>
+                                    <button
+                                      className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 transition-colors"
+                                      onClick={() => handleUpdateQuantity(product.id, (selectedProducts.find(p => p.product.id === product.id)?.quantity || 0) + 1)}
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                              ) : (
+                                 <button
+                                    className="flex-1 flex items-center justify-center bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors text-sm font-semibold"
+                                    onClick={() => handleAddToOrder(product)}
+                                  >
+                                    <ShoppingCart className="w-4 h-4 mr-2" />
+                                    {isEnglish ? "Add to Order" : "添加到订单"}
+                                  </button>
+                              )}
+                              <button
+                                className="flex-shrink-0 bg-gray-100 text-gray-600 px-3 py-2 rounded-md hover:bg-gray-200 transition-colors"
+                                onClick={() => handleCustomerService()}
+                                title={isEnglish ? "Inquire via WhatsApp" : "通过WhatsApp询价"}
+                              >
+                                <WhatsAppIcon className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
               </div>
             </div>
-          );
-        })}
+          ));
+        })()}
       </div>
+
+      {/* No Results Message */}
+      {productGroups.length === 0 && !loading && (
+        <div className="text-center py-12">
+          <div className="text-gray-400 mb-4">
+            <Search className="w-16 h-16 mx-auto" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            {isEnglish ? "No products found" : "未找到产品"}
+          </h3>
+          <p className="text-gray-500">
+            {isEnglish ? "Try adjusting your search terms or category filter" : "请尝试调整搜索词或类别筛选"}
+          </p>
+        </div>
+      )}
 
       {/* Floating Order Button */}
       {selectedProducts.length > 0 && (
@@ -594,143 +963,204 @@ Please check the admin panel for more details.
       )}
 
       {/* Order Panel */}
-      {isOrderPanelOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-end"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setIsOrderPanelOpen(false);
-            }
-          }}
-        >
+      <AnimatePresence>
+        {isOrderPanelOpen && (
           <motion.div
-            animate={{ x: 0 }}
-            className="w-full max-w-md bg-white h-full p-4 overflow-y-auto"
-            exit={{ x: "100%" }}
-            initial={{ x: "100%" }}
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-end"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setIsOrderPanelOpen(false);
+              }
+            }}
           >
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">{isEnglish ? "Create Order" : "创建订单"}</h2>
-              <button
-                className="text-gray-500 hover:text-gray-700"
-                onClick={() => setIsOrderPanelOpen(false)}
-              >
-                ✕
-              </button>
-            </div>
+            <motion.div
+              animate={{ x: 0 }}
+              className="w-full max-w-md bg-white h-full p-4 overflow-y-auto"
+              exit={{ x: "100%" }}
+              initial={{ x: "100%" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">{isEnglish ? "Create Order" : "创建订单"}</h2>
+                <button
+                  className="text-gray-500 hover:text-gray-700"
+                  onClick={() => setIsOrderPanelOpen(false)}
+                >
+                  ✕
+                </button>
+              </div>
 
-            {/* Customer Information */}
-            <div className="mb-4 space-y-3">
-              <h3 className="font-semibold">{isEnglish ? "Customer Information" : "客户信息"}</h3>
-              <div className="space-y-2">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {isEnglish ? "Customer Name" : "客户姓名"}
-                  </label>
-                  <input
-                    required
-                    className="w-full p-2 border rounded-md"
-                    placeholder={isEnglish ? "Enter customer name" : "输入客户姓名"}
-                    type="text"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {isEnglish ? "Phone Number" : "电话号码"}
-                  </label>
-                  <input
-                    required
-                    className="w-full p-2 border rounded-md"
-                    placeholder={isEnglish ? "Enter phone number" : "输入电话号码"}
-                    type="tel"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                  />
+              {/* Customer Information */}
+              <div className="mb-4 space-y-3">
+                <h3 className="font-semibold">{isEnglish ? "Customer Information" : "客户信息"}</h3>
+                <div className="space-y-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {isEnglish ? "Customer Name" : "客户姓名"}
+                    </label>
+                    <input
+                      required
+                      className="w-full p-2 border rounded-md"
+                      placeholder={isEnglish ? "Enter customer name" : "输入客户姓名"}
+                      type="text"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {isEnglish ? "Phone Number" : "电话号码"}
+                    </label>
+                    <input
+                      required
+                      className="w-full p-2 border rounded-md"
+                      placeholder={isEnglish ? "Enter phone number" : "输入电话号码"}
+                      type="tel"
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {selectedProducts.length > 0 && (
-              <div className="mb-4 space-y-2">
-                <h3 className="font-semibold mb-2">
-                  {isEnglish ? "Selected Products" : "已选产品"}
-                </h3>
-                {selectedProducts.map(({ product, quantity }) => (
-                  <div key={product.id} className="p-3 bg-gray-50 rounded-lg">
-                    <div className="flex justify-between items-start mb-1">
-                      <p className="text-sm font-medium">
-                        {isEnglish ? product.Product : product.Product_CH}
-                      </p>
-                      <span className="text-sm text-gray-600">
-                        ${product.price.toFixed(2)}/{product.UOM}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between mt-2">
-                      <div className="flex items-center gap-2">
+              {selectedProducts.length > 0 && (
+                <div className="mb-4 space-y-2">
+                  <h3 className="font-semibold mb-2">
+                    {isEnglish ? "Selected Products" : "已选产品"}
+                  </h3>
+                  {selectedProducts.map(({ product, quantity }) => (
+                    <div key={product.id} className="p-3 bg-gray-50 rounded-lg">
+                      <div className="flex justify-between items-start mb-1">
+                        <p className="text-sm font-medium">
+                          {isEnglish ? product.Product : product.Product_CH}
+                        </p>
+                        <span className="text-sm text-gray-600">
+                          ${product.price.toFixed(2)}/{product.UOM}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="flex items-center gap-2">
+                          <button
+                            className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm"
+                            onClick={() => handleUpdateQuantity(product.id, quantity - 1)}
+                          >
+                            -
+                          </button>
+                          <span className="text-sm">{quantity}</span>
+                          <button
+                            className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm"
+                            onClick={() => handleUpdateQuantity(product.id, quantity + 1)}
+                          >
+                            +
+                          </button>
+                        </div>
                         <button
-                          className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm"
-                          onClick={() => handleUpdateQuantity(product.id, quantity - 1)}
+                          className="text-red-500 hover:text-red-700 text-sm"
+                          onClick={() => handleUpdateQuantity(product.id, 0)}
                         >
-                          -
-                        </button>
-                        <span className="text-sm">{quantity}</span>
-                        <button
-                          className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm"
-                          onClick={() => handleUpdateQuantity(product.id, quantity + 1)}
-                        >
-                          +
+                          {isEnglish ? "Remove" : "移除"}
                         </button>
                       </div>
-                      <button
-                        className="text-red-500 hover:text-red-700 text-sm"
-                        onClick={() => handleUpdateQuantity(product.id, 0)}
-                      >
-                        {isEnglish ? "Remove" : "移除"}
-                      </button>
                     </div>
+                  ))}
+                  <div className="text-right font-semibold mt-2">
+                    {isEnglish ? "Total:" : "总计:"} $
+                    {selectedProducts
+                      .reduce((sum, item) => sum + item.product.price * item.quantity, 0)
+                      .toFixed(2)}
                   </div>
-                ))}
-                <div className="text-right font-semibold mt-2">
-                  {isEnglish ? "Total:" : "总计:"} $
-                  {selectedProducts
-                    .reduce((sum, item) => sum + item.product.price * item.quantity, 0)
-                    .toFixed(2)}
                 </div>
-              </div>
-            )}
+              )}
 
-            <button
-              className="w-full py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-300"
-              disabled={selectedProducts.length === 0}
-              onClick={handleSubmitOrder}
-            >
-              {isEnglish ? "Submit Order" : "提交订单"}
-            </button>
+              <button
+                className="w-full py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-300 flex items-center justify-center gap-2"
+                disabled={selectedProducts.length === 0 || isSubmitting}
+                onClick={handleSubmitOrder}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {isEnglish ? "Submitting..." : "提交中..."}
+                  </>
+                ) : (
+                  <>
+                    {isEnglish ? "Submit Order" : "提交订单"}
+                  </>
+                )}
+              </button>
+            </motion.div>
           </motion.div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       {/* Scroll to Top Arrow */}
       {showScrollTop && (
-        <button
+        <motion.button
           onClick={handleScrollToTop}
           className="fixed bottom-20 right-4 z-50 bg-blue-500 text-white p-3 rounded-full shadow-lg hover:bg-blue-600 transition-colors flex items-center justify-center"
           aria-label="Scroll to top"
+          initial={{ opacity: 0, scale: 0 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0 }}
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
           </svg>
-        </button>
+        </motion.button>
       )}
 
       {/* Signup Modal */}
       <SignupModal 
         isOpen={isSignupModalOpen} 
-        onClose={() => setIsSignupModalOpen(false)} 
+        onClose={() => setIsSignupModalOpen(false)}
+        onLoginSuccess={async () => {
+          try {
+            setIsLoggingIn(true);
+            
+            // Get fresh session immediately
+            const { data: { session: freshSession }, error } = await supabase.auth.getSession();
+            
+            if (error) {
+              console.error('Error getting session after login:', error);
+              return;
+            }
+            
+            if (freshSession?.user?.id) {
+              // Update session state immediately
+              setSession(freshSession);
+              
+              // Fetch user role and wait for it to complete
+              const role = await fetchUserRoleWithRetry(freshSession.user.id);
+              
+              if (role) {
+                // Add a small delay to ensure state updates are processed
+                await new Promise(resolve => setTimeout(resolve, 100));
+                // Close the modal after successful login and role fetch
+                setIsSignupModalOpen(false);
+              }
+            }
+          } catch (error) {
+            console.error('Error in login success callback:', error);
+          } finally {
+            setIsLoggingIn(false);
+          }
+        }}
       />
+
+      {/* Photo Editor Modal */}
+      {selectedProductForPhoto && (
+        <ProductPhotoEditor
+          productId={selectedProductForPhoto.id}
+          productName={selectedProductForPhoto.Product}
+          currentImageUrl={selectedProductForPhoto.image_url}
+          onImageUpdate={handleImageUpdate}
+          onClose={closePhotoEditor}
+          isOpen={isPhotoEditorOpen}
+        />
+      )}
     </div>
   );
 }

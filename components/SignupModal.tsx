@@ -2,19 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createBrowserClient } from "@supabase/ssr";
+import { supabase } from "@/app/lib/supabaseClient";
 
 interface SignupModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onLoginSuccess?: () => void;
 }
 
-export default function SignupModal({ isOpen, onClose }: SignupModalProps) {
+export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupModalProps) {
   const router = useRouter();
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -42,6 +39,16 @@ export default function SignupModal({ isOpen, onClose }: SignupModalProps) {
       }
 
       if (data?.user) {
+        console.log('Login successful in SignupModal:', data.user);
+        console.log('User ID:', data.user.id);
+        console.log('User email:', data.user.email);
+        
+        // Check session immediately after login
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log('Session in SignupModal after login:', session);
+        
+        // Notify parent component of successful login
+        onLoginSuccess?.();
         router.refresh();
         onClose();
       }
