@@ -20,6 +20,7 @@ import {
 import { supabase } from "@/app/lib/supabaseClient";
 import EditUserModal from "@/components/EditUserModal";
 import CustomerManagement from "@/components/CustomerManagement";
+import { CATEGORY_ID_NAME_MAP } from "@/app/(admin)/const/category";
 //import ProductListTable from "@/components/ProductListTable";
 import React from "react";
 import { useRouter } from "next/navigation";
@@ -192,11 +193,14 @@ export default function ManagementDashboard() {
       // Group products by category
       const categoryGroups: { [key: string]: Product[] } = {};
       (products || []).forEach((product: any) => {
-        const category = product.Category || "Uncategorized";
-        if (!categoryGroups[category]) {
-          categoryGroups[category] = [];
+        // Get category name from ID, fallback to ID if not found
+        const categoryId = product.Category;
+        const categoryName = CATEGORY_ID_NAME_MAP[categoryId] || categoryId || "Uncategorized";
+        
+        if (!categoryGroups[categoryName]) {
+          categoryGroups[categoryName] = [];
         }
-        categoryGroups[category].push({
+        categoryGroups[categoryName].push({
           ...product,
           priceHistory: (priceHistoryMap[product.id] || []).slice(0, 3),
         });
