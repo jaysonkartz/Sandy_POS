@@ -1412,7 +1412,7 @@ Please check the admin panel for more details.
                                 }
                               </button>
                           ) : (
-                            <div className="flex items-center justify-between w-full gap-1 py-3 px-3 bg-gray-50 rounded-lg border border-gray-200">
+                            <div className="flex items-center justify-between w-full gap-1 py-3 px-3 bg-gray-50 rounded-lg">
                               {/* Left: Quantity controls */}
                               <div className="flex items-center gap-4">
                                 {/* Minus button */}
