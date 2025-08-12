@@ -266,20 +266,6 @@ export default function Home() {
            session.user.id && 
            session.user.email);
     
-    // Add temporary debug logging to understand the issue
-    if (process.env.NODE_ENV === 'development') {
-      console.log('isSessionValid check:', {
-        hasSession: !!session,
-        hasUser: !!session?.user,
-        hasUserId: !!session?.user?.id,
-        hasEmail: !!session?.user?.email,
-        sessionKeys: session ? Object.keys(session) : [],
-        userKeys: session?.user ? Object.keys(session.user) : [],
-        result: isValid,
-        fullSession: session
-      });
-    }
-    
     return isValid;
   }, [session]);
 
@@ -294,6 +280,26 @@ export default function Home() {
     // Method 1: Try refreshSession
     try {
       const { data: { session }, error } = await supabase.auth.refreshSession();
+      
+              // Check for specific "session_not_found" error
+        if (error?.message?.includes('session_not_found') || error?.code === 'session_not_found') {
+          // Clear all invalid session data
+          const keys = Object.keys(localStorage);
+          const supabaseKeys = keys.filter(key => key.includes('supabase') || key.includes('sb-'));
+          
+          supabaseKeys.forEach(key => {
+            localStorage.removeItem(key);
+          });
+          
+          localStorage.removeItem('sandy_pos_session');
+          
+          // Clear React state
+          setSession(null);
+          setUserRole("");
+          
+          return false;
+        }
+      
       if (!error && session?.user) {
         setSession(session);
         if (session.user.id) {
@@ -301,9 +307,9 @@ export default function Home() {
         }
         return true;
       }
-    } catch (error) {
-      // Session refresh failed
-    }
+            } catch (error) {
+          // Session refresh failed
+        }
     
     // Method 2: Check localStorage for stored session and restore Supabase context
     try {
@@ -324,6 +330,14 @@ export default function Home() {
                     access_token: parsed.access_token,
                     refresh_token: parsed.refresh_token || ''
                   });
+                  
+                  // Check for "session_not_found" error
+                  if (error?.message?.includes('session_not_found') || error?.code === 'session_not_found') {
+                    // Clear this specific invalid token
+                    localStorage.removeItem(key);
+                    
+                    return false;
+                  }
                   
                   if (!error && restoredSession?.user) {
                     setSession(restoredSession);
@@ -598,6 +612,25 @@ export default function Home() {
     // Get initial session with aggressive recovery
     const getInitialSession = async () => {
       try {
+        // NEW: Check for stored session first (same as Header component)
+        const storedSession = localStorage.getItem('sandy_pos_session');
+        if (storedSession) {
+          try {
+            const parsed = JSON.parse(storedSession);
+            
+            if (parsed?.user) {
+              setSession(parsed);
+              
+              if (parsed.user.id) {
+                await fetchUserRole(parsed.user.id);
+              }
+              return;
+            }
+          } catch (parseError) {
+            // Failed to parse stored session
+          }
+        }
+        
         // NEW: Try immediate recovery first
         const immediateSuccess = await immediateRecovery();
         if (immediateSuccess) {
@@ -606,6 +639,7 @@ export default function Home() {
         
         // First try to get the session
         const { data: { session }, error } = await supabase.auth.getSession();
+        
         if (error) {
           console.error('Error getting initial session:', error);
         }
@@ -671,14 +705,14 @@ export default function Home() {
           };
           localStorage.setItem('sandy_pos_session', JSON.stringify(sessionData));
         } catch (persistError) {
-          // Failed to persist session
+          console.error('Failed to persist session:', persistError);
         }
       } else {
         // Clear persisted session if no session
         try {
           localStorage.removeItem('sandy_pos_session');
         } catch (clearError) {
-          // Failed to clear persisted session
+          console.error('Failed to clear persisted session:', clearError);
         }
       }
       
@@ -1151,6 +1185,8 @@ Please check the admin panel for more details.
 
 
       {/* Debug Panel - Remove this after fixing the issue */}
+
+
 
 
       {/* Language Toggle, Search, and Category Filter */}

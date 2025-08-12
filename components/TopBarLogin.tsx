@@ -1,14 +1,19 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { createBrowserClient } from "@supabase/ssr";
 import { User } from "@supabase/supabase-js";
 import { Database } from "@/types/supabase";
 import CustomerLoginModal from "./CustomerLoginModal";
 import { useRouter } from "next/navigation";
 import { Customer } from "@/app/lib/definitions";
+import { supabase } from "@/app/lib/supabaseClient";
 
-export default function TopBarLogin() {
+interface TopBarLoginProps {
+  session?: any;
+  userRole?: string;
+}
+
+export default function TopBarLogin({ session, userRole: propUserRole }: TopBarLoginProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -16,66 +21,43 @@ export default function TopBarLogin() {
   const [userRole, setUserRole] = useState<string>("");
   const [customerName, setCustomerName] = useState<string>("");
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
   const router = useRouter();
 
   useEffect(() => {
-    const checkUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      setUser(user);
+    // Use the session passed from parent component
+    if (session?.user) {
+      setUser(session.user);
+      setUserRole(propUserRole || "");
+      
+              // Check for customer data
+        const checkCustomer = async () => {
+          // Try to find customer by email since auth_user_id column doesn't exist
+          const { data: customerData, error } = await supabase
+            .from("customers")
+            .select("*")
+            .eq("email", session.user.email)
+            .single();
 
-      if (user) {
-        const { data: userData, error } = await supabase
-          .from("users")
-          .select("role")
-          .eq("id", user.id)
-          .single();
+          if (customerData) {
+            setCustomer(customerData);
+            setCustomerName(customerData.name);
+          } else {
+            // If no customer found, use the user's email as fallback
+            setCustomerName(session.user.email?.split("@")[0] || 'User');
+          }
+        };
+      
+      checkCustomer();
+    } else {
+      setUser(null);
+      setUserRole("");
+      setCustomer(null);
+      setCustomerName("");
+    }
+  }, [session, propUserRole]);
 
-        if (userData) {
-          setUserRole(userData.role);
-        } else {
-          setUserRole("");
-        }
-      } else {
-        setUserRole("");
-      }
-    };
-
-    const checkCustomer = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (user) {
-        const { data: customerData, error } = await supabase
-          .from("customers")
-          .select("*")
-          .eq("auth_user_id", user.id)
-          .single();
-
-        if (customerData) {
-          setCustomer(customerData);
-          setCustomerName(customerData.name);
-        }
-      }
-    };
-
-    checkUser();
-    checkCustomer();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      checkUser();
-      setUser(session?.user ?? null);
-    });
-
-    // Close dropdown when clicking outside
+  // Handle click outside dropdown
+  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
@@ -85,7 +67,6 @@ export default function TopBarLogin() {
     document.addEventListener("mousedown", handleClickOutside);
 
     return () => {
-      subscription.unsubscribe();
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
