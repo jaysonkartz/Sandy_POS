@@ -199,8 +199,12 @@ export default function Home() {
       }
     }
 
-    fetchProducts();
-  }, [supabase, selectedCategory]);
+    // Only fetch products if we have a valid session or if we're not in loading state
+    // This prevents the infinite loading when session recovery is in progress
+    if (session?.user || !loading) {
+      fetchProducts();
+    }
+  }, [supabase, selectedCategory, session?.user, loading]);
 
   // Function to fetch user role
   const fetchUserRole = useCallback(async (userId: string) => {
@@ -256,11 +260,11 @@ export default function Home() {
 
   // Helper function to check if session is valid
   const isSessionValid = useCallback(() => {
+    // Check if session exists and has a valid user with ID and email
     const isValid = !!(session && 
            session.user && 
            session.user.id && 
-           session.user.email &&
-           session.access_token);
+           session.user.email);
     
     // Add temporary debug logging to understand the issue
     if (process.env.NODE_ENV === 'development') {
@@ -269,20 +273,145 @@ export default function Home() {
         hasUser: !!session?.user,
         hasUserId: !!session?.user?.id,
         hasEmail: !!session?.user?.email,
-        hasToken: !!session?.access_token,
-        result: isValid
+        sessionKeys: session ? Object.keys(session) : [],
+        userKeys: session?.user ? Object.keys(session.user) : [],
+        result: isValid,
+        fullSession: session
       });
     }
     
     return isValid;
   }, [session]);
 
+
+
+
+
+
+
+  // Aggressive session recovery function
+  const aggressiveSessionRecovery = useCallback(async () => {
+    // Method 1: Try refreshSession
+    try {
+      const { data: { session }, error } = await supabase.auth.refreshSession();
+      if (!error && session?.user) {
+        setSession(session);
+        if (session.user.id) {
+          await fetchUserRole(session.user.id);
+        }
+        return true;
+      }
+    } catch (error) {
+      // Session refresh failed
+    }
+    
+    // Method 2: Check localStorage for stored session and restore Supabase context
+    try {
+      const keys = Object.keys(localStorage);
+      const supabaseKeys = keys.filter(key => key.includes('supabase') || key.includes('sb-'));
+      
+      for (const key of supabaseKeys) {
+        try {
+          const value = localStorage.getItem(key);
+          if (value) {
+            const parsed = JSON.parse(value);
+            if (parsed?.user || parsed?.access_token) {
+              // If we have access_token, try to set it in Supabase
+              if (parsed.access_token) {
+                try {
+                  // Set the session in Supabase client
+                  const { data: { session: restoredSession }, error } = await supabase.auth.setSession({
+                    access_token: parsed.access_token,
+                    refresh_token: parsed.refresh_token || ''
+                  });
+                  
+                  if (!error && restoredSession?.user) {
+                    setSession(restoredSession);
+                    if (restoredSession.user.id) {
+                      await fetchUserRole(restoredSession.user.id);
+                    }
+                    return true;
+                  }
+                } catch (setSessionError) {
+                  // Failed to set Supabase session
+                }
+              }
+              
+              // Fallback: try to use user data directly
+              if (parsed.user) {
+                setSession(parsed);
+                if (parsed.user.id) {
+                  await fetchUserRole(parsed.user.id);
+                }
+                return true;
+              }
+            }
+          }
+        } catch (parseError) {
+          // Failed to parse localStorage key
+        }
+      }
+    } catch (error) {
+      // Method 2 failed
+    }
+    
+    // Method 3: Try to get session from cookies
+    try {
+      const cookies = document.cookie.split(';');
+      for (const cookie of cookies) {
+        if (cookie.includes('supabase') || cookie.includes('sb-')) {
+          // Try to decode and use cookie data
+          try {
+            const decoded = decodeURIComponent(cookie.split('=')[1]);
+            const parsed = JSON.parse(decoded);
+            if (parsed?.user) {
+              setSession(parsed);
+              if (parsed.user.id) {
+                await fetchUserRole(parsed.user.id);
+              }
+              return true;
+            }
+          } catch (parseError) {
+            // Failed to parse cookie data
+          }
+        }
+      }
+    } catch (error) {
+      // Method 3 failed
+    }
+    
+    return false;
+  }, [supabase.auth, fetchUserRole]);
+
+
+
   // Function to force refresh session and role
   const forceRefreshSession = useCallback(async () => {
-
-    
     try {
-      // Get fresh session
+      // Step 1: Check if we have a session but it might be stale
+      if (session?.user) {
+        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+        
+        if (error || !currentSession?.user) {
+          const recovered = await aggressiveSessionRecovery();
+          if (recovered) {
+            return;
+          }
+        } else {
+          return;
+        }
+      }
+      
+      // Step 2: No session, try to recover (same as tab switch)
+      const recovered = await aggressiveSessionRecovery();
+      
+      if (recovered) {
+        return;
+      }
+      
+      // Step 3: If aggressive recovery fails, try the basic methods as fallback
+      
+      // First try to get the session
       const { data: { session: freshSession }, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError) {
@@ -290,58 +419,278 @@ export default function Home() {
         return;
       }
       
-
+      // If no session from getSession, try multiple recovery methods
+      if (!freshSession?.user) {
+        // Method 1: Try to refresh the session
+        try {
+          const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+          
+          if (!refreshError && refreshedSession?.user) {
+            setSession(refreshedSession);
+            
+            if (refreshedSession.user.id) {
+              await fetchUserRoleWithRetry(refreshedSession.user.id);
+            }
+            return;
+          }
+        } catch (refreshError) {
+          // Session refresh failed
+        }
+        
+        // Method 2: Try to get user from local storage or cookies
+        try {
+          const storedSession = localStorage.getItem('sb-qtluqqnpxplpujiawqwx-auth-token');
+          if (storedSession) {
+            // Try to restore from stored data
+            const parsedSession = JSON.parse(storedSession);
+            if (parsedSession?.user) {
+              setSession(parsedSession);
+              if (parsedSession.user.id) {
+                await fetchUserRoleWithRetry(parsedSession.user.id);
+              }
+              return;
+            }
+          }
+        } catch (storageError) {
+          // Storage recovery failed
+        }
+        
+        // Method 3: Try to get user directly (this might fail but worth trying)
+        try {
+          const { data: { user }, error: userError } = await supabase.auth.getUser();
+          
+          if (!userError && user) {
+            const userSession = { user } as any;
+            setSession(userSession);
+            
+            if (user.id) {
+              await fetchUserRoleWithRetry(user.id);
+            }
+            return;
+          }
+        } catch (userError) {
+          console.log('Direct user check failed:', userError);
+        }
+        
+        // If all methods fail, show the expired message
+        console.log('All recovery methods failed - session truly expired');
+        setSession(null);
+        setUserRole("");
+        return;
+      }
+      
+      // Use the session from getSession
       setSession(freshSession);
       
       // If session exists, fetch role
       if (freshSession?.user?.id) {
-  
+        console.log('Fetching user role for:', freshSession.user.id);
         await fetchUserRoleWithRetry(freshSession.user.id);
       } else {
+        console.log('No user ID in fresh session, clearing role');
         setUserRole("");
-
       }
+      
     } catch (error) {
       console.error('Error in force refresh:', error);
     }
-  }, [supabase.auth, fetchUserRoleWithRetry]);
+  }, [session?.user, supabase.auth, fetchUserRoleWithRetry, aggressiveSessionRecovery]);
 
   useEffect(() => {
-
-    
-    supabase.auth.getSession().then(({ data: { session } }: { data: { session: any } }) => {
-
-      setSession(session);
-      
-      // Fetch user role if session exists
-      if (session?.user?.id) {
-
-        fetchUserRole(session.user.id);
-      } else {
-
+    // NEW: Try immediate localStorage recovery first, before any Supabase calls
+    const immediateRecovery = async () => {
+      try {
+        // NEW: First check our custom persisted session
+        try {
+          const customSession = localStorage.getItem('sandy_pos_session');
+          if (customSession) {
+            const parsed = JSON.parse(customSession);
+            if (parsed?.access_token && parsed?.user) {
+              try {
+                const { data: { session: restoredSession }, error: restoreError } = await supabase.auth.setSession({
+                  access_token: parsed.access_token,
+                  refresh_token: parsed.refresh_token || ''
+                });
+                
+                if (!restoreError && restoredSession?.user) {
+                  setSession(restoredSession);
+                  if (restoredSession.user.id) {
+                    await fetchUserRole(restoredSession.user.id);
+                  }
+                  // NEW: Set loading to false after successful recovery
+                  setLoading(false);
+                  return true; // Success!
+                }
+              } catch (setSessionError) {
+                // Exception during custom session recovery
+              }
+            }
+          }
+        } catch (customError) {
+          // Custom session recovery attempt failed
+        }
+        
+        // Fallback: Check standard Supabase localStorage keys
+        const keys = Object.keys(localStorage);
+        const supabaseKeys = keys.filter(key => key.includes('supabase') || key.includes('sb-'));
+        
+        for (const key of supabaseKeys) {
+          try {
+            const value = localStorage.getItem(key);
+            if (value) {
+              const parsed = JSON.parse(value);
+              
+              // If we have access_token, immediately restore Supabase context
+              if (parsed?.access_token) {
+                try {
+                  const { data: { session: restoredSession }, error: restoreError } = await supabase.auth.setSession({
+                    access_token: parsed.access_token,
+                    refresh_token: parsed.refresh_token || ''
+                  });
+                  
+                  if (!restoreError && restoredSession?.user) {
+                    setSession(restoredSession);
+                    if (restoredSession.user.id) {
+                      await fetchUserRole(restoredSession.user.id);
+                    }
+                    // NEW: Set loading to false after successful recovery
+                    setLoading(false);
+                    return true; // Success!
+                  }
+                } catch (setSessionError) {
+                  // Exception during localStorage recovery
+                }
+              }
+            }
+          } catch (parseError) {
+            // Failed to parse localStorage key
+          }
+        }
+        return false; // No recovery possible
+      } catch (error) {
+        // Immediate recovery attempt failed
+        return false;
       }
-    });
+    };
+
+    // NEW: Immediate loading state reset if no session recovery is possible
+    const resetLoadingIfNoSession = async () => {
+      const hasSession = await immediateRecovery();
+      if (!hasSession) {
+        // If no session recovery possible, reset loading after a short delay
+        setTimeout(() => {
+          setLoading(false);
+        }, 1000);
+      }
+    };
+
+    resetLoadingIfNoSession();
+    
+    // NEW: Additional safety - force loading to false after 3 seconds if still stuck
+    const forceLoadingReset = setTimeout(() => {
+      if (loading) {
+        setLoading(false);
+      }
+    }, 3000);
+    
+    return () => clearTimeout(forceLoadingReset);
+
+    // Get initial session with aggressive recovery
+    const getInitialSession = async () => {
+      try {
+        // NEW: Try immediate recovery first
+        const immediateSuccess = await immediateRecovery();
+        if (immediateSuccess) {
+          return;
+        }
+        
+        // First try to get the session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Error getting initial session:', error);
+        }
+        
+        // If we have a valid session, use it
+        if (session?.user) {
+          setSession(session);
+          
+          if (session.user.id) {
+            await fetchUserRole(session.user.id);
+          }
+          return;
+        }
+        
+        // If no session, try aggressive recovery
+        const recovered = await aggressiveSessionRecovery();
+        
+        if (recovered) {
+          return;
+        }
+        
+        // If all recovery methods fail, try one more time with a delay
+        setTimeout(async () => {
+          const retryRecovered = await aggressiveSessionRecovery();
+          if (retryRecovered) {
+            // Session recovered on retry
+          } else {
+            setSession(null);
+            setUserRole("");
+            // NEW: Set loading to false if all recovery attempts fail
+            setLoading(false);
+          }
+        }, 2000); // Wait 2 seconds before retry
+        
+        // NEW: Add a safety timeout to prevent infinite loading
+        setTimeout(() => {
+          if (loading) {
+            setLoading(false);
+          }
+        }, 5000); // Reduced to 5 seconds for faster recovery
+        
+      } catch (error) {
+        console.error('Error in getInitialSession:', error);
+      }
+    };
+
+    getInitialSession();
 
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
-
-      
+    } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
       setSession(session);
+      
+      // NEW: Persist session to localStorage for immediate recovery on refresh
+      if (session?.user) {
+        try {
+          const sessionData = {
+            access_token: session.access_token,
+            refresh_token: session.refresh_token,
+            user: session.user,
+            expires_at: session.expires_at
+          };
+          localStorage.setItem('sandy_pos_session', JSON.stringify(sessionData));
+        } catch (persistError) {
+          // Failed to persist session
+        }
+      } else {
+        // Clear persisted session if no session
+        try {
+          localStorage.removeItem('sandy_pos_session');
+        } catch (clearError) {
+          // Failed to clear persisted session
+        }
+      }
       
       // Fetch user role if session exists
       if (session?.user?.id) {
-
-        fetchUserRole(session.user.id);
+        await fetchUserRole(session.user.id);
       } else {
-
         setUserRole("");
       }
     });
 
     return () => {
-
       subscription.unsubscribe();
     };
   }, [supabase.auth, fetchUserRole]);
@@ -354,11 +703,151 @@ export default function Home() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Auto-refresh session to keep it alive - much more aggressive
+  useEffect(() => {
+    if (!session?.user) return;
+
+    const refreshInterval = setInterval(async () => {
+      try {
+        const { data: { session: refreshedSession }, error } = await supabase.auth.refreshSession();
+        
+        if (error) {
+          console.error('Error refreshing session:', error);
+          return;
+        }
+        
+        if (refreshedSession) {
+          setSession(refreshedSession);
+        }
+      } catch (error) {
+        console.error('Exception refreshing session:', error);
+      }
+    }, 5 * 60 * 1000); // Refresh every 5 minutes instead of 15
+
+    return () => clearInterval(refreshInterval);
+  }, [session?.user, supabase.auth]);
+
+  // Persistent session monitoring - checks session status every 1 minute
+  useEffect(() => {
+    const sessionCheckInterval = setInterval(async () => {
+      try {
+        // Check if we have a session but it might be stale
+        if (session?.user) {
+          const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+          
+          if (error || !currentSession?.user) {
+            const recovered = await aggressiveSessionRecovery();
+            if (!recovered) {
+              setSession(null);
+              setUserRole("");
+            }
+          } else {
+            // Session is valid, proactively refresh it to keep it alive
+            try {
+              const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+              if (!refreshError && refreshedSession) {
+                setSession(refreshedSession);
+              }
+            } catch (refreshError) {
+              // Proactive refresh failed
+            }
+          }
+        } else {
+          // No session, try to recover
+          const recovered = await aggressiveSessionRecovery();
+          if (recovered) {
+            // Session recovered during periodic check
+          }
+        }
+      } catch (error) {
+        console.error('Error in periodic session check:', error);
+      }
+    }, 1 * 60 * 1000); // Check every 1 minute instead of 2
+
+    return () => clearInterval(sessionCheckInterval);
+  }, [session?.user, aggressiveSessionRecovery]);
+
+  // Handle page visibility changes to restore session when user returns
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        // If we don't have a session, try to recover
+        if (!session?.user) {
+          const recovered = await aggressiveSessionRecovery();
+          if (recovered) {
+            // Session recovered when page became visible
+          }
+        } else {
+          // Verify current session is still valid
+          const { data: { session: currentSession } } = await supabase.auth.getSession();
+          if (!currentSession?.user) {
+            const recovered = await aggressiveSessionRecovery();
+            if (!recovered) {
+              setSession(null);
+              setUserRole("");
+            }
+          }
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [session?.user, aggressiveSessionRecovery]);
+
+  // User activity detection to keep session alive
+  useEffect(() => {
+    let activityTimeout: NodeJS.Timeout;
+    
+    const handleUserActivity = async () => {
+      // Clear existing timeout
+      if (activityTimeout) {
+        clearTimeout(activityTimeout);
+      }
+      
+      // Set new timeout for 30 seconds of inactivity
+      activityTimeout = setTimeout(async () => {
+        // If user is inactive and we have a session, refresh it
+        if (session?.user) {
+          try {
+            const { data: { session: refreshedSession }, error } = await supabase.auth.refreshSession();
+            if (!error && refreshedSession) {
+              setSession(refreshedSession);
+            }
+          } catch (error) {
+            // Failed to refresh session on user activity
+          }
+        }
+      }, 30 * 1000); // 30 seconds
+    };
+
+    // Listen for user activity events
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    events.forEach(event => {
+      document.addEventListener(event, handleUserActivity, true);
+    });
+
+    return () => {
+      if (activityTimeout) {
+        clearTimeout(activityTimeout);
+      }
+      events.forEach(event => {
+        document.removeEventListener(event, handleUserActivity, true);
+      });
+    };
+  }, [session?.user, supabase.auth]);
+
   // Debug effect to monitor session and role changes
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
       console.log('Session or role changed:', {
-        session: session ? { hasUser: !!session.user, hasId: !!session.user?.id, hasEmail: !!session.user?.email, hasToken: !!session.access_token } : null,
+        session: session ? { 
+          hasUser: !!session.user, 
+          hasId: !!session.user?.id, 
+          hasEmail: !!session.user?.email,
+          sessionKeys: Object.keys(session),
+          userKeys: session.user ? Object.keys(session.user) : []
+        } : null,
         userRole,
         isSessionValid: isSessionValid()
       });
@@ -661,6 +1150,9 @@ Please check the admin panel for more details.
     <div className="container mx-auto p-4">
 
 
+      {/* Debug Panel - Remove this after fixing the issue */}
+
+
       {/* Language Toggle, Search, and Category Filter */}
       <div className="flex flex-col lg:flex-row justify-between items-center mb-6 gap-4">
         <div className="flex items-center gap-4">
@@ -885,31 +1377,49 @@ Please check the admin panel for more details.
                               </button>
                           ) : (
                             <div className="flex items-center justify-between space-x-2">
-                              {selectedProducts.find(p => p.product.id === product.id) ? (
-                                 <div className="flex items-center space-x-2 w-full">
-                                    <button
-                                      className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 transition-colors"
-                                      onClick={() => handleUpdateQuantity(product.id, (selectedProducts.find(p => p.product.id === product.id)?.quantity || 0) - 1)}
-                                    >
-                                      -
-                                    </button>
-                                    <span className="flex-grow text-center font-semibold">{selectedProducts.find(p => p.product.id === product.id)?.quantity}</span>
-                                    <button
-                                      className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 transition-colors"
-                                      onClick={() => handleUpdateQuantity(product.id, (selectedProducts.find(p => p.product.id === product.id)?.quantity || 0) + 1)}
-                                    >
-                                      +
-                                    </button>
-                                  </div>
-                              ) : (
-                                 <button
-                                    className="flex-1 flex items-center justify-center bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors text-sm font-semibold"
+                              <div className="flex-1 flex items-center gap-2">
+                                <button
+                                  className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 transition-colors text-sm"
+                                  onClick={() => {
+                                    const existingProduct = selectedProducts.find(p => p.product.id === product.id);
+                                    if (existingProduct) {
+                                      handleUpdateQuantity(product.id, existingProduct.quantity + 1);
+                                    } else {
+                                      handleUpdateQuantity(product.id, 1);
+                                    }
+                                  }}
+                                >
+                                  +
+                                </button>
+                                
+                                {selectedProducts.find(p => p.product.id === product.id) ? (
+                                  <span className="flex-grow text-center font-semibold">
+                                    {selectedProducts.find(p => p.product.id === product.id)?.quantity}
+                                  </span>
+                                ) : (
+                                  <button
+                                    className="flex-1 flex items-center justify-center bg-blue-500 text-white px-3 py-1.5 rounded-md hover:bg-blue-600 transition-colors text-xs font-semibold"
                                     onClick={() => handleAddToOrder(product)}
                                   >
-                                    <ShoppingCart className="w-4 h-4 mr-2" />
+                                    <ShoppingCart className="w-3 h-3 mr-1" />
                                     {isEnglish ? "Add to Order" : "添加到订单"}
                                   </button>
-                              )}
+                                )}
+                                
+                                <button
+                                  className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 transition-colors text-sm"
+                                  onClick={() => {
+                                    const existingProduct = selectedProducts.find(p => p.product.id === product.id);
+                                    if (existingProduct) {
+                                      handleUpdateQuantity(product.id, existingProduct.quantity - 1);
+                                    } else {
+                                      handleUpdateQuantity(product.id, -1);
+                                    }
+                                  }}
+                                >
+                                  -
+                                </button>
+                              </div>
                               <button
                                 className="flex-shrink-0 bg-gray-100 text-gray-600 px-3 py-2 rounded-md hover:bg-gray-200 transition-colors"
                                 onClick={() => handleCustomerService()}
@@ -1122,28 +1632,11 @@ Please check the admin panel for more details.
           try {
             setIsLoggingIn(true);
             
-            // Get fresh session immediately
-            const { data: { session: freshSession }, error } = await supabase.auth.getSession();
+            // Force refresh the session to ensure we have the latest data
+            await forceRefreshSession();
             
-            if (error) {
-              console.error('Error getting session after login:', error);
-              return;
-            }
-            
-            if (freshSession?.user?.id) {
-              // Update session state immediately
-              setSession(freshSession);
-              
-              // Fetch user role and wait for it to complete
-              const role = await fetchUserRoleWithRetry(freshSession.user.id);
-              
-              if (role) {
-                // Add a small delay to ensure state updates are processed
-                await new Promise(resolve => setTimeout(resolve, 100));
-                // Close the modal after successful login and role fetch
-                setIsSignupModalOpen(false);
-              }
-            }
+            // Close the modal after successful login
+            setIsSignupModalOpen(false);
           } catch (error) {
             console.error('Error in login success callback:', error);
           } finally {
