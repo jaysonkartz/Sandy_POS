@@ -1412,7 +1412,7 @@ Please check the admin panel for more details.
                                 }
                               </button>
                           ) : (
-                            <div className="flex items-center justify-between w-full gap-1 py-3 px-3 bg-gray-50 rounded-lg">
+                            <div className="flex items-center justify-between w-full gap-1 py-3 px-3 rounded-lg">
                               {/* Left: Quantity controls */}
                               <div className="flex items-center gap-4">
                                 {/* Minus button */}
@@ -1452,7 +1452,7 @@ Please check the admin panel for more details.
                                         handleUpdateQuantity(product.id, 1);
                                       }
                                     }}
-                                    className="w-28 text-center border border-gray-300 rounded px-3 py-2 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-10"
+                                    className="w-28 text-center px-3 py-2 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 h-10 bg-transparent"
                                   />
                                 ) : (
                                   <input
@@ -1475,7 +1475,7 @@ Please check the admin panel for more details.
                                         e.target.value = "0";
                                       }
                                     }}
-                                    className="w-28 text-center border border-gray-300 rounded px-3 py-2 text-base font-semibold focus:outline-none focus:border-transparent text-gray-400 h-10"
+                                    className="w-28 text-center px-3 py-2 text-base font-semibold focus:outline-none text-gray-400 h-10 bg-transparent"
                                     placeholder="0"
                                   />
                                 )}
