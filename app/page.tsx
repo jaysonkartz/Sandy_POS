@@ -1376,50 +1376,89 @@ Please check the admin panel for more details.
                                 }
                               </button>
                           ) : (
-                            <div className="flex items-center justify-between space-x-2">
-                              <div className="flex-1 flex items-center gap-2">
-                                <button
-                                  className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 transition-colors text-sm"
-                                  onClick={() => {
-                                    const existingProduct = selectedProducts.find(p => p.product.id === product.id);
-                                    if (existingProduct) {
-                                      handleUpdateQuantity(product.id, existingProduct.quantity + 1);
-                                    } else {
+                            <div className="flex items-center gap-2">
+                              {/* Minus button */}
+                              <button
+                                className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 transition-colors text-sm"
+                                onClick={() => {
+                                  const existingProduct = selectedProducts.find(p => p.product.id === product.id);
+                                  if (existingProduct && existingProduct.quantity > 1) {
+                                    handleUpdateQuantity(product.id, existingProduct.quantity - 1);
+                                  } else if (existingProduct && existingProduct.quantity === 1) {
+                                    // Remove product if quantity would become 0
+                                    handleUpdateQuantity(product.id, 0);
+                                  }
+                                  // If product not in cart, do nothing for minus button
+                                }}
+                              >
+                                -
+                              </button>
+                              
+                              {/* Editable quantity input */}
+                              {selectedProducts.find(p => p.product.id === product.id) ? (
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={selectedProducts.find(p => p.product.id === product.id)?.quantity || 0}
+                                  onChange={(e) => {
+                                    const newQuantity = parseInt(e.target.value) || 0;
+                                    if (newQuantity > 0) {
+                                      handleUpdateQuantity(product.id, newQuantity);
+                                    } else if (newQuantity === 0) {
+                                      handleUpdateQuantity(product.id, 0);
+                                    }
+                                  }}
+                                  onBlur={(e) => {
+                                    const newQuantity = parseInt(e.target.value) || 0;
+                                    if (newQuantity < 1) {
                                       handleUpdateQuantity(product.id, 1);
                                     }
                                   }}
-                                >
-                                  +
-                                </button>
-                                
-                                {selectedProducts.find(p => p.product.id === product.id) ? (
-                                  <span className="flex-grow text-center font-semibold">
-                                    {selectedProducts.find(p => p.product.id === product.id)?.quantity}
-                                  </span>
-                                ) : (
-                                  <button
-                                    className="flex-1 flex items-center justify-center bg-blue-500 text-white px-3 py-1.5 rounded-md hover:bg-blue-600 transition-colors text-xs font-semibold"
-                                    onClick={() => handleAddToOrder(product)}
-                                  >
-                                    <ShoppingCart className="w-3 h-3 mr-1" />
-                                    {isEnglish ? "Add to Order" : "添加到订单"}
-                                  </button>
-                                )}
-                                
-                                <button
-                                  className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 transition-colors text-sm"
-                                  onClick={() => {
-                                    const existingProduct = selectedProducts.find(p => p.product.id === product.id);
-                                    if (existingProduct) {
-                                      handleUpdateQuantity(product.id, existingProduct.quantity - 1);
-                                    } else {
-                                      handleUpdateQuantity(product.id, -1);
+                                  className="w-16 text-center border border-gray-300 rounded px-2 py-1 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              ) : (
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value="0"
+                                  onChange={(e) => {
+                                    const newQuantity = parseInt(e.target.value) || 0;
+                                    if (newQuantity > 0) {
+                                      handleAddToOrder(product);
+                                      // Set the quantity after adding
+                                      setTimeout(() => {
+                                        handleUpdateQuantity(product.id, newQuantity);
+                                      }, 100);
                                     }
                                   }}
-                                >
-                                  -
-                                </button>
-                              </div>
+                                  onBlur={(e) => {
+                                    const newQuantity = parseInt(e.target.value) || 0;
+                                    if (newQuantity < 1) {
+                                      e.target.value = "0";
+                                    }
+                                  }}
+                                  className="w-16 text-center border border-gray-300 rounded px-2 py-1 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-400"
+                                  placeholder="0"
+                                />
+                              )}
+                              
+                              {/* Plus button */}
+                              <button
+                                className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 transition-colors text-sm"
+                                onClick={() => {
+                                  const existingProduct = selectedProducts.find(p => p.product.id === product.id);
+                                  if (existingProduct) {
+                                    handleUpdateQuantity(product.id, existingProduct.quantity + 1);
+                                  } else {
+                                    // If product not in cart, add it with quantity 1
+                                    handleAddToOrder(product);
+                                  }
+                                }}
+                              >
+                                +
+                              </button>
+                              
+                              {/* WhatsApp Icon */}
                               <button
                                 className="flex-shrink-0 bg-gray-100 text-gray-600 px-3 py-2 rounded-md hover:bg-gray-200 transition-colors"
                                 onClick={() => handleCustomerService()}
