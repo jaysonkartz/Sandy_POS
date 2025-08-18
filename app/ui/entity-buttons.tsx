@@ -1,5 +1,5 @@
 import { PencilIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
-import { Button } from "@heroui/react";
+import { Button } from "./button";
 import Link from "next/link";
 
 export function CreateEntity({ entity, createLink }: { entity: string; createLink: string }) {
@@ -15,10 +15,13 @@ export function CreateEntity({ entity, createLink }: { entity: string; createLin
 
 export function UpdateEntity({ updateLink }: { updateLink: string }) {
   return (
-    <Button as={Link} variant="ghost" className="rounded-md border p-2 hover:bg-gray-100 w-full" href={updateLink}>
+    <Link 
+      className="flex h-10 items-center justify-center rounded-md border p-2 hover:bg-gray-100 w-full transition-colors" 
+      href={updateLink}
+    >
       <span className="sr-only">Edit</span>
       <PencilIcon className="w-5" />
-    </Button>
+    </Link>
   );
 }
 
@@ -33,7 +36,10 @@ export function DeleteEntity({
 
   return (
     <form action={deleteWithId}>
-      <Button variant="ghost" className="rounded-md border p-2 hover:bg-gray-100 w-full" type="submit">
+      <Button 
+        className="rounded-md border p-2 hover:bg-gray-100 w-full bg-transparent text-gray-700 hover:text-gray-900" 
+        type="submit"
+      >
         <span className="sr-only">Delete</span>
         <TrashIcon className="w-5" />
       </Button>
