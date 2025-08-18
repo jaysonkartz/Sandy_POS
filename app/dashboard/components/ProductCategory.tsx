@@ -46,6 +46,7 @@ export default function ProductCategory({
         if (error) return;
         setProducts(data || []);
       } catch (error) {
+        console.error("Error fetching products:", error);
       } finally {
         setLoading(false);
       }

@@ -15,8 +15,8 @@ export function CreateEntity({ entity, createLink }: { entity: string; createLin
 
 export function UpdateEntity({ updateLink }: { updateLink: string }) {
   return (
-    <Link 
-      className="flex h-10 items-center justify-center rounded-md border p-2 hover:bg-gray-100 w-full transition-colors" 
+    <Link
+      className="flex h-10 items-center justify-center rounded-md border p-2 hover:bg-gray-100 w-full transition-colors"
       href={updateLink}
     >
       <span className="sr-only">Edit</span>
@@ -36,8 +36,8 @@ export function DeleteEntity({
 
   return (
     <form action={deleteWithId}>
-      <Button 
-        className="rounded-md border p-2 hover:bg-gray-100 w-full bg-transparent text-gray-700 hover:text-gray-900" 
+      <Button
+        className="rounded-md border p-2 hover:bg-gray-100 w-full bg-transparent text-gray-700 hover:text-gray-900"
         type="submit"
       >
         <span className="sr-only">Delete</span>

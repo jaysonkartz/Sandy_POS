@@ -39,14 +39,16 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
       }
 
       if (data?.user) {
-        console.log('Login successful in SignupModal:', data.user);
-        console.log('User ID:', data.user.id);
-        console.log('User email:', data.user.email);
-        
+        console.log("Login successful in SignupModal:", data.user);
+        console.log("User ID:", data.user.id);
+        console.log("User email:", data.user.email);
+
         // Check session immediately after login
-        const { data: { session } } = await supabase.auth.getSession();
-        console.log('Session in SignupModal after login:', session);
-        
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        console.log("Session in SignupModal after login:", session);
+
         // Notify parent component of successful login
         onLoginSuccess?.();
         router.refresh();
@@ -242,4 +244,4 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
       </div>
     </div>
   );
-} 
+}

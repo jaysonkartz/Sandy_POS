@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { PowerIcon } from "@heroicons/react/24/outline";
 
 import NavLinks from "@/app/ui/admin_dashboard/nav-links";

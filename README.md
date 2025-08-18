@@ -30,12 +30,14 @@ A modern Point of Sale (POS) web application built with Next.js, TypeScript, Tai
 ### Installation
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/jaysonkartz/Sandy_POS.git
    cd Sandy_POS
    ```
 
 2. Install dependencies:
+
    ```bash
    pnpm install
    ```
@@ -44,6 +46,7 @@ A modern Point of Sale (POS) web application built with Next.js, TypeScript, Tai
    - Copy `.env.example` to `.env.local` and fill in your Supabase credentials and other required variables.
 
 4. Run the development server:
+
    ```bash
    pnpm dev
    ```

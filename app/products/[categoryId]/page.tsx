@@ -28,7 +28,9 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // Track selected variation and origin for each product group
-  const [selectedOptions, setSelectedOptions] = useState<{ [title: string]: { variation: string; origin: string } }>({});
+  const [selectedOptions, setSelectedOptions] = useState<{
+    [title: string]: { variation: string; origin: string };
+  }>({});
   // Add global filter state
   const [globalVariation, setGlobalVariation] = useState<string>("All");
   const [globalOrigin, setGlobalOrigin] = useState<string>("All");
@@ -75,11 +77,17 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
 
       if (error) throw error;
       setProducts(data || []);
-      
+
       // Debug: Log the products data
       console.log("Loaded products:", data);
-      console.log("Products with variations:", data?.filter(p => p.Variation));
-      console.log("Products with origins:", data?.filter(p => p.Country_of_origin));
+      console.log(
+        "Products with variations:",
+        data?.filter((p) => p.Variation)
+      );
+      console.log(
+        "Products with origins:",
+        data?.filter((p) => p.Country_of_origin)
+      );
 
       const initialQuantities = (data || []).reduce(
         (acc: { [key: number]: number }, product: Product) => ({
@@ -141,23 +149,27 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
 
   // Helper to get unique variations and origins for a group
   const getVariations = (group: ProductGroup) => {
-    const variations = [...new Set(
-      group.products
-        .filter((p) => globalOrigin === "All" || p.Country_of_origin === globalOrigin)
-        .map((p) => p.Variation)
-        .filter(Boolean)
-    )];
+    const variations = [
+      ...new Set(
+        group.products
+          .filter((p) => globalOrigin === "All" || p.Country_of_origin === globalOrigin)
+          .map((p) => p.Variation)
+          .filter(Boolean)
+      ),
+    ];
     console.log(`Variations for ${group.title}:`, variations); // Debug log
     return variations;
   };
-  
+
   const getOrigins = (group: ProductGroup) => {
-    const origins = [...new Set(
-      group.products
-        .filter((p) => globalVariation === "All" || p.Variation === globalVariation)
-        .map((p) => p.Country_of_origin)
-        .filter(Boolean)
-    )];
+    const origins = [
+      ...new Set(
+        group.products
+          .filter((p) => globalVariation === "All" || p.Variation === globalVariation)
+          .map((p) => p.Country_of_origin)
+          .filter(Boolean)
+      ),
+    ];
     console.log(`Origins for ${group.title}:`, origins); // Debug log
     return origins;
   };
@@ -214,7 +226,7 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
         <p>Product groups: {productGroups.length}</p>
         <p>Filtered groups: {filteredProductGroups.length}</p>
         <p>Is loading: {isLoading.toString()}</p>
-        <p>Error: {error || 'None'}</p>
+        <p>Error: {error || "None"}</p>
         <p>Category ID: {params.categoryId}</p>
       </div>
 
@@ -235,7 +247,9 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
             onChange={(e) => setGlobalVariation(e.target.value)}
           >
             {allVariations.map((v) => (
-              <option key={v} value={v}>{v}</option>
+              <option key={v} value={v}>
+                {v}
+              </option>
             ))}
           </select>
         </div>
@@ -247,7 +261,9 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
             onChange={(e) => setGlobalOrigin(e.target.value)}
           >
             {allOrigins.map((o) => (
-              <option key={o} value={o}>{o}</option>
+              <option key={o} value={o}>
+                {o}
+              </option>
             ))}
           </select>
         </div>
@@ -299,30 +315,34 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
                     <label className="mr-1 text-sm">Variation:</label>
                     <select
                       className="border rounded px-2 py-1 text-sm"
-                      value={selectedOptions[group.title]?.variation || (variations[0] || "Default")}
+                      value={selectedOptions[group.title]?.variation || variations[0] || "Default"}
                       onChange={(e) => handleOptionChange(group.title, "variation", e.target.value)}
                     >
                       {variations.length > 0 ? (
                         variations.map((v) => (
-                          <option key={v} value={v}>{v}</option>
+                          <option key={v} value={v}>
+                            {v}
+                          </option>
                         ))
                       ) : (
                         <option value="Default">Default</option>
                       )}
                     </select>
                   </div>
-                  
+
                   {/* Always show origin dropdown if there are products */}
                   <div>
                     <label className="mr-1 text-sm">Origin:</label>
                     <select
                       className="border rounded px-2 py-1 text-sm"
-                      value={selectedOptions[group.title]?.origin || (origins[0] || "Default")}
+                      value={selectedOptions[group.title]?.origin || origins[0] || "Default"}
                       onChange={(e) => handleOptionChange(group.title, "origin", e.target.value)}
                     >
                       {origins.length > 0 ? (
                         origins.map((o) => (
-                          <option key={o} value={o}>{o}</option>
+                          <option key={o} value={o}>
+                            {o}
+                          </option>
                         ))
                       ) : (
                         <option value="Default">Default</option>
@@ -330,12 +350,14 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
                     </select>
                   </div>
                 </div>
-                
+
                 {/* Debug info - remove this later */}
                 <div className="text-xs text-gray-500 mb-2">
                   Debug: {variations.length} variations, {origins.length} origins
                 </div>
-                <div className="text-right font-semibold">S${selectedProduct.price.toFixed(2)}/kg</div>
+                <div className="text-right font-semibold">
+                  S${selectedProduct.price.toFixed(2)}/kg
+                </div>
                 <div className="flex justify-between">
                   <span>Availability:</span>
                   <span>{selectedProduct.maxQuantity > 0 ? "Yes" : "No"}</span>

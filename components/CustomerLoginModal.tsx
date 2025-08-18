@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
-import { Database } from "@/types/supabase";
-import type { User } from "@supabase/supabase-js";
 
 interface CustomerLoginModalProps {
   isOpen: boolean;

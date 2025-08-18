@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import { User } from "@supabase/supabase-js";
-import { Database } from "@/types/supabase";
 import CustomerLoginModal from "./CustomerLoginModal";
 import { useRouter } from "next/navigation";
 import { Customer } from "@/app/lib/definitions";
@@ -28,25 +27,25 @@ export default function TopBarLogin({ session, userRole: propUserRole }: TopBarL
     if (session?.user) {
       setUser(session.user);
       setUserRole(propUserRole || "");
-      
-              // Check for customer data
-        const checkCustomer = async () => {
-          // Try to find customer by email since auth_user_id column doesn't exist
-          const { data: customerData, error } = await supabase
-            .from("customers")
-            .select("*")
-            .eq("email", session.user.email)
-            .single();
 
-          if (customerData) {
-            setCustomer(customerData);
-            setCustomerName(customerData.name);
-          } else {
-            // If no customer found, use the user's email as fallback
-            setCustomerName(session.user.email?.split("@")[0] || 'User');
-          }
-        };
-      
+      // Check for customer data
+      const checkCustomer = async () => {
+        // Try to find customer by email since auth_user_id column doesn't exist
+        const { data: customerData, error } = await supabase
+          .from("customers")
+          .select("*")
+          .eq("email", session.user.email)
+          .single();
+
+        if (customerData) {
+          setCustomer(customerData);
+          setCustomerName(customerData.name);
+        } else {
+          // If no customer found, use the user's email as fallback
+          setCustomerName(session.user.email?.split("@")[0] || "User");
+        }
+      };
+
       checkCustomer();
     } else {
       setUser(null);

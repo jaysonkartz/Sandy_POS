@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 //import PricingManagement from "@/components/PricingManagement";
-import Image from "next/image";
-import { Bar, Line, Pie } from "react-chartjs-2";
+import { Bar, Pie } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -209,7 +208,7 @@ export default function ManagementDashboard() {
         // Get category name from ID, fallback to ID if not found
         const categoryId = product.Category;
         const categoryName = CATEGORY_ID_NAME_MAP[categoryId] || categoryId || "Uncategorized";
-        
+
         if (!categoryGroups[categoryName]) {
           categoryGroups[categoryName] = [];
         }
@@ -301,7 +300,6 @@ export default function ManagementDashboard() {
       ),
     },
 
-    
     // {
     //   id: "inventory",
     //   title: "Inventory",
@@ -667,10 +665,22 @@ export default function ManagementDashboard() {
             </div>
 
             <div>
-              {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">{error}</div>}
-              {categories.length === 0 && !error && !isLoading && <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">No categories found.</div>}
-              {isLoading && <div className="flex justify-center items-center h-32"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div></div>}
-              
+              {error && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                  {error}
+                </div>
+              )}
+              {categories.length === 0 && !error && !isLoading && (
+                <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
+                  No categories found.
+                </div>
+              )}
+              {isLoading && (
+                <div className="flex justify-center items-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                </div>
+              )}
+
               {!isLoading && categories.length > 0 && (
                 <div className="space-y-6">
                   {categories.map((category) => (
@@ -692,7 +702,9 @@ export default function ManagementDashboard() {
                               : "bg-red-100 text-red-700"
                           }`}
                         >
-                          {category.products.length > 0 ? `${category.products.length} Products` : "No Products"}
+                          {category.products.length > 0
+                            ? `${category.products.length} Products`
+                            : "No Products"}
                         </span>
                       </div>
                       {expandedCategory === category.id && (
@@ -712,94 +724,88 @@ export default function ManagementDashboard() {
                               </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-100">
-                              {category.products.sort((a, b) => a.Product.localeCompare(b.Product)).map((product) => (
-                                <React.Fragment key={product.id}>
-                                  <tr>
-                                    <td className="px-4 py-2">
-                                      <div className="flex items-center space-x-2">
-                                        <button
-                                          className="text-blue-600 hover:text-blue-800"
-                                          onClick={() =>
-                                            setSelectedProduct(
-                                              selectedProduct === product.id ? null : product.id
-                                            )
-                                          }
-                                        >
-                                          {selectedProduct === product.id ? "▼" : "▶"}{" "}
-                                          {product.Product}
-                                        </button>
-                                      </div>
-                                    </td>
-                                    <td className="px-4 py-2 flex items-center space-x-2">
-                                      {(() => {
-                                        const isEditing = editingProductId === product.id;
-                                        if (isEditing) {
-                                        }
-                                        return isEditing;
-                                      })() ? (
-                                        <>
-                                          <input
-                                            className="border rounded px-2 py-1 w-20"
-                                            type="number"
-                                            value={editingPrice ?? product.price}
-                                            onChange={(e) => setEditingPrice(Number(e.target.value))}
-                                          />
+                              {category.products
+                                .sort((a, b) => a.Product.localeCompare(b.Product))
+                                .map((product) => (
+                                  <React.Fragment key={product.id}>
+                                    <tr>
+                                      <td className="px-4 py-2">
+                                        <div className="flex items-center space-x-2">
                                           <button
-                                            className="text-green-600 font-bold"
-                                            title="Save"
-                                            onClick={async () => {
-                                              if (editingPrice === null || isNaN(editingPrice)) {
-                                                alert("Please enter a valid price.");
-                                                return;
+                                            className="text-blue-600 hover:text-blue-800"
+                                            onClick={() =>
+                                              setSelectedProduct(
+                                                selectedProduct === product.id ? null : product.id
+                                              )
+                                            }
+                                          >
+                                            {selectedProduct === product.id ? "▼" : "▶"}{" "}
+                                            {product.Product}
+                                          </button>
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-2 flex items-center space-x-2">
+                                        {(() => {
+                                          const isEditing = editingProductId === product.id;
+                                          if (isEditing) {
+                                            // Editing mode - no additional logic needed
+                                          }
+                                          return isEditing;
+                                        })() ? (
+                                          <>
+                                            <input
+                                              className="border rounded px-2 py-1 w-20"
+                                              type="number"
+                                              value={editingPrice ?? product.price}
+                                              onChange={(e) =>
+                                                setEditingPrice(Number(e.target.value))
                                               }
-                                              setIsLoading(true);
+                                            />
+                                            <button
+                                              className="text-green-600 font-bold"
+                                              title="Save"
+                                              onClick={async () => {
+                                                if (editingPrice === null || isNaN(editingPrice)) {
+                                                  alert("Please enter a valid price.");
+                                                  return;
+                                                }
+                                                setIsLoading(true);
 
-                                              const { data: orderItems, error: orderItemsError } =
-                                                await supabase
-                                                  .from("order_items")
-                                                  .select("order_id, orders(customer_id)")
-                                                  .eq("product_id", product.id);
+                                                const { data: orderItems, error: orderItemsError } =
+                                                  await supabase
+                                                    .from("order_items")
+                                                    .select("order_id, orders(customer_id)")
+                                                    .eq("product_id", product.id);
 
-                                              if (orderItemsError) {
-                                                alert(
-                                                  "Failed to fetch order items: " +
-                                                    orderItemsError.message
-                                                );
-                                                setIsLoading(false);
-                                                return;
-                                              }
+                                                if (orderItemsError) {
+                                                  alert(
+                                                    "Failed to fetch order items: " +
+                                                      orderItemsError.message
+                                                  );
+                                                  setIsLoading(false);
+                                                  return;
+                                                }
 
-                                              const uniqueCustomerIds = [
-                                                ...new Set(
-                                                  (orderItems || [])
-                                                    .map((oi: any) => {
-                                                      const orders = oi.orders as
-                                                        | { customer_id?: string }
-                                                        | { customer_id?: string }[]
-                                                        | undefined;
-                                                      if (!orders) return null;
-                                                      if (Array.isArray(orders)) {
-                                                        return orders[0]?.customer_id ?? null;
-                                                      }
-                                                      return orders.customer_id ?? null;
-                                                    })
-                                                    .filter((cid: any) => !!cid)
-                                                ),
-                                              ];
+                                                const uniqueCustomerIds = [
+                                                  ...new Set(
+                                                    (orderItems || [])
+                                                      .map((oi: any) => {
+                                                        const orders = oi.orders as
+                                                          | { customer_id?: string }
+                                                          | { customer_id?: string }[]
+                                                          | undefined;
+                                                        if (!orders) return null;
+                                                        if (Array.isArray(orders)) {
+                                                          return orders[0]?.customer_id ?? null;
+                                                        }
+                                                        return orders.customer_id ?? null;
+                                                      })
+                                                      .filter((cid: any) => !!cid)
+                                                  ),
+                                                ];
 
-                                              if (uniqueCustomerIds.length === 0) {
-                                                await supabase.from("product_price_history").insert([
-                                                  {
-                                                    product_id: product.id,
-                                                    previous_price: product.price,
-                                                    original_price: editingPrice,
-                                                    last_price_update: new Date().toISOString(),
-                                                    customer_id: null,
-                                                  },
-                                                ]);
-                                              } else {
-                                                for (const customerId of uniqueCustomerIds) {
-                                                  const { error: insertError } = await supabase
+                                                if (uniqueCustomerIds.length === 0) {
+                                                  await supabase
                                                     .from("product_price_history")
                                                     .insert([
                                                       {
@@ -807,332 +813,382 @@ export default function ManagementDashboard() {
                                                         previous_price: product.price,
                                                         original_price: editingPrice,
                                                         last_price_update: new Date().toISOString(),
-                                                        customer_id: customerId,
+                                                        customer_id: null,
                                                       },
                                                     ]);
-                                                  if (insertError) {
-                                                    alert(
-                                                      "Failed to insert price history: " +
-                                                        insertError.message
-                                                    );
+                                                } else {
+                                                  for (const customerId of uniqueCustomerIds) {
+                                                    const { error: insertError } = await supabase
+                                                      .from("product_price_history")
+                                                      .insert([
+                                                        {
+                                                          product_id: product.id,
+                                                          previous_price: product.price,
+                                                          original_price: editingPrice,
+                                                          last_price_update:
+                                                            new Date().toISOString(),
+                                                          customer_id: customerId,
+                                                        },
+                                                      ]);
+                                                    if (insertError) {
+                                                      alert(
+                                                        "Failed to insert price history: " +
+                                                          insertError.message
+                                                      );
+                                                    }
                                                   }
                                                 }
-                                              }
 
-                                              // Now update the product price
-                                              const { error: updateError } = await supabase
-                                                .from("products")
-                                                .update({ price: editingPrice })
-                                                .eq("id", product.id);
+                                                // Now update the product price
+                                                const { error: updateError } = await supabase
+                                                  .from("products")
+                                                  .update({ price: editingPrice })
+                                                  .eq("id", product.id);
 
-                                              if (updateError) {
-                                                alert(
-                                                  "Failed to update product price: " +
-                                                    updateError.message
-                                                );
-                                                setIsLoading(false);
-                                                return;
-                                              }
+                                                if (updateError) {
+                                                  alert(
+                                                    "Failed to update product price: " +
+                                                      updateError.message
+                                                  );
+                                                  setIsLoading(false);
+                                                  return;
+                                                }
 
-                                              setEditingProductId(null);
-                                              setEditingPrice(null);
-                                              setIsLoading(false);
-                                              fetchCategories();
-                                            }}
-                                          >
-                                            ✔
-                                          </button>
-                                          <button
-                                            className="text-gray-400 font-bold"
-                                            title="Cancel"
-                                            onClick={() => {
-                                              setEditingProductId(null);
-                                              setEditingPrice(null);
-                                            }}
-                                          >
-                                            ✖
-                                          </button>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <span>${product.price.toFixed(2)}</span>
-                                          <button
-                                            className="ml-2 text-blue-600 underline"
-                                            title="Edit Price"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              // Ensure only one product can be edited at a time
-                                              if (editingProductId !== product.id) {
                                                 setEditingProductId(null);
                                                 setEditingPrice(null);
-                                              }
-                                              setEditingProductId(product.id);
-                                              setEditingPrice(product.price);
-                                            }}
-                                          >
-                                            Edit
-                                          </button>
-                                          {(() => {
-                                            // Find all customers for this product
-                                            const allCustomers = product.order_items
-                                              ?.flatMap((oiRaw) => {
-                                                const oi = oiRaw as {
-                                                  price?: number;
-                                                  orders?: {
-                                                    customer_name: string;
-                                                    customer_phone: string;
-                                                  }[];
-                                                };
-                                                return Array.isArray(oi.orders)
+                                                setIsLoading(false);
+                                                fetchCategories();
+                                              }}
+                                            >
+                                              ✔
+                                            </button>
+                                            <button
+                                              className="text-gray-400 font-bold"
+                                              title="Cancel"
+                                              onClick={() => {
+                                                setEditingProductId(null);
+                                                setEditingPrice(null);
+                                              }}
+                                            >
+                                              ✖
+                                            </button>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <span>${product.price.toFixed(2)}</span>
+                                            <button
+                                              className="ml-2 text-blue-600 underline"
+                                              title="Edit Price"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                // Ensure only one product can be edited at a time
+                                                if (editingProductId !== product.id) {
+                                                  setEditingProductId(null);
+                                                  setEditingPrice(null);
+                                                }
+                                                setEditingProductId(product.id);
+                                                setEditingPrice(product.price);
+                                              }}
+                                            >
+                                              Edit
+                                            </button>
+                                            {(() => {
+                                              // Find all customers for this product
+                                              const allCustomers = product.order_items
+                                                ?.flatMap((oiRaw) => {
+                                                  const oi = oiRaw as {
+                                                    price?: number;
+                                                    orders?: {
+                                                      customer_name: string;
+                                                      customer_phone: string;
+                                                    }[];
+                                                  };
+                                                  return Array.isArray(oi.orders)
+                                                    ? oi.orders
+                                                    : oi.orders
+                                                      ? [oi.orders]
+                                                      : [];
+                                                })
+                                                .filter((order) => order.customer_phone);
+                                              const hasCustomers =
+                                                allCustomers && allCustomers.length > 0;
+                                              const waText = hasCustomers
+                                                ? allCustomers
+                                                    .map(
+                                                      (order) =>
+                                                        `Hi ${order.customer_name}, the price for ${product.Product} has changed. Please check the latest update!`
+                                                    )
+                                                    .join("%0A")
+                                                : "";
+                                              return (
+                                                <a
+                                                  aria-disabled={!hasCustomers}
+                                                  className={`inline-flex items-center px-2 py-1 ${
+                                                    hasCustomers
+                                                      ? "bg-green-500 hover:bg-green-600 cursor-pointer"
+                                                      : "bg-gray-400 cursor-not-allowed opacity-60"
+                                                  } text-white rounded transition ml-2`}
+                                                  href={
+                                                    hasCustomers
+                                                      ? `https://wa.me/?text=${waText}`
+                                                      : undefined
+                                                  }
+                                                  rel="noopener noreferrer"
+                                                  tabIndex={hasCustomers ? 0 : -1}
+                                                  target="_blank"
+                                                  title={
+                                                    hasCustomers
+                                                      ? "Notify all customers via WhatsApp"
+                                                      : "No customer to notify"
+                                                  }
+                                                >
+                                                  <svg
+                                                    className="w-4 h-4 mr-1"
+                                                    fill="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                  >
+                                                    <path d="M20.52 3.48A12.07 12.07 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.16 1.6 5.97L0 24l6.18-1.62A11.94 11.94 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.19-1.24-6.19-3.48-8.52zM12 22c-1.85 0-3.68-.5-5.26-1.44l-.38-.22-3.67.96.98-3.58-.25-.37A9.94 9.94 0 0 1 2 12c0-5.52 4.48-10 10-10s10 4.48 10 10-4.48 10-10 10zm5.2-7.8c-.28-.14-1.65-.81-1.9-.9-.25-.09-.43-.14-.61.14-.18.28-.7.9-.86 1.08-.16.18-.32.2-.6.07-.28-.14-1.18-.44-2.25-1.4-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.12-.12.28-.32.42-.48.14-.16.18-.28.28-.46.09-.18.05-.34-.02-.48-.07-.14-.61-1.47-.84-2.01-.22-.53-.45-.46-.61-.47-.16-.01-.34-.01-.52-.01-.18 0-.48.07-.73.34-.25.28-.97.95-.97 2.3 0 1.35.99 2.65 1.13 2.83.14.18 1.95 2.98 4.74 4.06.66.28 1.18.45 1.58.58.66.21 1.26.18 1.73.11.53-.08 1.65-.67 1.88-1.32.23-.65.23-1.21.16-1.32-.07-.11-.25-.18-.53-.32z" />
+                                                  </svg>
+                                                  Notify all
+                                                </a>
+                                              );
+                                            })()}
+                                          </>
+                                        )}
+                                      </td>
+                                      <td className="px-4 py-2">
+                                        {product.priceHistory && product.priceHistory.length > 0 ? (
+                                          <div className="flex flex-col space-y-1">
+                                            {product.priceHistory.map((ph, idx) => (
+                                              <span key={idx} className="text-xs text-gray-500">
+                                                ${ph.previous_price?.toFixed(2)}{" "}
+                                                <span className="text-gray-400">
+                                                  (
+                                                  {ph.last_price_update
+                                                    ? new Date(
+                                                        ph.last_price_update
+                                                      ).toLocaleDateString()
+                                                    : "No date"}
+                                                  )
+                                                </span>
+                                              </span>
+                                            ))}
+                                          </div>
+                                        ) : (
+                                          <span className="text-xs text-gray-400">No history</span>
+                                        )}
+                                      </td>
+                                    </tr>
+                                    {selectedProduct === product.id && (
+                                      <tr>
+                                        <td className="px-4 py-2 bg-gray-50" colSpan={3}>
+                                          <div className="pl-8">
+                                            <div className="flex justify-between items-center mb-2">
+                                              <h4 className="font-medium text-gray-700">
+                                                Customers:
+                                              </h4>
+                                              {Object.keys(offerPrices).some((key) =>
+                                                key.startsWith(`${product.id}-`)
+                                              ) && (
+                                                <button
+                                                  className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800 border border-gray-300 hover:border-gray-500 rounded"
+                                                  title="Clear all offer prices for this product"
+                                                  type="button"
+                                                  onClick={() => {
+                                                    const keysToClear = Object.keys(
+                                                      offerPrices
+                                                    ).filter((key) =>
+                                                      key.startsWith(`${product.id}-`)
+                                                    );
+                                                    const newOfferPrices = { ...offerPrices };
+                                                    keysToClear.forEach((key) => {
+                                                      delete newOfferPrices[key];
+                                                    });
+                                                    setOfferPrices(newOfferPrices);
+                                                  }}
+                                                >
+                                                  Clear All
+                                                </button>
+                                              )}
+                                            </div>
+                                            {product.order_items?.map((oiRaw, idx) => {
+                                              const oi = oiRaw as {
+                                                order_id: number;
+                                                price?: number;
+                                                orders?: {
+                                                  customer_name: string;
+                                                  customer_phone: string;
+                                                  customer_id?: string;
+                                                }[];
+                                              };
+                                              return (
+                                                Array.isArray(oi.orders)
                                                   ? oi.orders
                                                   : oi.orders
                                                     ? [oi.orders]
-                                                    : [];
-                                              })
-                                              .filter((order) => order.customer_phone);
-                                            const hasCustomers =
-                                              allCustomers && allCustomers.length > 0;
-                                            const waText = hasCustomers
-                                              ? allCustomers
-                                                  .map(
-                                                    (order) =>
-                                                      `Hi ${order.customer_name}, the price for ${product.Product} has changed. Please check the latest update!`
-                                                  )
-                                                  .join("%0A")
-                                              : "";
-                                            return (
-                                              <a
-                                                aria-disabled={!hasCustomers}
-                                                className={`inline-flex items-center px-2 py-1 ${
-                                                  hasCustomers
-                                                    ? "bg-green-500 hover:bg-green-600 cursor-pointer"
-                                                    : "bg-gray-400 cursor-not-allowed opacity-60"
-                                                } text-white rounded transition ml-2`}
-                                                href={
-                                                  hasCustomers
-                                                    ? `https://wa.me/?text=${waText}`
-                                                    : undefined
-                                                }
-                                                rel="noopener noreferrer"
-                                                tabIndex={hasCustomers ? 0 : -1}
-                                                target="_blank"
-                                                title={
-                                                  hasCustomers
-                                                    ? "Notify all customers via WhatsApp"
-                                                    : "No customer to notify"
-                                                }
-                                              >
-                                                <svg
-                                                  className="w-4 h-4 mr-1"
-                                                  fill="currentColor"
-                                                  viewBox="0 0 24 24"
-                                                >
-                                                  <path d="M20.52 3.48A12.07 12.07 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.16 1.6 5.97L0 24l6.18-1.62A11.94 11.94 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.19-1.24-6.19-3.48-8.52zM12 22c-1.85 0-3.68-.5-5.26-1.44l-.38-.22-3.67.96.98-3.58-.25-.37A9.94 9.94 0 0 1 2 12c0-5.52 4.48-10 10-10s10 4.48 10 10-4.48 10-10 10zm5.2-7.8c-.28-.14-1.65-.81-1.9-.9-.25-.09-.43-.14-.61.14-.18.28-.7.9-.86 1.08-.16.18-.32.2-.6.07-.28-.14-1.18-.44-2.25-1.4-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.12-.12.28-.32.42-.48.14-.16.18-.28.28-.46.09-.18.05-.34-.02-.48-.07-.14-.61-1.47-.84-2.01-.22-.53-.45-.46-.61-.47-.16-.01-.34-.01-.52-.01-.18 0-.48.07-.73.34-.25.28-.97.95-.97 2.3 0 1.35.99 2.65 1.13 2.83.14.18 1.95 2.98 4.74 4.06.66.28 1.18.45 1.58.58.66.21 1.26.18 1.73.11.53-.08 1.65-.67 1.88-1.32.23-.65.23-1.21.16-1.32-.07-.11-.25-.18-.53-.32z" />
-                                                </svg>
-                                                Notify all
-                                              </a>
-                                            );
-                                          })()}
-                                        </>
-                                      )}
-                                    </td>
-                                    <td className="px-4 py-2">
-                                      {product.priceHistory && product.priceHistory.length > 0 ? (
-                                        <div className="flex flex-col space-y-1">
-                                          {product.priceHistory.map((ph, idx) => (
-                                            <span key={idx} className="text-xs text-gray-500">
-                                              ${ph.previous_price?.toFixed(2)}{" "}
-                                              <span className="text-gray-400">
-                                                (
-                                                {ph.last_price_update
-                                                  ? new Date(
-                                                      ph.last_price_update
-                                                    ).toLocaleDateString()
-                                                  : "No date"}
-                                                )
-                                              </span>
-                                            </span>
-                                          ))}
-                                        </div>
-                                      ) : (
-                                        <span className="text-xs text-gray-400">No history</span>
-                                      )}
-                                    </td>
-                                  </tr>
-                                  {selectedProduct === product.id && (
-                                    <tr>
-                                      <td className="px-4 py-2 bg-gray-50" colSpan={3}>
-                                        <div className="pl-8">
-                                          <div className="flex justify-between items-center mb-2">
-                                            <h4 className="font-medium text-gray-700">
-                                              Customers:
-                                            </h4>
-                                            {Object.keys(offerPrices).some(key => key.startsWith(`${product.id}-`)) && (
-                                              <button
-                                                type="button"
-                                                onClick={() => {
-                                                  const keysToClear = Object.keys(offerPrices).filter(key => key.startsWith(`${product.id}-`));
-                                                  const newOfferPrices = { ...offerPrices };
-                                                  keysToClear.forEach(key => {
-                                                    delete newOfferPrices[key];
-                                                  });
-                                                  setOfferPrices(newOfferPrices);
-                                                }}
-                                                className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800 border border-gray-300 hover:border-gray-500 rounded"
-                                                title="Clear all offer prices for this product"
-                                              >
-                                                Clear All
-                                              </button>
-                                            )}
-                                          </div>
-                                          {product.order_items?.map((oiRaw, idx) => {
-                                            const oi = oiRaw as {
-                                              order_id: number;
-                                              price?: number;
-                                              orders?: {
-                                                customer_name: string;
-                                                customer_phone: string;
-                                                customer_id?: string;
-                                              }[];
-                                            };
-                                            return (
-                                              Array.isArray(oi.orders)
-                                                ? oi.orders
-                                                : oi.orders
-                                                  ? [oi.orders]
-                                                  : []
-                                            ).map((order, oidx) => {
-                                              // Use oi.price as the past price for this customer
-                                              return (
-                                                <div
-                                                  key={`${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`}
-                                                  className="flex items-center space-x-2 mb-1"
-                                                >
-                                                  <span className="font-medium">{order.customer_name}</span>
-                                                  <span className="text-xs text-gray-400">(ID: {order.customer_id || 'N/A'})</span>
-                                                  {oi.price !== undefined && (
-                                                    <span className="text-xs text-gray-500">
-                                                      Past price: ${oi.price?.toFixed(2)}
+                                                    : []
+                                              ).map((order, oidx) => {
+                                                // Use oi.price as the past price for this customer
+                                                return (
+                                                  <div
+                                                    key={`${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`}
+                                                    className="flex items-center space-x-2 mb-1"
+                                                  >
+                                                    <span className="font-medium">
+                                                      {order.customer_name}
                                                     </span>
-                                                  )}
-                                                  <input
-                                                    placeholder="Offer new price"
-                                                    type="number"
-                                                    step="0.01"
-                                                    min="0"
-                                                    value={offerPrices[`${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`] || ""}
-                                                    onChange={(e) => {
-                                                      const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
-                                                      const value = e.target.value;
-                                                      
-                                                      if (value === "" || value === null || value === undefined) {
-                                                        // Clear the value when input is empty
-                                                        setOfferPrices(prev => {
-                                                          const newState = { ...prev };
-                                                          delete newState[key];
-                                                          return newState;
-                                                        });
-                                                      } else {
-                                                        const numValue = Number(value);
-                                                        if (!isNaN(numValue)) {
-                                                          setOfferPrices(prev => ({
-                                                            ...prev,
-                                                            [key]: numValue
-                                                          }));
-                                                        }
+                                                    <span className="text-xs text-gray-400">
+                                                      (ID: {order.customer_id || "N/A"})
+                                                    </span>
+                                                    {oi.price !== undefined && (
+                                                      <span className="text-xs text-gray-500">
+                                                        Past price: ${oi.price?.toFixed(2)}
+                                                      </span>
+                                                    )}
+                                                    <input
+                                                      min="0"
+                                                      placeholder="Offer new price"
+                                                      step="0.01"
+                                                      type="number"
+                                                      value={
+                                                        offerPrices[
+                                                          `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`
+                                                        ] || ""
                                                       }
-                                                    }}
-                                                    onBlur={(e) => {
-                                                      // Validate and clean up on blur
-                                                      const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
-                                                      const value = e.target.value;
-                                                      if (value === "" || value === "0" || isNaN(Number(value))) {
-                                                        setOfferPrices(prev => {
-                                                          const newState = { ...prev };
-                                                          delete newState[key];
-                                                          return newState;
-                                                        });
-                                                      }
-                                                    }}
-                                                    onFocus={(e) => {
-                                                      // Select all text when focused
-                                                      e.target.select();
-                                                    }}
-                                                  />
-                                                  {offerPrices[`${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`] && (
-                                                    <button
-                                                      type="button"
-                                                      onClick={() => {
+                                                      onBlur={(e) => {
+                                                        // Validate and clean up on blur
                                                         const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
-                                                        setOfferPrices(prev => {
-                                                          const newState = { ...prev };
-                                                          delete newState[key];
-                                                          return newState;
-                                                        });
+                                                        const value = e.target.value;
+                                                        if (
+                                                          value === "" ||
+                                                          value === "0" ||
+                                                          isNaN(Number(value))
+                                                        ) {
+                                                          setOfferPrices((prev) => {
+                                                            const newState = { ...prev };
+                                                            delete newState[key];
+                                                            return newState;
+                                                          });
+                                                        }
                                                       }}
-                                                      className="px-2 py-1 text-xs text-red-600 hover:text-red-800 border border-red-300 hover:border-red-500 rounded"
-                                                      title="Clear offer price"
-                                                    >
-                                                      ✕
-                                                    </button>
-                                                  )}
-                                                  <button
-                                                    onClick={async () => {
-                                                      if (!order.customer_id) {
-                                                        alert("Customer ID not found!");
-                                                        return;
-                                                      }
-                                                      const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
-                                                      const currentOfferPrice = offerPrices[key];
-                                                      if (!currentOfferPrice) {
-                                                        alert("Please enter an offer price");
-                                                        return;
-                                                      }
-                                                      try {
-                                                        const { error } = await supabase.from("price_offers").insert([
-                                                          {
-                                                            customer_id: order.customer_id,
-                                                            product_id: product.id,
-                                                            offered_price: currentOfferPrice,
-                                                            status: "pending",
-                                                            created_at: new Date().toISOString(),
-                                                          },
-                                                        ]);
-                                                        
-                                                        if (error) {
-                                                          alert("Failed to send offer: " + error.message);
+                                                      onChange={(e) => {
+                                                        const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
+                                                        const value = e.target.value;
+
+                                                        if (
+                                                          value === "" ||
+                                                          value === null ||
+                                                          value === undefined
+                                                        ) {
+                                                          // Clear the value when input is empty
+                                                          setOfferPrices((prev) => {
+                                                            const newState = { ...prev };
+                                                            delete newState[key];
+                                                            return newState;
+                                                          });
+                                                        } else {
+                                                          const numValue = Number(value);
+                                                          if (!isNaN(numValue)) {
+                                                            setOfferPrices((prev) => ({
+                                                              ...prev,
+                                                              [key]: numValue,
+                                                            }));
+                                                          }
+                                                        }
+                                                      }}
+                                                      onFocus={(e) => {
+                                                        // Select all text when focused
+                                                        e.target.select();
+                                                      }}
+                                                    />
+                                                    {offerPrices[
+                                                      `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`
+                                                    ] && (
+                                                      <button
+                                                        className="px-2 py-1 text-xs text-red-600 hover:text-red-800 border border-red-300 hover:border-red-500 rounded"
+                                                        title="Clear offer price"
+                                                        type="button"
+                                                        onClick={() => {
+                                                          const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
+                                                          setOfferPrices((prev) => {
+                                                            const newState = { ...prev };
+                                                            delete newState[key];
+                                                            return newState;
+                                                          });
+                                                        }}
+                                                      >
+                                                        ✕
+                                                      </button>
+                                                    )}
+                                                    <button
+                                                      onClick={async () => {
+                                                        if (!order.customer_id) {
+                                                          alert("Customer ID not found!");
                                                           return;
                                                         }
-                                                        
-                                                        // Clear the offer price after sending successfully
-                                                        setOfferPrices(prev => {
-                                                          const newState = { ...prev };
-                                                          delete newState[key];
-                                                          return newState;
-                                                        });
-                                                        
-                                                        alert(`Offer sent successfully to ${order.customer_name} for $${currentOfferPrice}`);
-                                                      } catch (err) {
-                                                        alert("Failed to send offer. Please try again.");
-                                                      }
-                                                    }}
-                                                  >
-                                                    Send Offer
-                                                  </button>
-                                                </div>
-                                              );
-                                            });
-                                          })}
-                                          {(!product.order_items ||
-                                            product.order_items.length === 0) && (
-                                            <span className="text-gray-500">No customers found</span>
-                                          )}
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  )}
-                                </React.Fragment>
-                              ))}
+                                                        const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
+                                                        const currentOfferPrice = offerPrices[key];
+                                                        if (!currentOfferPrice) {
+                                                          alert("Please enter an offer price");
+                                                          return;
+                                                        }
+                                                        try {
+                                                          const { error } = await supabase
+                                                            .from("price_offers")
+                                                            .insert([
+                                                              {
+                                                                customer_id: order.customer_id,
+                                                                product_id: product.id,
+                                                                offered_price: currentOfferPrice,
+                                                                status: "pending",
+                                                                created_at:
+                                                                  new Date().toISOString(),
+                                                              },
+                                                            ]);
+
+                                                          if (error) {
+                                                            alert(
+                                                              "Failed to send offer: " +
+                                                                error.message
+                                                            );
+                                                            return;
+                                                          }
+
+                                                          // Clear the offer price after sending successfully
+                                                          setOfferPrices((prev) => {
+                                                            const newState = { ...prev };
+                                                            delete newState[key];
+                                                            return newState;
+                                                          });
+
+                                                          alert(
+                                                            `Offer sent successfully to ${order.customer_name} for $${currentOfferPrice}`
+                                                          );
+                                                        } catch (err) {
+                                                          alert(
+                                                            "Failed to send offer. Please try again."
+                                                          );
+                                                        }
+                                                      }}
+                                                    >
+                                                      Send Offer
+                                                    </button>
+                                                  </div>
+                                                );
+                                              });
+                                            })}
+                                            {(!product.order_items ||
+                                              product.order_items.length === 0) && (
+                                              <span className="text-gray-500">
+                                                No customers found
+                                              </span>
+                                            )}
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </React.Fragment>
+                                ))}
                             </tbody>
                           </table>
                         </div>
@@ -1206,16 +1262,16 @@ export default function ManagementDashboard() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <select
-                              value={order.status}
-                              onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                              disabled={updatingStatus === order.id}
                               className={`px-2 py-1 rounded-full text-xs font-semibold ${
                                 order.status === "completed"
                                   ? "bg-green-100 text-green-800"
                                   : order.status === "pending"
                                     ? "bg-yellow-100 text-yellow-800"
                                     : "bg-red-100 text-red-800"
-                              } ${updatingStatus === order.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              } ${updatingStatus === order.id ? "opacity-50 cursor-not-allowed" : ""}`}
+                              disabled={updatingStatus === order.id}
+                              value={order.status}
+                              onChange={(e) => handleStatusChange(order.id, e.target.value)}
                             >
                               <option value="pending">Pending</option>
                               <option value="completed">Completed</option>
@@ -1267,35 +1323,33 @@ export default function ManagementDashboard() {
   const handleStatusChange = async (orderId: string, newStatus: string) => {
     try {
       setUpdatingStatus(orderId);
-      
+
       // Validate status
-      if (!['pending', 'completed', 'cancelled'].includes(newStatus)) {
-        throw new Error('Invalid status value');
+      if (!["pending", "completed", "cancelled"].includes(newStatus)) {
+        throw new Error("Invalid status value");
       }
 
       // Update status in database
       const { error } = await supabase
         .from("orders")
-        .update({ 
+        .update({
           status: newStatus,
-          updated_at: new Date().toISOString() // Add timestamp for when status was updated
+          updated_at: new Date().toISOString(), // Add timestamp for when status was updated
         })
         .eq("id", orderId);
 
       if (error) throw error;
 
       // Update local state
-      setOrderDetails(prevOrders =>
-        prevOrders.map(order =>
-          order.id === orderId ? { ...order, status: newStatus } : order
-        )
+      setOrderDetails((prevOrders) =>
+        prevOrders.map((order) => (order.id === orderId ? { ...order, status: newStatus } : order))
       );
 
       // Show success message
       alert(`Order status updated to ${newStatus}`);
     } catch (error) {
       alert("Failed to update order status. Please try again.");
-      
+
       // Refresh the order details to ensure UI is in sync with database
       fetchOrderDetails(currentPage);
     } finally {
@@ -1320,12 +1374,17 @@ export default function ManagementDashboard() {
             <h1 className="text-2xl font-bold mb-2">Management Portal</h1>
             {/* Burger menu button for mobile */}
             <button
+              aria-label="Open navigation menu"
               className="md:hidden flex items-center px-3 py-2 border rounded text-gray-600 border-gray-400 hover:text-blue-600 hover:border-blue-600 mb-2"
               onClick={() => setIsNavOpen((open) => !open)}
-              aria-label="Open navigation menu"
             >
               <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                <path
+                  d="M4 6h16M4 12h16M4 18h16"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                />
               </svg>
             </button>
             {/* Mobile vertical menu */}
@@ -1335,7 +1394,9 @@ export default function ManagementDashboard() {
                   <button
                     key={section.id}
                     className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all w-full text-left ${
-                      activeSection === section.id ? "bg-blue-100 text-blue-600" : "hover:bg-gray-100"
+                      activeSection === section.id
+                        ? "bg-blue-100 text-blue-600"
+                        : "hover:bg-gray-100"
                     }`}
                     onClick={() => {
                       setActiveSection(section.id);
@@ -1374,9 +1435,7 @@ export default function ManagementDashboard() {
           </div>
         </div>
       </div>
-      <div className="flex-1 p-2 sm:p-4 md:p-8 max-w-7xl mx-auto w-full">
-        {renderContent()}
-      </div>
+      <div className="flex-1 p-2 sm:p-4 md:p-8 max-w-7xl mx-auto w-full">{renderContent()}</div>
     </div>
   );
 }

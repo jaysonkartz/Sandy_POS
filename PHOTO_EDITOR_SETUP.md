@@ -40,11 +40,11 @@ You need to add an `image_url` column to your `products` table in Supabase:
 
 ```sql
 -- Add image_url column to products table
-ALTER TABLE products 
+ALTER TABLE products
 ADD COLUMN image_url TEXT;
 
 -- Add updated_at column if not exists
-ALTER TABLE products 
+ALTER TABLE products
 ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
 ```
 
@@ -216,4 +216,4 @@ If you encounter any issues:
 3. Ensure database schema is updated
 4. Check Cloudinary dashboard for upload status
 
-For additional help, refer to the Cloudinary documentation or contact your development team. 
+For additional help, refer to the Cloudinary documentation or contact your development team.

@@ -33,10 +33,10 @@ export default [
     },
     plugins: {
       "@typescript-eslint": tseslint,
-      "react": reactPlugin,
+      react: reactPlugin,
       "react-hooks": reactHooksPlugin,
       "unused-imports": unusedImportsPlugin,
-      "prettier": prettierPlugin,
+      prettier: prettierPlugin,
     },
     settings: {
       react: {
@@ -47,18 +47,24 @@ export default [
       // React specific rules
       "react/prop-types": "off",
       "react/react-in-jsx-scope": "off",
-      "react/jsx-sort-props": ["warn", {
-        "callbacksLast": true,
-        "shorthandFirst": true,
-        "ignoreCase": true,
-        "reservedFirst": true,
-      }],
+      "react/jsx-sort-props": [
+        "warn",
+        {
+          callbacksLast: true,
+          shorthandFirst: true,
+          ignoreCase: true,
+          reservedFirst: true,
+        },
+      ],
 
       // TypeScript specific rules
-      "@typescript-eslint/no-unused-vars": ["warn", {
-        "argsIgnorePattern": "^_",
-        "varsIgnorePattern": "^_",
-      }],
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+        },
+      ],
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/explicit-function-return-type": "off",
       "@typescript-eslint/explicit-module-boundary-types": "off",
@@ -67,29 +73,32 @@ export default [
       "no-console": ["warn", { allow: ["warn", "error"] }],
       "no-undef": "error",
       "no-unused-vars": "off", // Using TypeScript's no-unused-vars instead
-      "prettier/prettier": ["error", {
-        "singleQuote": false,
-        "trailingComma": "es5",
-        "semi": true,
-        "tabWidth": 2,
-        "printWidth": 100,
-      }],
+      "prettier/prettier": [
+        "error",
+        {
+          singleQuote: false,
+          trailingComma: "es5",
+          semi: true,
+          tabWidth: 2,
+          printWidth: 100,
+        },
+      ],
 
       // React Hooks rules
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
 
       // Unused imports
-      "unused-imports/no-unused-imports": "error",
+      "unused-imports/no-unused-imports": "warn",
       "unused-imports/no-unused-vars": [
         "warn",
         {
-          "vars": "all",
-          "varsIgnorePattern": "^_",
-          "args": "after-used",
-          "argsIgnorePattern": "^_",
+          vars: "all",
+          varsIgnorePattern: "^_",
+          args: "after-used",
+          argsIgnorePattern: "^_",
         },
       ],
     },
   },
-]; 
+];

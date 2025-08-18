@@ -41,8 +41,8 @@ export default function CustomerManagement() {
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
-    console.error('Missing Supabase environment variables');
-    throw new Error('Missing Supabase environment variables');
+    console.error("Missing Supabase environment variables");
+    throw new Error("Missing Supabase environment variables");
   }
 
   const supabase = createBrowserClient(supabaseUrl, supabaseKey);
@@ -59,7 +59,7 @@ export default function CustomerManagement() {
 
       if (error) {
         console.error("Supabase error:", error);
-        setError(error.message || 'Failed to fetch customers');
+        setError(error.message || "Failed to fetch customers");
         return;
       }
 
@@ -79,7 +79,7 @@ export default function CustomerManagement() {
                 .eq("id", customer.user_id)
                 .maybeSingle();
 
-              if (userError && userError.code !== 'PGRST116') {
+              if (userError && userError.code !== "PGRST116") {
                 console.error(`Error fetching user data for customer ${customer.id}:`, userError);
                 return { ...customer, user: null };
               }
@@ -89,7 +89,6 @@ export default function CustomerManagement() {
                 ...customer,
                 user: userData || null,
               };
-
             } catch (error) {
               console.error(`Error fetching user data for customer ${customer.id}:`, error);
               return { ...customer, user: null };
@@ -102,7 +101,7 @@ export default function CustomerManagement() {
       setCustomers(customersWithUsers);
     } catch (error) {
       console.error("Error fetching customers:", error);
-      setError('Failed to fetch customers');
+      setError("Failed to fetch customers");
     } finally {
       setIsLoading(false);
     }
@@ -131,11 +130,7 @@ export default function CustomerManagement() {
         // If no user exists, try to get any existing user or create a placeholder
         let userId = existingUser?.id;
         if (!userId) {
-          const { data: anyUser } = await supabase
-            .from("users")
-            .select("id")
-            .limit(1)
-            .single();
+          const { data: anyUser } = await supabase.from("users").select("id").limit(1).single();
           userId = anyUser?.id;
         }
 
@@ -146,11 +141,11 @@ export default function CustomerManagement() {
 
         const { error } = await supabase.from("customers").insert([customerData]);
 
-      if (error) {
-        console.error("Error adding customer:", error);
-        setError(error.message || 'Failed to add customer');
-        return;
-      }
+        if (error) {
+          console.error("Error adding customer:", error);
+          setError(error.message || "Failed to add customer");
+          return;
+        }
 
         setNewCustomer({
           name: "",
@@ -175,7 +170,7 @@ export default function CustomerManagement() {
 
     if (error) {
       console.error("Error updating customer status:", error);
-      setError(error.message || 'Failed to update customer status');
+      setError(error.message || "Failed to update customer status");
       return;
     }
 
@@ -207,9 +202,9 @@ export default function CustomerManagement() {
     } catch (error) {
       console.error("Error updating customer:", error);
       if (error instanceof Error) {
-        setError(error.message || 'Failed to update customer');
+        setError(error.message || "Failed to update customer");
       } else {
-        setError('Failed to update customer');
+        setError("Failed to update customer");
       }
     }
   };
@@ -402,9 +397,7 @@ export default function CustomerManagement() {
           <h2 className="text-xl font-semibold">Customers List</h2>
         </div>
         {error ? (
-          <div className="p-4 text-red-500">
-            Error loading customers: {error}
-          </div>
+          <div className="p-4 text-red-500">Error loading customers: {error}</div>
         ) : isLoading ? (
           <div className="flex justify-center items-center h-32">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -414,7 +407,9 @@ export default function CustomerManagement() {
             {customers.length === 0 ? (
               <div className="p-8 text-center text-gray-500">
                 <p className="text-lg mb-2">No customers found</p>
-                <p className="text-sm">Try adding a customer or check the console for debugging information.</p>
+                <p className="text-sm">
+                  Try adding a customer or check the console for debugging information.
+                </p>
               </div>
             ) : (
               <table className="min-w-full divide-y divide-gray-200">
@@ -448,9 +443,13 @@ export default function CustomerManagement() {
                       <td className="px-6 py-4 whitespace-nowrap">{customer.phone}</td>
                       <td className="px-6 py-4 whitespace-nowrap">{customer.address}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          customer.status ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                        }`}>
+                        <span
+                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            customer.status
+                              ? "bg-green-100 text-green-800"
+                              : "bg-red-100 text-red-800"
+                          }`}
+                        >
                           {customer.status ? "Active" : "Inactive"}
                         </span>
                       </td>

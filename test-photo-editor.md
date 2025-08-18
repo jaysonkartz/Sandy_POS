@@ -9,7 +9,9 @@
 ## 🧪 **How to Test the Photo Editor**
 
 ### **Step 1: Verify Setup**
+
 1. Make sure you have the Cloudinary environment variables set:
+
    ```env
    NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=your_cloud_name
    CLOUDINARY_API_KEY=your_api_key
@@ -18,6 +20,7 @@
    ```
 
 2. Install the cloudinary package:
+
    ```bash
    npm install cloudinary
    ```
@@ -53,6 +56,7 @@
 ### **Step 3: Verify No More 404 Errors**
 
 Check your browser console - you should no longer see:
+
 ```
 GET /product-placeholder.png 404
 ```
@@ -84,6 +88,7 @@ Instead, you should see proper loading states and fallback images.
 ## 🎯 **Expected Behavior**
 
 ✅ **Working Correctly:**
+
 - Products display with images or proper placeholders
 - No 404 errors in console
 - Photo editor opens when clicking camera icon
@@ -92,6 +97,7 @@ Instead, you should see proper loading states and fallback images.
 - Error messages appear for invalid uploads
 
 ❌ **Still Broken:**
+
 - Infinite loading spinners
 - 404 errors in console
 - Photo editor doesn't open
@@ -106,4 +112,4 @@ If you're still experiencing issues:
 3. Make sure the database schema is updated
 4. Try uploading a small test image first
 
-The photo editor should now work smoothly without infinite loading or 404 errors! 
+The photo editor should now work smoothly without infinite loading or 404 errors!

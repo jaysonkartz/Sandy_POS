@@ -54,12 +54,16 @@ export default function ManagementDashboard() {
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="container mx-auto px-4 py-4 sm:py-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6 sm:mb-8">Management Dashboard</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6 sm:mb-8">
+          Management Dashboard
+        </h1>
 
         {/* Countries Management Section */}
         <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6 sm:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-4">
-            <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">Countries Management</h2>
+            <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">
+              Countries Management
+            </h2>
             <Link
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-center text-sm sm:text-base"
               href="/management/countries"
@@ -148,8 +152,12 @@ export default function ManagementDashboard() {
                   </svg>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Products Management</h2>
-                  <p className="text-sm sm:text-base text-gray-600">Manage product inventory and details</p>
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-800">
+                    Products Management
+                  </h2>
+                  <p className="text-sm sm:text-base text-gray-600">
+                    Manage product inventory and details
+                  </p>
                 </div>
               </div>
             </div>
@@ -175,8 +183,12 @@ export default function ManagementDashboard() {
                   </svg>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Orders Management</h2>
-                  <p className="text-sm sm:text-base text-gray-600">View and manage customer orders</p>
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-800">
+                    Orders Management
+                  </h2>
+                  <p className="text-sm sm:text-base text-gray-600">
+                    View and manage customer orders
+                  </p>
                 </div>
               </div>
             </div>

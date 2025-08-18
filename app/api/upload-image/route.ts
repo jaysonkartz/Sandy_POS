@@ -12,13 +12,10 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File;
-    const folder = formData.get("folder") as string || "sandy-pos-products";
+    const folder = (formData.get("folder") as string) || "sandy-pos-products";
 
     if (!file) {
-      return NextResponse.json(
-        { error: "No file provided" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
     // Convert file to buffer
@@ -27,20 +24,19 @@ export async function POST(request: NextRequest) {
 
     // Upload to Cloudinary
     const result = await new Promise((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
-        {
-          folder: folder,
-          resource_type: "auto",
-          transformation: [
-            { width: 800, height: 800, crop: "limit" },
-            { quality: "auto" }
-          ]
-        },
-        (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        }
-      ).end(buffer);
+      cloudinary.uploader
+        .upload_stream(
+          {
+            folder: folder,
+            resource_type: "auto",
+            transformation: [{ width: 800, height: 800, crop: "limit" }, { quality: "auto" }],
+          },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          }
+        )
+        .end(buffer);
     });
 
     return NextResponse.json({
@@ -48,12 +44,8 @@ export async function POST(request: NextRequest) {
       url: (result as any).secure_url,
       public_id: (result as any).public_id,
     });
-
   } catch (error) {
     console.error("Upload error:", error);
-    return NextResponse.json(
-      { error: "Upload failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
   }
-} 
+}

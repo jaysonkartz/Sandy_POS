@@ -14,17 +14,17 @@ export default function CartPage() {
     setIsCheckingOut(true);
     try {
       // Simulate checkout process
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
       // Here you would typically:
       // 1. Validate cart items
       // 2. Send order to backend
       // 3. Process payment
       // 4. Clear cart on success
-      
+
       alert("Order placed successfully! Redirecting to order confirmation...");
       // clearCart(); // Uncomment when implementing real checkout
-    } catch (error) {
+    } catch {
       alert("Checkout failed. Please try again.");
     } finally {
       setIsCheckingOut(false);
@@ -35,7 +35,7 @@ export default function CartPage() {
     setRemovingItem(itemId);
     try {
       // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 300));
       removeFromCart(itemId);
     } finally {
       setRemovingItem(null);
@@ -48,10 +48,12 @@ export default function CartPage() {
         <div className="text-center">
           <ShoppingBag className="w-24 h-24 text-gray-300 mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-gray-600 mb-4">Your cart is empty</h1>
-          <p className="text-gray-500 mb-6">Looks like you haven't added any items to your cart yet.</p>
-          <Link 
-            href="/"
+          <p className="text-gray-500 mb-6">
+            Looks like you haven't added any items to your cart yet.
+          </p>
+          <Link
             className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            href="/"
           >
             <ArrowLeft className="w-4 h-4" />
             Continue Shopping
@@ -67,11 +69,11 @@ export default function CartPage() {
         <h1 className="text-3xl font-bold text-gray-800">Shopping Cart</h1>
         <div className="flex items-center gap-4">
           <span className="text-gray-600">
-            {cart.length} {cart.length === 1 ? 'item' : 'items'}
+            {cart.length} {cart.length === 1 ? "item" : "items"}
           </span>
           <button
-            onClick={clearCart}
             className="px-4 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+            onClick={clearCart}
           >
             Clear Cart
           </button>
@@ -82,7 +84,10 @@ export default function CartPage() {
         {/* Cart Items */}
         <div className="lg:col-span-2 space-y-4">
           {cart.map((item) => (
-            <div key={item.id} className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+            <div
+              key={item.id}
+              className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow"
+            >
               <div className="p-6">
                 <div className="flex gap-4">
                   {/* Product Image */}
@@ -94,19 +99,19 @@ export default function CartPage() {
                         src={item.imagesUrl}
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
-                          target.src = '/product-placeholder.png';
+                          target.src = "/product-placeholder.png";
                         }}
                       />
                     </div>
                   )}
-                  
+
                   {/* Product Details */}
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-lg text-gray-800 mb-2">{item.title}</h3>
                     <div className="text-2xl font-bold text-blue-600 mb-4">
                       ${item.price.toFixed(2)}/kg
                     </div>
-                    
+
                     {/* Quantity Controls */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -114,8 +119,8 @@ export default function CartPage() {
                         <div className="flex items-center border border-gray-300 rounded-lg">
                           <button
                             className="p-2 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            onClick={() => updateQuantity(item.id, Math.max(0, item.quantity - 1))}
                             disabled={item.quantity <= 1}
+                            onClick={() => updateQuantity(item.id, Math.max(0, item.quantity - 1))}
                           >
                             <Minus className="w-4 h-4" />
                           </button>
@@ -124,22 +129,22 @@ export default function CartPage() {
                           </span>
                           <button
                             className="p-2 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            onClick={() => updateQuantity(item.id, Math.min(item.maxQuantity, item.quantity + 1))}
                             disabled={item.quantity >= item.maxQuantity}
+                            onClick={() =>
+                              updateQuantity(item.id, Math.min(item.maxQuantity, item.quantity + 1))
+                            }
                           >
                             <Plus className="w-4 h-4" />
                           </button>
                         </div>
-                        <span className="text-sm text-gray-500">
-                          Max: {item.maxQuantity}
-                        </span>
+                        <span className="text-sm text-gray-500">Max: {item.maxQuantity}</span>
                       </div>
-                      
+
                       <button
-                        onClick={() => handleRemoveItem(item.id)}
-                        disabled={removingItem === item.id}
                         className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                        disabled={removingItem === item.id}
                         title="Remove item"
+                        onClick={() => handleRemoveItem(item.id)}
                       >
                         {removingItem === item.id ? (
                           <Loader2 className="w-5 h-5 animate-spin" />
@@ -150,7 +155,7 @@ export default function CartPage() {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Item Total */}
                 <div className="mt-4 pt-4 border-t border-gray-100">
                   <div className="flex justify-between items-center">
@@ -169,10 +174,12 @@ export default function CartPage() {
         <div className="lg:col-span-1">
           <div className="bg-white border border-gray-200 rounded-xl p-6 sticky top-4">
             <h2 className="text-xl font-bold text-gray-800 mb-6">Order Summary</h2>
-            
+
             <div className="space-y-3 mb-6">
               <div className="flex justify-between text-gray-600">
-                <span>Subtotal ({cart.length} {cart.length === 1 ? 'item' : 'items'})</span>
+                <span>
+                  Subtotal ({cart.length} {cart.length === 1 ? "item" : "items"})
+                </span>
                 <span>${getCartTotal().toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-gray-600">
@@ -186,11 +193,11 @@ export default function CartPage() {
                 </div>
               </div>
             </div>
-            
+
             <button
-              onClick={handleCheckout}
-              disabled={isCheckingOut}
               className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+              disabled={isCheckingOut}
+              onClick={handleCheckout}
             >
               {isCheckingOut ? (
                 <>
@@ -198,15 +205,12 @@ export default function CartPage() {
                   Processing...
                 </>
               ) : (
-                'Proceed to Checkout'
+                "Proceed to Checkout"
               )}
             </button>
-            
+
             <div className="mt-4 text-center">
-              <Link 
-                href="/"
-                className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-              >
+              <Link className="text-blue-600 hover:text-blue-700 text-sm font-medium" href="/">
                 Continue Shopping
               </Link>
             </div>
