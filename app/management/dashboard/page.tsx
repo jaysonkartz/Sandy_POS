@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 //import PricingManagement from "@/components/PricingManagement";
-import { Bar, Pie } from "react-chartjs-2";
+import { Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -117,6 +117,30 @@ export default function ManagementDashboard() {
   }>({});
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [isNavOpen, setIsNavOpen] = useState(false);
+  const [topSellingProducts, setTopSellingProducts] = useState<{
+    byQuantity: Array<{
+      category: string;
+      product: string;
+      variation: string;
+      quantity: number;
+    }>;
+    byPrice: Array<{
+      product: string;
+      variation: string;
+      value: number;
+    }>;
+  }>({ byQuantity: [], byPrice: [] });
+  const [selectedMonth, setSelectedMonth] = useState("September");
+  const [availableMonths, setAvailableMonths] = useState<string[]>([]);
+  const [monthYearMap, setMonthYearMap] = useState<Map<string, number>>(new Map());
+  const [recentOrders, setRecentOrders] = useState<Array<{
+    id: number;
+    created_at: string;
+    customer_name: string;
+    customer_phone: string;
+    total_amount: number;
+    status: string;
+  }>>([]);
 
   const priceHistoryMap: Record<number, { previous_price: number; last_price_update: string }[]> =
     {};
@@ -235,7 +259,156 @@ export default function ManagementDashboard() {
 
   useEffect(() => {
     fetchCategories();
+    fetchTopSellingProducts();
+    fetchRecentOrders();
   }, []);
+
+  const fetchRecentOrders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("id, created_at, customer_name, customer_phone, total_amount, status")
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      setRecentOrders(data || []);
+    } catch (error) {
+      console.error("Error fetching recent orders:", error);
+    }
+  };
+
+  const fetchTopSellingProducts = async (month?: string) => {
+    try {
+      // First, get all available months from orders
+      const { data: allOrders, error: monthsError } = await supabase
+        .from("orders")
+        .select("created_at")
+        .eq("status", "completed")
+        .order("created_at", { ascending: false });
+
+      if (monthsError) throw monthsError;
+
+      // Extract unique months with year
+      const monthYearMap = new Map<string, number>();
+      allOrders?.forEach((order: any) => {
+        const date = new Date(order.created_at);
+        const monthName = date.toLocaleString('default', { month: 'long' });
+        const year = date.getFullYear();
+        monthYearMap.set(monthName, year);
+      });
+      
+      const monthsArray = Array.from(monthYearMap.keys());
+      setAvailableMonths(monthsArray);
+      setMonthYearMap(monthYearMap);
+
+      // If no month specified, use the first available month or current month
+      const targetMonth = month || monthsArray[0] || new Date().toLocaleString('default', { month: 'long' });
+      setSelectedMonth(targetMonth);
+
+      // Get the actual year for the selected month from the data
+      const targetYear = monthYearMap.get(targetMonth) || new Date().getFullYear();
+      const monthNumber = new Date(`${targetMonth} 1, ${targetYear}`).getMonth() + 1;
+      
+      // Fetch order items filtered by month and year
+      const startDate = new Date(targetYear, monthNumber - 1, 1).toISOString();
+      const endDate = new Date(targetYear, monthNumber, 0, 23, 59, 59).toISOString();
+      
+      console.log('Month detection debug:', {
+        allOrdersCount: allOrders?.length,
+        monthYearMap: Object.fromEntries(monthYearMap),
+        monthsArray,
+        targetMonth,
+        targetYear,
+        monthNumber,
+        startDate,
+        endDate
+      });
+
+      const { data: orderItems, error } = await supabase
+        .from("order_items")
+        .select(`
+          quantity,
+          price,
+          product_name,
+          product_code,
+          orders!inner(
+            created_at,
+            status
+          )
+        `)
+        .eq("orders.status", "completed")
+        .gte("orders.created_at", startDate)
+        .lte("orders.created_at", endDate);
+
+      if (error) throw error;
+
+      // Process data to get top selling products by quantity
+      const productQuantityMap = new Map<string, {
+        category: string;
+        product: string;
+        variation: string;
+        quantity: number;
+      }>();
+
+      const productValueMap = new Map<string, {
+        product: string;
+        variation: string;
+        value: number;
+      }>();
+
+      orderItems?.forEach((item: any) => {
+        const productName = item.product_name || "Unknown Product";
+        const variation = "small"; // You can extract this from product data if available
+        const category = "Chilli"; // You can extract this from product data if available
+        const quantity = item.quantity || 0;
+        const value = (item.price || 0) * quantity;
+
+        // Group by product name for quantity
+        const quantityKey = `${productName}-${variation}`;
+        if (productQuantityMap.has(quantityKey)) {
+          const existing = productQuantityMap.get(quantityKey)!;
+          existing.quantity += quantity;
+        } else {
+          productQuantityMap.set(quantityKey, {
+            category,
+            product: productName,
+            variation,
+            quantity
+          });
+        }
+
+        // Group by product name for value
+        const valueKey = `${productName}-${variation}`;
+        if (productValueMap.has(valueKey)) {
+          const existing = productValueMap.get(valueKey)!;
+          existing.value += value;
+        } else {
+          productValueMap.set(valueKey, {
+            product: productName,
+            variation,
+            value
+          });
+        }
+      });
+
+      // Sort and get top 3 for each category
+      const topByQuantity = Array.from(productQuantityMap.values())
+        .sort((a, b) => b.quantity - a.quantity)
+        .slice(0, 3);
+
+      const topByValue = Array.from(productValueMap.values())
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 3);
+
+      setTopSellingProducts({
+        byQuantity: topByQuantity,
+        byPrice: topByValue
+      });
+    } catch (error) {
+      console.error("Error fetching top selling products:", error);
+    }
+  };
 
   const fetchOrderDetails = async (page = 1) => {
     setIsLoading(true);
@@ -401,20 +574,6 @@ export default function ManagementDashboard() {
       ],
     };
 
-    const inventoryData = {
-      labels: ["In Stock", "Low Stock", "Out of Stock"],
-      datasets: [
-        {
-          data: [300, 50, 20],
-          backgroundColor: [
-            "rgba(75, 192, 192, 0.5)",
-            "rgba(255, 206, 86, 0.5)",
-            "rgba(255, 99, 132, 0.5)",
-          ],
-          borderColor: ["rgba(75, 192, 192, 1)", "rgba(255, 206, 86, 1)", "rgba(255, 99, 132, 1)"],
-        },
-      ],
-    };
 
     return (
       <motion.div
@@ -450,14 +609,147 @@ export default function ManagementDashboard() {
         </div>
 
         {/* Charts */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6">
           <div className="bg-white p-4 rounded-lg shadow-sm">
             <h3 className="text-lg font-semibold mb-4">Sales Overview</h3>
             <Bar data={salesData} options={{ responsive: true }} />
           </div>
+        </div>
+
+        {/* Top Selling Products */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Top Selling Products by Quantity */}
           <div className="bg-white p-4 rounded-lg shadow-sm">
-            <h3 className="text-lg font-semibold mb-4">Inventory Status</h3>
-            <Pie data={inventoryData} options={{ responsive: true }} />
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Top Selling Products (by Qty)</h3>
+              <select
+                value={selectedMonth}
+                onChange={(e) => {
+                  setSelectedMonth(e.target.value);
+                  fetchTopSellingProducts(e.target.value);
+                }}
+                className="px-3 py-1 pr-8 bg-blue-100 text-blue-600 rounded text-sm font-medium border-0 focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none bg-no-repeat bg-right bg-[length:16px] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQgNkw4IDEwTDEyIDYiIHN0cm9rZT0iIzM3NDE1MSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+')]"
+              >
+                {availableMonths.map((month) => {
+                  const year = monthYearMap.get(month);
+                  return (
+                    <option key={month} value={month}>
+                      {month} {year}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Category
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Product
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Variation
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Quantity (unit)
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {topSellingProducts.byQuantity.length > 0 ? (
+                    topSellingProducts.byQuantity.map((product, index) => (
+                      <tr key={index}>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {product.category}
+                        </td>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                          {product.product}
+                        </td>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                          {product.variation}
+                        </td>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                          {product.quantity.toLocaleString()}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                        No data available
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Top Selling Products by Price */}
+          <div className="bg-white p-4 rounded-lg shadow-sm">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Top Selling Products (by Price)</h3>
+              <select
+                value={selectedMonth}
+                onChange={(e) => {
+                  setSelectedMonth(e.target.value);
+                  fetchTopSellingProducts(e.target.value);
+                }}
+                className="px-3 py-1 pr-8 bg-blue-100 text-blue-600 rounded text-sm font-medium border-0 focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none bg-no-repeat bg-right bg-[length:16px] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQgNkw4IDEwTDEyIDYiIHN0cm9rZT0iIzM3NDE1MSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+')]"
+              >
+                {availableMonths.map((month) => {
+                  const year = monthYearMap.get(month);
+                  return (
+                    <option key={month} value={month}>
+                      {month} {year}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Product
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Variation
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Value (SGD)
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {topSellingProducts.byPrice.length > 0 ? (
+                    topSellingProducts.byPrice.map((product, index) => (
+                      <tr key={index}>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {product.product}
+                        </td>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                          {product.variation}
+                        </td>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                          ${product.value.toLocaleString()}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
+                        No data available
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -469,10 +761,10 @@ export default function ManagementDashboard() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Date
+                    Order ID
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Type
+                    Date
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     Description
@@ -483,45 +775,30 @@ export default function ManagementDashboard() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {[
-                  {
-                    date: "2024-03-15",
-                    type: "Order",
-                    description: "New order #1234",
-                    status: "Pending",
-                  },
-                  {
-                    date: "2024-03-14",
-                    type: "Inventory",
-                    description: "Stock update: +50 items",
-                    status: "Completed",
-                  },
-                  {
-                    date: "2024-03-14",
-                    type: "Customer",
-                    description: "New customer registration",
-                    status: "Completed",
-                  },
-                  {
-                    date: "2024-03-13",
-                    type: "Supplier",
-                    description: "Payment processed",
-                    status: "Completed",
-                  },
-                ].map((activity, index) => (
-                  <tr key={index}>
-                    <td className="px-6 py-4 whitespace-nowrap">{activity.date}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{activity.type}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{activity.description}</td>
+                {recentOrders.map((order, index) => (
+                  <tr key={order.id}>
+                    <td className="px-6 py-4 whitespace-nowrap font-medium text-blue-600">
+                      {order.id}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {new Date(order.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {order.customer_name} - ${order.total_amount.toFixed(2)}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
                         className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          activity.status === "Completed"
+                          order.status === "completed"
                             ? "bg-green-100 text-green-800"
-                            : "bg-yellow-100 text-yellow-800"
+                            : order.status === "pending"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : order.status === "cancelled"
+                            ? "bg-red-100 text-red-800"
+                            : "bg-gray-100 text-gray-800"
                         }`}
                       >
-                        {activity.status}
+                        {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                       </span>
                     </td>
                   </tr>
@@ -1032,20 +1309,23 @@ export default function ManagementDashboard() {
                                                 return (
                                                   <div
                                                     key={`${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`}
-                                                    className="flex items-center space-x-2 mb-1"
+                                                    className="mb-3 p-2 bg-gray-50 rounded"
                                                   >
-                                                    <span className="font-medium">
-                                                      {order.customer_name}
-                                                    </span>
-                                                    <span className="text-xs text-gray-400">
-                                                      (ID: {order.customer_id || "N/A"})
-                                                    </span>
-                                                    {oi.price !== undefined && (
-                                                      <span className="text-xs text-gray-500">
-                                                        Past price: ${oi.price?.toFixed(2)}
+                                                    <div className="mb-2">
+                                                      <span className="font-medium">
+                                                        {order.customer_name}
                                                       </span>
-                                                    )}
-                                                    <input
+                                                      <span className="text-xs text-gray-400 ml-2">
+                                                        (ID: {order.customer_id || "N/A"})
+                                                      </span>
+                                                      {oi.price !== undefined && (
+                                                        <span className="text-xs text-gray-500 ml-2">
+                                                          Past price: ${oi.price?.toFixed(2)}
+                                                        </span>
+                                                      )}
+                                                    </div>
+                                                    <div className="flex items-center space-x-2">
+                                                      <input
                                                       min="0"
                                                       placeholder="Offer new price"
                                                       step="0.01"
@@ -1173,6 +1453,7 @@ export default function ManagementDashboard() {
                                                     >
                                                       Send Offer
                                                     </button>
+                                                    </div>
                                                   </div>
                                                 );
                                               });
@@ -1343,6 +1624,11 @@ export default function ManagementDashboard() {
       // Update local state
       setOrderDetails((prevOrders) =>
         prevOrders.map((order) => (order.id === orderId ? { ...order, status: newStatus } : order))
+      );
+      
+      // Update recent orders as well
+      setRecentOrders((prevOrders) =>
+        prevOrders.map((order) => (order.id === parseInt(orderId) ? { ...order, status: newStatus } : order))
       );
 
       // Show success message
