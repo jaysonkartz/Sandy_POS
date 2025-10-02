@@ -121,13 +121,32 @@ export default function Home() {
     }
   }, [forceRefreshSession]);
 
-  // Loading state
+  // Loading state - use a timeout to prevent infinite loading
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const isLoading = loading || sessionLoading;
 
   // Debug logging
   console.log('Loading states:', { loading, sessionLoading, isLoading, productsCount: products.length, sessionExists: !!session });
 
-  if (isLoading) {
+  // Timeout to prevent infinite loading
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      console.log("Force loading reset after timeout");
+      setIsInitialLoad(false);
+    }, 8000); // 8 second maximum loading time
+
+    return () => clearTimeout(timeout);
+  }, []);
+
+  // Reset initial load when data is available
+  useEffect(() => {
+    if (products.length > 0 || error) {
+      setIsInitialLoad(false);
+    }
+  }, [products.length, error]);
+
+  // Show loading skeleton only during initial load and when actually loading
+  if (isLoading && isInitialLoad) {
     return <LoadingSkeleton />;
   }
 
@@ -184,7 +203,23 @@ export default function Home() {
       />
 
       {/* No Results Message */}
-      {productGroups.length === 0 && !loading && <NoResults isEnglish={isEnglish} />}
+      {productGroups.length === 0 && !loading && !isInitialLoad && <NoResults isEnglish={isEnglish} />}
+      
+      {/* Fallback for when loading is stuck */}
+      {productGroups.length === 0 && !loading && isInitialLoad && (
+        <div className="text-center py-8">
+          <p className="text-gray-500 mb-4">
+            {isEnglish ? "Loading products..." : "正在加载产品..."}
+          </p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            {isEnglish ? "Refresh Page" : "刷新页面"}
+          </button>
+        </div>
+      )}
+      
 
       {/* Floating Order Button */}
       {selectedProducts.length > 0 && (

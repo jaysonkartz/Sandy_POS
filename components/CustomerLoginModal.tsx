@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
+import { useSignInLogging } from "@/app/hooks/useSignInLogging";
 
 interface CustomerLoginModalProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface CustomerLoginModalProps {
 
 export default function CustomerLoginModal({ isOpen, onClose }: CustomerLoginModalProps) {
   const router = useRouter();
+  const { logSignInSuccess, logSignInFailure } = useSignInLogging();
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -39,10 +41,19 @@ export default function CustomerLoginModal({ isOpen, onClose }: CustomerLoginMod
       });
 
       if (signInError) {
+        // Log failed sign-in attempt
+        await logSignInFailure("", formData.email, signInError.message);
         throw signInError;
       }
 
       if (data?.user) {
+        // Log successful sign-in
+        await logSignInSuccess(
+          data.user.id, 
+          data.user.email || formData.email,
+          data.session?.access_token
+        );
+
         router.refresh();
         onClose();
       }

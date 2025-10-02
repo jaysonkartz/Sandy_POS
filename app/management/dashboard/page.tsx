@@ -23,6 +23,8 @@ import { CATEGORY_ID_NAME_MAP } from "@/app/(admin)/const/category";
 //import ProductListTable from "@/components/ProductListTable";
 import React from "react";
 import { useRouter } from "next/navigation";
+import QuickSignInCheck from "@/app/components/QuickSignInCheck";
+import SignInStats from "@/app/components/SignInStats";
 
 ChartJS.register(
   CategoryScale,
@@ -130,7 +132,7 @@ export default function ManagementDashboard() {
       value: number;
     }>;
   }>({ byQuantity: [], byPrice: [] });
-  const [selectedMonth, setSelectedMonth] = useState("September");
+  const [selectedMonth, setSelectedMonth] = useState("Select a Month");
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
   const [monthYearMap, setMonthYearMap] = useState<Map<string, number>>(new Map());
   const [recentOrders, setRecentOrders] = useState<Array<{
@@ -280,25 +282,44 @@ export default function ManagementDashboard() {
 
   const fetchTopSellingProducts = async (month?: string) => {
     try {
-      // First, get all available months from orders
+      // First, get all available months from orders (include all statuses for month detection)
       const { data: allOrders, error: monthsError } = await supabase
         .from("orders")
         .select("created_at")
-        .eq("status", "completed")
         .order("created_at", { ascending: false });
 
       if (monthsError) throw monthsError;
 
-      // Extract unique months with year
+      // Extract unique months with year, sorted by date
       const monthYearMap = new Map<string, number>();
+      const monthYearArray: Array<{month: string, year: number, date: Date}> = [];
+      
       allOrders?.forEach((order: any) => {
         const date = new Date(order.created_at);
         const monthName = date.toLocaleString('default', { month: 'long' });
         const year = date.getFullYear();
-        monthYearMap.set(monthName, year);
+        const key = `${monthName} ${year}`;
+        
+        if (!monthYearMap.has(key)) {
+          monthYearMap.set(key, year);
+          monthYearArray.push({month: monthName, year, date});
+        }
       });
       
-      const monthsArray = Array.from(monthYearMap.keys());
+      // Sort by date (most recent first)
+      monthYearArray.sort((a, b) => b.date.getTime() - a.date.getTime());
+      
+      // If no orders exist, create a default month (current month)
+      if (monthYearArray.length === 0) {
+        const currentDate = new Date();
+        const currentMonth = currentDate.toLocaleString('default', { month: 'long' });
+        const currentYear = currentDate.getFullYear();
+        const key = `${currentMonth} ${currentYear}`;
+        monthYearMap.set(key, currentYear);
+        monthYearArray.push({month: currentMonth, year: currentYear, date: currentDate});
+      }
+      
+      const monthsArray = monthYearArray.map(item => `${item.month} ${item.year}`);
       setAvailableMonths(monthsArray);
       setMonthYearMap(monthYearMap);
 
@@ -306,9 +327,20 @@ export default function ManagementDashboard() {
       const targetMonth = month || monthsArray[0] || new Date().toLocaleString('default', { month: 'long' });
       setSelectedMonth(targetMonth);
 
-      // Get the actual year for the selected month from the data
-      const targetYear = monthYearMap.get(targetMonth) || new Date().getFullYear();
-      const monthNumber = new Date(`${targetMonth} 1, ${targetYear}`).getMonth() + 1;
+      // Parse the selected month to get month name and year
+      let monthName, targetYear;
+      if (targetMonth.includes(' ')) {
+        // Format: "Month Year" (e.g., "December 2024")
+        const parts = targetMonth.split(' ');
+        monthName = parts[0];
+        targetYear = parseInt(parts[1]);
+      } else {
+        // Format: "Month" only - use current year
+        monthName = targetMonth;
+        targetYear = new Date().getFullYear();
+      }
+      
+      const monthNumber = new Date(`${monthName} 1, ${targetYear}`).getMonth() + 1;
       
       // Fetch order items filtered by month and year
       const startDate = new Date(targetYear, monthNumber - 1, 1).toISOString();
@@ -319,6 +351,7 @@ export default function ManagementDashboard() {
         monthYearMap: Object.fromEntries(monthYearMap),
         monthsArray,
         targetMonth,
+        monthName,
         targetYear,
         monthNumber,
         startDate,
@@ -337,11 +370,15 @@ export default function ManagementDashboard() {
             status
           )
         `)
-        .eq("orders.status", "completed")
         .gte("orders.created_at", startDate)
         .lte("orders.created_at", endDate);
 
       if (error) throw error;
+
+      console.log('Order items fetched:', {
+        orderItemsCount: orderItems?.length,
+        orderItems: orderItems?.slice(0, 3) // Show first 3 items for debugging
+      });
 
       // Process data to get top selling products by quantity
       const productQuantityMap = new Map<string, {
@@ -465,6 +502,21 @@ export default function ManagementDashboard() {
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+          />
+        </svg>
+      ),
+    },
+    {
+      id: "signin-monitoring",
+      title: "Sign-in Monitoring",
+      description: "Track user authentication",
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
@@ -630,14 +682,11 @@ export default function ManagementDashboard() {
                 }}
                 className="px-3 py-1 pr-8 bg-blue-100 text-blue-600 rounded text-sm font-medium border-0 focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none bg-no-repeat bg-right bg-[length:16px] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQgNkw4IDEwTDEyIDYiIHN0cm9rZT0iIzM3NDE1MSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+')]"
               >
-                {availableMonths.map((month) => {
-                  const year = monthYearMap.get(month);
-                  return (
-                    <option key={month} value={month}>
-                      {month} {year}
-                    </option>
-                  );
-                })}
+                {availableMonths.map((month) => (
+                  <option key={month} value={month}>
+                    {month}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="overflow-x-auto">
@@ -700,14 +749,11 @@ export default function ManagementDashboard() {
                 }}
                 className="px-3 py-1 pr-8 bg-blue-100 text-blue-600 rounded text-sm font-medium border-0 focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none bg-no-repeat bg-right bg-[length:16px] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQgNkw4IDEwTDEyIDYiIHN0cm9rZT0iIzM3NDE1MSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+')]"
               >
-                {availableMonths.map((month) => {
-                  const year = monthYearMap.get(month);
-                  return (
-                    <option key={month} value={month}>
-                      {month} {year}
-                    </option>
-                  );
-                })}
+                {availableMonths.map((month) => (
+                  <option key={month} value={month}>
+                    {month}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="overflow-x-auto">
@@ -1595,6 +1641,52 @@ export default function ManagementDashboard() {
         return <CustomerManagement />;
       case "users":
         return renderUsers();
+      case "signin-monitoring":
+        return (
+          <motion.div
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-6"
+            initial={{ opacity: 0, y: 20 }}
+          >
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-900">Sign-in Monitoring</h2>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <SignInStats title="Sign-in Statistics" />
+              </div>
+              <div>
+                <QuickSignInCheck limit={10} />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <QuickSignInCheck limit={10} showFailedOnly={true} />
+              </div>
+              <div>
+                <div className="bg-white p-4 rounded-lg shadow">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
+                  <div className="space-y-2">
+                    <a
+                      href="/admin/signin-records"
+                      className="block w-full px-4 py-2 text-left text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md"
+                    >
+                      View Full Sign-in History
+                    </a>
+                    <button
+                      onClick={() => window.open('/admin/signin-records', '_blank')}
+                      className="block w-full px-4 py-2 text-left text-sm text-green-600 hover:text-green-800 hover:bg-green-50 rounded-md"
+                    >
+                      Export Sign-in Data
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        );
       default:
         return renderOverview();
     }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
+import { useSignInLogging } from "@/app/hooks/useSignInLogging";
 
 interface SignupModalProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface SignupModalProps {
 
 export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupModalProps) {
   const router = useRouter();
+  const { logSignInSuccess, logSignInFailure } = useSignInLogging();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -35,6 +37,8 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
       });
 
       if (signInError) {
+        // Log failed sign-in attempt
+        await logSignInFailure("", formData.email, signInError.message);
         throw signInError;
       }
 
@@ -42,6 +46,13 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
         console.log("Login successful in SignupModal:", data.user);
         console.log("User ID:", data.user.id);
         console.log("User email:", data.user.email);
+
+        // Log successful sign-in
+        await logSignInSuccess(
+          data.user.id, 
+          data.user.email || formData.email,
+          data.session?.access_token
+        );
 
         // Check session immediately after login
         const {

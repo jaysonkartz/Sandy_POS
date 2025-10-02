@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
+import { useSignInLogging } from "@/app/hooks/useSignInLogging";
 
 export default function LoginForm() {
   const [error, setError] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { logSignInSuccess, logSignInFailure } = useSignInLogging();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -25,11 +27,20 @@ export default function LoginForm() {
       });
 
       if (error) {
+        // Log failed sign-in attempt
+        await logSignInFailure("", email, error.message);
         setError(error.message);
         return;
       }
 
       if (data?.user) {
+        // Log successful sign-in
+        await logSignInSuccess(
+          data.user.id, 
+          data.user.email || email,
+          data.session?.access_token
+        );
+
         router.push("/dashboard");
         router.refresh();
       }

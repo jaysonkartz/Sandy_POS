@@ -226,55 +226,72 @@ export const useSession = (): UseSessionReturn => {
   useEffect(() => {
     const initializeSession = async () => {
       try {
-        // Check for stored session first
-        const storedSession = localStorage.getItem(STORAGE_KEYS.SESSION);
-        if (storedSession) {
-          try {
-            const parsed = JSON.parse(storedSession);
-            if (parsed?.access_token && parsed?.user) {
-              const { data: { session: restoredSession }, error: restoreError } = await supabase.auth.setSession({
-                access_token: parsed.access_token,
-                refresh_token: parsed.refresh_token || "",
-              });
+        // Set a maximum timeout for session initialization
+        const timeoutPromise = new Promise<void>((resolve) => {
+          setTimeout(() => {
+            console.log("Session initialization timeout reached");
+            setIsLoading(false);
+            resolve();
+          }, 3000); // 3 second timeout
+        });
 
-              if (!restoreError && restoredSession?.user) {
-                setSession(restoredSession);
-                if (restoredSession.user.id) {
-                  await fetchUserRole(restoredSession.user.id);
+        const sessionPromise = (async () => {
+          // Check for stored session first
+          const storedSession = localStorage.getItem(STORAGE_KEYS.SESSION);
+          if (storedSession) {
+            try {
+              const parsed = JSON.parse(storedSession);
+              if (parsed?.access_token && parsed?.user) {
+                const { data: { session: restoredSession }, error: restoreError } = await supabase.auth.setSession({
+                  access_token: parsed.access_token,
+                  refresh_token: parsed.refresh_token || "",
+                });
+
+                if (!restoreError && restoredSession?.user) {
+                  setSession(restoredSession);
+                  if (restoredSession.user.id) {
+                    await fetchUserRole(restoredSession.user.id);
+                  }
+                  return;
                 }
-                setIsLoading(false);
-                return;
               }
+            } catch (parseError) {
+              console.log("Failed to parse stored session:", parseError);
             }
-          } catch (parseError) {
-            // Failed to parse stored session
           }
-        }
 
-        // Try to get initial session
-        const { data: { session }, error } = await supabase.auth.getSession();
+          // Try to get initial session
+          const { data: { session }, error } = await supabase.auth.getSession();
 
-        if (error) {
-          console.error("Error getting initial session:", error);
-        }
-
-        if (session?.user) {
-          setSession(session);
-          if (session.user.id) {
-            await fetchUserRole(session.user.id);
+          if (error) {
+            console.error("Error getting initial session:", error);
           }
-          setIsLoading(false);
-          return;
-        }
 
-        // Try aggressive recovery
-        const recovered = await aggressiveSessionRecovery();
-        if (recovered) {
-          setIsLoading(false);
-          return;
-        }
+          if (session?.user) {
+            setSession(session);
+            if (session.user.id) {
+              await fetchUserRole(session.user.id);
+            }
+            return;
+          }
 
-        // Set loading to false immediately if no session found
+          // Try simple recovery without aggressive methods
+          try {
+            const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+            if (!refreshError && refreshedSession?.user) {
+              setSession(refreshedSession);
+              if (refreshedSession.user.id) {
+                await fetchUserRole(refreshedSession.user.id);
+              }
+              return;
+            }
+          } catch (refreshError) {
+            console.log("Session refresh failed:", refreshError);
+          }
+        })();
+
+        // Race between session initialization and timeout
+        await Promise.race([sessionPromise, timeoutPromise]);
         setIsLoading(false);
       } catch (error) {
         console.error("Error in initializeSession:", error);
@@ -283,11 +300,6 @@ export const useSession = (): UseSessionReturn => {
     };
 
     initializeSession();
-
-    // Fallback timeout to ensure loading doesn't get stuck
-    const fallbackTimeout = setTimeout(() => {
-      setIsLoading(false);
-    }, 5000); // 5 second fallback
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {

@@ -4,9 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import { motion } from "framer-motion";
+import { useSignInLogging } from "@/app/hooks/useSignInLogging";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { logSignInSuccess, logSignInFailure } = useSignInLogging();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -25,9 +27,20 @@ export default function LoginPage() {
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        // Log failed sign-in attempt
+        await logSignInFailure("", email.trim(), error.message);
+        throw error;
+      }
 
-      if (data.session) {
+      if (data.session && data.user) {
+        // Log successful sign-in
+        await logSignInSuccess(
+          data.user.id, 
+          data.user.email || email.trim(),
+          data.session.access_token
+        );
+
         const intendedCategory = localStorage.getItem("intendedCategory");
         if (intendedCategory) {
           localStorage.removeItem("intendedCategory");
