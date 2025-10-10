@@ -3,7 +3,10 @@
 import { createBrowserClient } from "@supabase/ssr";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Database } from "@/types/supabase";
+import { useOrder } from "@/app/hooks/useOrder";
+import { ShoppingBag } from "lucide-react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -35,47 +38,186 @@ export default function OrderHistory() {
   const [orders, setOrders] = useState<any[]>([]);
   const [itemsData, setItemsData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reorderingId, setReorderingId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const ordersPerPage = 5;
   const router = useRouter();
+  const { addToOrder, setCustomerName, setCustomerPhone, setCustomerAddress } = useOrder();
+
+  const handleReorder = async (orderId: string) => {
+    try {
+      setReorderingId(orderId);
+      const items = orderItems[orderId];
+
+      // Get the order details
+      const { data: orderData } = await supabase
+        .from("orders")
+        .select("customer_name, customer_phone, customer_address")
+        .eq("id", orderId)
+        .single();
+
+      console.log("Reordering items:", items);
+
+      // Add each item to the order first
+      for (const item of items) {
+        console.log("Processing item:", item);
+
+        // Get the actual product details from the database
+        const { data: productData } = await supabase
+          .from("products")
+          .select("*")
+          .eq("id", item.product_id)
+          .single();
+
+        console.log("Product data from DB:", productData);
+
+        if (productData) {
+          const orderItem = {
+            id: productData.id,
+            "Item Code": productData["Item Code"] || "",
+            Product: productData.Product || item.product_name,
+            Category: productData.Category || "",
+            weight: productData.weight || "",
+            UOM: productData.UOM || "",
+            Country: productData.Country || "",
+            Product_CH: productData.Product_CH,
+            Category_CH: productData.Category_CH,
+            Country_CH: productData.Country_CH,
+            Variation: productData.Variation,
+            Variation_CH: productData.Variation_CH,
+            price: productData.price || item.price,
+            uom: productData.uom || "",
+            stock_quantity: productData.stock_quantity || 0,
+            image_url: productData.image_url || item.image_url || "/product-placeholder.svg",
+          };
+
+          console.log("Adding to order:", orderItem);
+          await addToOrder(orderItem);
+        } else {
+          console.log("Product not found in DB, using original item data");
+          // Fallback to original item data if product not found
+          await addToOrder({
+            id: item.product_id,
+            "Item Code": "",
+            Product: item.product_name,
+            Category: "",
+            weight: "",
+            UOM: "",
+            Country: "",
+            price: item.price,
+            uom: "",
+            stock_quantity: 0,
+            image_url: item.image_url || "/product-placeholder.svg",
+          });
+        }
+      }
+
+      // Prepare items for localStorage
+      const itemsToStore = items.map((item) => ({
+        product: {
+          id: item.product_id,
+          "Item Code": "",
+          Product: item.product_name,
+          Category: "",
+          weight: "",
+          UOM: "",
+          Country: "",
+          price: item.price,
+          uom: "",
+          stock_quantity: 0,
+          image_url: item.image_url || "/product-placeholder.svg",
+        },
+        quantity: item.quantity,
+      }));
+
+      // Store customer details and order items in localStorage for persistence
+      if (orderData) {
+        localStorage.setItem("reorder_customer_name", orderData.customer_name || "");
+        localStorage.setItem("reorder_customer_phone", orderData.customer_phone || "");
+        localStorage.setItem("reorder_customer_address", orderData.customer_address || "");
+      }
+
+      // Store order items in localStorage
+      localStorage.setItem("reorder_items", JSON.stringify(itemsToStore));
+
+      // Redirect to main page with order panel and customer info
+      router.push("/?order=true&reorder=true");
+    } catch (error) {
+      console.error("Error reordering items:", error);
+      alert("Failed to add items to cart. Please try again.");
+    } finally {
+      setReorderingId(null);
+    }
+  };
 
   const supabase = createBrowserClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+  const fetchOrders = async (page: number, isLoadMore = false) => {
+    try {
+      const loadingState = isLoadMore ? setLoadingMore : setLoading;
+      loadingState(true);
 
-        if (!user) {
-          router.push("/");
-          return;
-        }
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-        const { data: ordersData = [] } = await supabase
-          .from("orders")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false });
-
-        const { data: itemsDataResult = [] } = await supabase
-          .from("order_items")
-          .select("*")
-          .in("order_id", ordersData?.map((o) => o.id) || []);
-
-        setOrders(ordersData || []);
-        setItemsData(itemsDataResult || []);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
+      if (!user) {
+        router.push("/");
+        return;
       }
-    };
 
-    fetchData();
-  }, [supabase, router]);
+      // Calculate pagination range
+      const from = (page - 1) * ordersPerPage;
+      const to = from + ordersPerPage - 1;
+
+      // Fetch orders with count
+      const { data: ordersData = [], count } = await supabase
+        .from("orders")
+        .select("*", { count: "exact" })
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .range(from, to);
+
+      // Fetch items for these orders
+      const { data: itemsDataResult = [] } = await supabase
+        .from("order_items")
+        .select("*")
+        .in("order_id", ordersData?.map((o) => o.id) || []);
+
+      if (isLoadMore) {
+        setOrders((prev) => [...prev, ...ordersData]);
+        setItemsData((prev) => [...prev, ...itemsDataResult]);
+      } else {
+        setOrders(ordersData);
+        setItemsData(itemsDataResult);
+      }
+
+      // Update hasMore based on count
+      setHasMore(count ? from + ordersPerPage < count : false);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      const loadingState = isLoadMore ? setLoadingMore : setLoading;
+      loadingState(false);
+    }
+  };
+
+  const loadMore = () => {
+    if (!loadingMore && hasMore) {
+      const nextPage = currentPage + 1;
+      setCurrentPage(nextPage);
+      fetchOrders(nextPage, true);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders(1);
+  }, []);
 
   if (loading) {
     return (
@@ -251,60 +393,101 @@ export default function OrderHistory() {
       </div>
 
       <div className="space-y-6">
-        {orders.map(
-          (order: { id: string; created_at: string; total_amount: number; status: string }) => (
-            <div key={order.id} className="bg-white shadow-xl rounded-lg overflow-hidden">
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900">Order #{order.id}</h3>
-                    <p className="text-sm text-gray-500">
-                      {new Date(order.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <span
-                      className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                        order.status === "completed"
-                          ? "bg-green-100 text-green-800"
-                          : order.status === "pending"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                    </span>
-                    <span className="text-lg font-medium text-gray-900">
-                      ${order.total_amount.toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-
-                {orderItems[order.id] && (
-                  <div className="mt-4">
-                    <h4 className="text-sm font-medium text-gray-500 mb-2">Items</h4>
-                    <div className="space-y-2">
-                      {orderItems[order.id].map(
-                        (
-                          item: { product_name: string; quantity: number; price: number },
-                          index: number
-                        ) => (
-                          <div key={index} className="flex justify-between text-sm">
-                            <span className="text-gray-900">
-                              {item.product_name} x {item.quantity}
-                            </span>
-                            <span className="text-gray-500">
-                              ${(item.price * item.quantity).toFixed(2)}
-                            </span>
-                          </div>
-                        )
-                      )}
+        {orders.length === 0 && !loading ? (
+          <div className="text-center py-8">
+            <p className="text-gray-500">No orders found</p>
+          </div>
+        ) : (
+          orders.map(
+            (order: { id: string; created_at: string; total_amount: number; status: string }) => (
+              <div key={order.id} className="bg-white shadow-xl rounded-lg overflow-hidden">
+                <div className="p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900">Order #{order.id}</h3>
+                      <p className="text-sm text-gray-500">
+                        {new Date(order.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                      <span
+                        className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                          order.status === "completed"
+                            ? "bg-green-100 text-green-800"
+                            : order.status === "pending"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                      </span>
+                      <span className="text-lg font-medium text-gray-900">
+                        ${order.total_amount.toFixed(2)}
+                      </span>
+                      <button
+                        onClick={() => handleReorder(order.id)}
+                        disabled={reorderingId === order.id}
+                        className={`ml-4 inline-flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                          reorderingId === order.id
+                            ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                            : "bg-green-500 text-white hover:bg-green-600"
+                        }`}
+                      >
+                        <ShoppingBag className="w-4 h-4 mr-2" />
+                        {reorderingId === order.id ? "Adding to Cart..." : "Reorder"}
+                      </button>
                     </div>
                   </div>
-                )}
+
+                  {orderItems[order.id] && (
+                    <div className="mt-4">
+                      <h4 className="text-sm font-medium text-gray-500 mb-2">Items</h4>
+                      <div className="space-y-2">
+                        {orderItems[order.id].map(
+                          (
+                            item: { product_name: string; quantity: number; price: number },
+                            index: number
+                          ) => (
+                            <div key={index} className="flex justify-between text-sm">
+                              <span className="text-gray-900">
+                                {item.product_name} x {item.quantity}
+                              </span>
+                              <span className="text-gray-500">
+                                ${(item.price * item.quantity).toFixed(2)}
+                              </span>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            )
           )
+        )}
+
+        {hasMore && (
+          <div className="flex justify-center mt-8">
+            <button
+              onClick={loadMore}
+              disabled={loadingMore}
+              className={`px-6 py-3 text-sm font-medium rounded-md transition-colors ${
+                loadingMore
+                  ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                  : "bg-blue-500 text-white hover:bg-blue-600"
+              }`}
+            >
+              {loadingMore ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Loading...
+                </div>
+              ) : (
+                "Load More Orders"
+              )}
+            </button>
+          </div>
         )}
       </div>
     </div>

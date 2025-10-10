@@ -15,7 +15,16 @@ export default function CustomerLoginModal({ isOpen, onClose }: CustomerLoginMod
   const { logSignInSuccess, logSignInFailure } = useSignInLogging();
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      global: {
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        },
+      },
+    }
   );
   const [formData, setFormData] = useState({
     email: "",
@@ -49,7 +58,7 @@ export default function CustomerLoginModal({ isOpen, onClose }: CustomerLoginMod
       if (data?.user) {
         // Log successful sign-in
         await logSignInSuccess(
-          data.user.id, 
+          data.user.id,
           data.user.email || formData.email,
           data.session?.access_token
         );

@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { supabase } from "@/app/lib/supabase";
 import { useEffect, useState } from "react";
+import { useSession } from "@/app/hooks/useSession";
 
 export default function TopNav() {
   const router = useRouter();
@@ -30,9 +30,10 @@ export default function TopNav() {
     setIsLoggedIn(!!session);
   }
 
+  const { signOut } = useSession();
+
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push("/");
+    await signOut();
   };
 
   return (

@@ -44,12 +44,33 @@ export default function Home() {
   } | null>(null);
 
   // Hooks
-  const { session, userRole, isLoading: sessionLoading, isSessionValid, forceRefreshSession } = useSession();
-  const { products, loading, error, productGroups, setProducts, searchTerm, handleSearchChange, handleClearSearch } = useProducts(selectedCategory, isEnglish, session);
+  const {
+    session,
+    userRole,
+    isLoading: sessionLoading,
+    isSessionValid,
+    forceRefreshSession,
+  } = useSession();
+  const {
+    products,
+    loading,
+    error,
+    productGroups,
+    setProducts,
+    searchTerm,
+    handleSearchChange,
+    handleClearSearch,
+  } = useProducts(selectedCategory, isEnglish, session);
   const { countryMap } = useCountries();
   const { showScrollTop, scrollToTop } = useScroll();
   const { handleCustomerService, sendWhatsAppNotification } = useWhatsApp();
-  const { isPhotoEditorOpen, selectedProductForPhoto, openPhotoEditor, closePhotoEditor, handleImageUpdate } = usePhotoEditor();
+  const {
+    isPhotoEditorOpen,
+    selectedProductForPhoto,
+    openPhotoEditor,
+    closePhotoEditor,
+    handleImageUpdate,
+  } = usePhotoEditor();
   const {
     selectedProducts,
     customerName,
@@ -70,31 +91,36 @@ export default function Home() {
 
   // Callbacks
 
-  const handleOptionChange = useCallback((title: string, type: "variation" | "countryId" | "weight", value: string) => {
-    setSelectedOptions((prev) => ({
-      ...prev,
-      [title]: {
-        ...prev[title],
-        [type]: value,
-      },
-    }));
-  }, []);
+  const handleOptionChange = useCallback(
+    (title: string, type: "variation" | "countryId" | "weight", value: string) => {
+      setSelectedOptions((prev) => ({
+        ...prev,
+        [title]: {
+          ...prev[title],
+          [type]: value,
+        },
+      }));
+    },
+    []
+  );
 
-  const handleSubmitOrder = useCallback(async (reviewData?: {
-    remarks: string;
-    purchaseOrder: string;
-    uploadedFiles: File[];
-  }) => {
-    const success = await submitOrder(session, isEnglish, sendWhatsAppNotification, reviewData);
-    if (success) {
-      setIsOrderPanelOpen(false);
-      setReviewData(null); // Clear review data after successful submission
-    }
-  }, [submitOrder, session, isEnglish, sendWhatsAppNotification]);
+  const handleSubmitOrder = useCallback(
+    async (reviewData?: { remarks: string; purchaseOrder: string; uploadedFiles: File[] }) => {
+      const success = await submitOrder(session, isEnglish, sendWhatsAppNotification, reviewData);
+      if (success) {
+        setIsOrderPanelOpen(false);
+        setReviewData(null); // Clear review data after successful submission
+      }
+    },
+    [submitOrder, session, isEnglish, sendWhatsAppNotification]
+  );
 
-  const handleImageUpdateCallback = useCallback((imageUrl: string) => {
-    handleImageUpdate(imageUrl, setProducts);
-  }, [handleImageUpdate, setProducts]);
+  const handleImageUpdateCallback = useCallback(
+    (imageUrl: string) => {
+      handleImageUpdate(imageUrl, setProducts);
+    },
+    [handleImageUpdate, setProducts]
+  );
 
   const handleFillCustomerInfo = useCallback(async () => {
     if (session) {
@@ -102,12 +128,61 @@ export default function Home() {
     }
   }, [session, fillCustomerInfo]);
 
+  // Check URL parameters and open order panel if needed
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get("order") === "true") {
+      // Delay opening the panel slightly to ensure state is ready
+      setTimeout(() => {
+        setIsOrderPanelOpen(true);
+
+        // If this is a reorder, set the customer information
+        if (searchParams.get("reorder") === "true") {
+          const customerName = localStorage.getItem("reorder_customer_name");
+          const customerPhone = localStorage.getItem("reorder_customer_phone");
+          const customerAddress = localStorage.getItem("reorder_customer_address");
+
+          console.log("Setting customer info:", { customerName, customerPhone, customerAddress });
+
+          if (customerName) setCustomerName(customerName);
+          if (customerPhone) setCustomerPhone(customerPhone);
+          if (customerAddress) setCustomerAddress(customerAddress);
+
+          // Restore order items if this is a reorder
+          const reorderItems = localStorage.getItem("reorder_items");
+          if (reorderItems) {
+            const items = JSON.parse(reorderItems);
+            items.forEach((item: any) => {
+              addToOrder(item.product);
+            });
+          }
+
+          // Clear the stored data
+          localStorage.removeItem("reorder_customer_name");
+          localStorage.removeItem("reorder_customer_phone");
+          localStorage.removeItem("reorder_customer_address");
+          localStorage.removeItem("reorder_items");
+        }
+
+        // Remove the parameters from URL without refreshing
+        window.history.replaceState({}, "", "/");
+      }, 100);
+    }
+  }, [setCustomerName, setCustomerPhone, setCustomerAddress]);
+
   // Auto-fill customer information when order panel opens
   useEffect(() => {
     if (isOrderPanelOpen && session && !customerName && !customerPhone && !customerAddress) {
       handleFillCustomerInfo();
     }
-  }, [isOrderPanelOpen, session, customerName, customerPhone, customerAddress, handleFillCustomerInfo]);
+  }, [
+    isOrderPanelOpen,
+    session,
+    customerName,
+    customerPhone,
+    customerAddress,
+    handleFillCustomerInfo,
+  ]);
 
   const handleLoginSuccess = useCallback(async () => {
     try {
@@ -126,7 +201,13 @@ export default function Home() {
   const isLoading = loading || sessionLoading;
 
   // Debug logging
-  console.log('Loading states:', { loading, sessionLoading, isLoading, productsCount: products.length, sessionExists: !!session });
+  console.log("Loading states:", {
+    loading,
+    sessionLoading,
+    isLoading,
+    productsCount: products.length,
+    sessionExists: !!session,
+  });
 
   // Timeout to prevent infinite loading
   useEffect(() => {
@@ -152,7 +233,9 @@ export default function Home() {
 
   // Show error state
   if (error) {
-    return <ErrorState error={error} isEnglish={isEnglish} onRetry={() => window.location.reload()} />;
+    return (
+      <ErrorState error={error} isEnglish={isEnglish} onRetry={() => window.location.reload()} />
+    );
   }
 
   return (
@@ -161,26 +244,26 @@ export default function Home() {
       <div className="flex flex-col lg:flex-row justify-between items-center mb-6 gap-4">
         <div className="flex items-center gap-4">
           <LanguageToggle isEnglish={isEnglish} onToggle={() => setIsEnglish(!isEnglish)} />
-          <SearchBar 
-            searchTerm={searchTerm} 
-            isEnglish={isEnglish} 
+          <SearchBar
+            searchTerm={searchTerm}
+            isEnglish={isEnglish}
             onSearchChange={handleSearchChange}
             onClearSearch={handleClearSearch}
           />
         </div>
-        <CategoryFilter 
-          selectedCategory={selectedCategory} 
-          isEnglish={isEnglish} 
+        <CategoryFilter
+          selectedCategory={selectedCategory}
+          isEnglish={isEnglish}
           onCategoryChange={setSelectedCategory}
         />
       </div>
 
       {/* Search Results Info */}
       {searchTerm && (
-        <SearchResultsInfo 
-          searchTerm={searchTerm} 
-          resultsCount={productGroups.length} 
-          isEnglish={isEnglish} 
+        <SearchResultsInfo
+          searchTerm={searchTerm}
+          resultsCount={productGroups.length}
+          isEnglish={isEnglish}
         />
       )}
 
@@ -203,23 +286,24 @@ export default function Home() {
       />
 
       {/* No Results Message */}
-      {productGroups.length === 0 && !loading && !isInitialLoad && <NoResults isEnglish={isEnglish} />}
-      
+      {productGroups.length === 0 && !loading && !isInitialLoad && (
+        <NoResults isEnglish={isEnglish} />
+      )}
+
       {/* Fallback for when loading is stuck */}
       {productGroups.length === 0 && !loading && isInitialLoad && (
         <div className="text-center py-8">
           <p className="text-gray-500 mb-4">
             {isEnglish ? "Loading products..." : "正在加载产品..."}
           </p>
-          <button 
-            onClick={() => window.location.reload()} 
+          <button
+            onClick={() => window.location.reload()}
             className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           >
             {isEnglish ? "Refresh Page" : "刷新页面"}
           </button>
         </div>
       )}
-      
 
       {/* Floating Order Button */}
       {selectedProducts.length > 0 && (
