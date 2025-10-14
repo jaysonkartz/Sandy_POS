@@ -1,7 +1,7 @@
-import { supabase } from './supabase';
-import { Database } from '@/types/supabase';
+import { supabase } from "./supabase";
+import { Database } from "@/types/supabase";
 
-type SignInRecord = Database['public']['Tables']['sign_in_records']['Insert'];
+type SignInRecord = Database["public"]["Tables"]["sign_in_records"]["Insert"];
 
 export interface SignInData {
   userId: string;
@@ -34,16 +34,15 @@ export class SignInLogger {
         sign_in_at: new Date().toISOString(),
       };
 
-      const { error } = await supabase
-        .from('sign_in_records')
-        .insert([record]);
+      // Always create a new sign-in record for tracking purposes
+      const { error } = await supabase.from("sign_in_records").insert([record]);
 
       if (error) {
-        console.error('Failed to log sign-in record:', error);
+        console.error("Failed to log sign-in record:", error);
         // Don't throw error to avoid breaking the login flow
       }
     } catch (error) {
-      console.error('Error logging sign-in:', error);
+      console.error("Error logging sign-in:", error);
       // Don't throw error to avoid breaking the login flow
     }
   }
@@ -52,14 +51,14 @@ export class SignInLogger {
    * Get client IP address (for server-side usage)
    */
   static getClientIP(request: Request): string | undefined {
-    const forwarded = request.headers.get('x-forwarded-for');
-    const realIP = request.headers.get('x-real-ip');
-    const cfConnectingIP = request.headers.get('cf-connecting-ip');
-    
+    const forwarded = request.headers.get("x-forwarded-for");
+    const realIP = request.headers.get("x-real-ip");
+    const cfConnectingIP = request.headers.get("cf-connecting-ip");
+
     if (cfConnectingIP) return cfConnectingIP;
     if (realIP) return realIP;
-    if (forwarded) return forwarded.split(',')[0].trim();
-    
+    if (forwarded) return forwarded.split(",")[0].trim();
+
     return undefined;
   }
 
@@ -72,22 +71,22 @@ export class SignInLogger {
     const deviceInfo: Record<string, any> = {};
 
     // Detect browser
-    if (userAgent.includes('Chrome')) deviceInfo.browser = 'Chrome';
-    else if (userAgent.includes('Firefox')) deviceInfo.browser = 'Firefox';
-    else if (userAgent.includes('Safari')) deviceInfo.browser = 'Safari';
-    else if (userAgent.includes('Edge')) deviceInfo.browser = 'Edge';
+    if (userAgent.includes("Chrome")) deviceInfo.browser = "Chrome";
+    else if (userAgent.includes("Firefox")) deviceInfo.browser = "Firefox";
+    else if (userAgent.includes("Safari")) deviceInfo.browser = "Safari";
+    else if (userAgent.includes("Edge")) deviceInfo.browser = "Edge";
 
     // Detect OS
-    if (userAgent.includes('Windows')) deviceInfo.os = 'Windows';
-    else if (userAgent.includes('Mac')) deviceInfo.os = 'macOS';
-    else if (userAgent.includes('Linux')) deviceInfo.os = 'Linux';
-    else if (userAgent.includes('Android')) deviceInfo.os = 'Android';
-    else if (userAgent.includes('iOS')) deviceInfo.os = 'iOS';
+    if (userAgent.includes("Windows")) deviceInfo.os = "Windows";
+    else if (userAgent.includes("Mac")) deviceInfo.os = "macOS";
+    else if (userAgent.includes("Linux")) deviceInfo.os = "Linux";
+    else if (userAgent.includes("Android")) deviceInfo.os = "Android";
+    else if (userAgent.includes("iOS")) deviceInfo.os = "iOS";
 
     // Detect device type
-    if (userAgent.includes('Mobile')) deviceInfo.deviceType = 'Mobile';
-    else if (userAgent.includes('Tablet')) deviceInfo.deviceType = 'Tablet';
-    else deviceInfo.deviceType = 'Desktop';
+    if (userAgent.includes("Mobile")) deviceInfo.deviceType = "Mobile";
+    else if (userAgent.includes("Tablet")) deviceInfo.deviceType = "Tablet";
+    else deviceInfo.deviceType = "Desktop";
 
     return deviceInfo;
   }
@@ -96,21 +95,21 @@ export class SignInLogger {
    * Get user's sign-in history
    */
   static async getUserSignInHistory(
-    userId: string, 
+    userId: string,
     limit: number = 10
-  ): Promise<Database['public']['Tables']['sign_in_records']['Row'][]> {
+  ): Promise<Database["public"]["Tables"]["sign_in_records"]["Row"][]> {
     try {
       const { data, error } = await supabase
-        .from('sign_in_records')
-        .select('*')
-        .eq('user_id', userId)
-        .order('sign_in_at', { ascending: false })
+        .from("sign_in_records")
+        .select("*")
+        .eq("user_id", userId)
+        .order("sign_in_at", { ascending: false })
         .limit(limit);
 
       if (error) throw error;
       return data || [];
     } catch (error) {
-      console.error('Error fetching sign-in history:', error);
+      console.error("Error fetching sign-in history:", error);
       return [];
     }
   }
@@ -118,18 +117,20 @@ export class SignInLogger {
   /**
    * Get recent sign-ins for admin dashboard
    */
-  static async getRecentSignIns(limit: number = 50): Promise<Database['public']['Tables']['sign_in_records']['Row'][]> {
+  static async getRecentSignIns(
+    limit: number = 50
+  ): Promise<Database["public"]["Tables"]["sign_in_records"]["Row"][]> {
     try {
       const { data, error } = await supabase
-        .from('sign_in_records')
-        .select('*')
-        .order('sign_in_at', { ascending: false })
+        .from("sign_in_records")
+        .select("*")
+        .order("sign_in_at", { ascending: false })
         .limit(limit);
 
       if (error) throw error;
       return data || [];
     } catch (error) {
-      console.error('Error fetching recent sign-ins:', error);
+      console.error("Error fetching recent sign-ins:", error);
       return [];
     }
   }
@@ -138,7 +139,7 @@ export class SignInLogger {
    * Get sign-in statistics
    */
   static async getSignInStats(
-    startDate?: string, 
+    startDate?: string,
     endDate?: string
   ): Promise<{
     totalSignIns: number;
@@ -147,15 +148,13 @@ export class SignInLogger {
     uniqueUsers: number;
   }> {
     try {
-      let query = supabase
-        .from('sign_in_records')
-        .select('*');
+      let query = supabase.from("sign_in_records").select("*");
 
       if (startDate) {
-        query = query.gte('sign_in_at', startDate);
+        query = query.gte("sign_in_at", startDate);
       }
       if (endDate) {
-        query = query.lte('sign_in_at', endDate);
+        query = query.lte("sign_in_at", endDate);
       }
 
       const { data, error } = await query;
@@ -163,9 +162,9 @@ export class SignInLogger {
       if (error) throw error;
 
       const records = data || [];
-      const successfulSignIns = records.filter(r => r.success).length;
-      const failedSignIns = records.filter(r => !r.success).length;
-      const uniqueUsers = new Set(records.map(r => r.user_id)).size;
+      const successfulSignIns = records.filter((r) => r.success).length;
+      const failedSignIns = records.filter((r) => !r.success).length;
+      const uniqueUsers = new Set(records.map((r) => r.user_id)).size;
 
       return {
         totalSignIns: records.length,
@@ -174,7 +173,7 @@ export class SignInLogger {
         uniqueUsers,
       };
     } catch (error) {
-      console.error('Error fetching sign-in stats:', error);
+      console.error("Error fetching sign-in stats:", error);
       return {
         totalSignIns: 0,
         successfulSignIns: 0,

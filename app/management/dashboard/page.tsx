@@ -132,17 +132,20 @@ export default function ManagementDashboard() {
       value: number;
     }>;
   }>({ byQuantity: [], byPrice: [] });
-  const [selectedMonth, setSelectedMonth] = useState("Select a Month");
+  const [selectedMonthQuantity, setSelectedMonthQuantity] = useState<string>("Loading...");
+  const [selectedMonthPrice, setSelectedMonthPrice] = useState<string>("Loading...");
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
   const [monthYearMap, setMonthYearMap] = useState<Map<string, number>>(new Map());
-  const [recentOrders, setRecentOrders] = useState<Array<{
-    id: number;
-    created_at: string;
-    customer_name: string;
-    customer_phone: string;
-    total_amount: number;
-    status: string;
-  }>>([]);
+  const [recentOrders, setRecentOrders] = useState<
+    Array<{
+      id: number;
+      created_at: string;
+      customer_name: string;
+      customer_phone: string;
+      total_amount: number;
+      status: string;
+    }>
+  >([]);
 
   const priceHistoryMap: Record<number, { previous_price: number; last_price_update: string }[]> =
     {};
@@ -280,58 +283,71 @@ export default function ManagementDashboard() {
     }
   };
 
+  const checkDatabaseTables = async () => {
+    console.log("Checking database tables...");
+
+    // Check orders table
+    const { data: orders, error: ordersError } = await supabase.from("orders").select("*");
+    console.log("Orders table:", { orders, ordersError });
+
+    // Check order_items table
+    const { data: items, error: itemsError } = await supabase.from("order_items").select("*");
+    console.log("Order items table:", { items, itemsError });
+  };
+
   const fetchTopSellingProducts = async (month?: string) => {
+    // Check tables first
+    await checkDatabaseTables();
     try {
+      console.log("fetchTopSellingProducts called with month:", month);
+
       // First, get all available months from orders (include all statuses for month detection)
-      const { data: allOrders, error: monthsError } = await supabase
-        .from("orders")
-        .select("created_at")
-        .order("created_at", { ascending: false });
+      // Try to get any orders without filters first
+      const { data: allOrders, error: monthsError } = await supabase.from("orders").select("*");
+
+      console.log("Checking raw orders:", allOrders);
+
+      console.log("All orders fetched:", { allOrders, monthsError });
 
       if (monthsError) throw monthsError;
 
-      // Extract unique months with year, sorted by date
+      // Generate all months for the current year
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
       const monthYearMap = new Map<string, number>();
-      const monthYearArray: Array<{month: string, year: number, date: Date}> = [];
-      
-      allOrders?.forEach((order: any) => {
-        const date = new Date(order.created_at);
-        const monthName = date.toLocaleString('default', { month: 'long' });
-        const year = date.getFullYear();
-        const key = `${monthName} ${year}`;
-        
-        if (!monthYearMap.has(key)) {
-          monthYearMap.set(key, year);
-          monthYearArray.push({month: monthName, year, date});
-        }
-      });
-      
+      const monthYearArray: Array<{ month: string; year: number; date: Date }> = [];
+
+      // Add all months of the current year
+      for (let month = 0; month < 12; month++) {
+        const date = new Date(currentYear, month, 1);
+        const monthName = date.toLocaleString("default", { month: "long" });
+        const key = `${monthName} ${currentYear}`;
+
+        monthYearMap.set(key, currentYear);
+        monthYearArray.push({ month: monthName, year: currentYear, date });
+      }
+
       // Sort by date (most recent first)
       monthYearArray.sort((a, b) => b.date.getTime() - a.date.getTime());
-      
-      // If no orders exist, create a default month (current month)
-      if (monthYearArray.length === 0) {
-        const currentDate = new Date();
-        const currentMonth = currentDate.toLocaleString('default', { month: 'long' });
-        const currentYear = currentDate.getFullYear();
-        const key = `${currentMonth} ${currentYear}`;
-        monthYearMap.set(key, currentYear);
-        monthYearArray.push({month: currentMonth, year: currentYear, date: currentDate});
-      }
-      
-      const monthsArray = monthYearArray.map(item => `${item.month} ${item.year}`);
+
+      const monthsArray = monthYearArray.map((item) => `${item.month} ${item.year}`);
       setAvailableMonths(monthsArray);
       setMonthYearMap(monthYearMap);
 
       // If no month specified, use the first available month or current month
-      const targetMonth = month || monthsArray[0] || new Date().toLocaleString('default', { month: 'long' });
-      setSelectedMonth(targetMonth);
+      const targetMonth =
+        month || monthsArray[0] || new Date().toLocaleString("default", { month: "long" });
+      if (type === "quantity") {
+        setSelectedMonthQuantity(targetMonth);
+      } else {
+        setSelectedMonthPrice(targetMonth);
+      }
 
       // Parse the selected month to get month name and year
       let monthName, targetYear;
-      if (targetMonth.includes(' ')) {
+      if (targetMonth.includes(" ")) {
         // Format: "Month Year" (e.g., "December 2024")
-        const parts = targetMonth.split(' ');
+        const parts = targetMonth.split(" ");
         monthName = parts[0];
         targetYear = parseInt(parts[1]);
       } else {
@@ -339,14 +355,14 @@ export default function ManagementDashboard() {
         monthName = targetMonth;
         targetYear = new Date().getFullYear();
       }
-      
+
       const monthNumber = new Date(`${monthName} 1, ${targetYear}`).getMonth() + 1;
-      
+
       // Fetch order items filtered by month and year
       const startDate = new Date(targetYear, monthNumber - 1, 1).toISOString();
       const endDate = new Date(targetYear, monthNumber, 0, 23, 59, 59).toISOString();
-      
-      console.log('Month detection debug:', {
+
+      console.log("Month detection debug:", {
         allOrdersCount: allOrders?.length,
         monthYearMap: Object.fromEntries(monthYearMap),
         monthsArray,
@@ -355,54 +371,76 @@ export default function ManagementDashboard() {
         targetYear,
         monthNumber,
         startDate,
-        endDate
+        endDate,
       });
 
-      const { data: orderItems, error } = await supabase
-        .from("order_items")
-        .select(`
+      console.log("Fetching data for date range:", { startDate, endDate });
+
+      const { data: orderItems, error } = await supabase.from("order_items").select(
+        `
+          id,
+          order_id,
+          product_id,
           quantity,
           price,
+          total_price,
           product_name,
           product_code,
           orders!inner(
             created_at,
             status
           )
-        `)
-        .gte("orders.created_at", startDate)
-        .lte("orders.created_at", endDate);
+        `
+      );
+
+      console.log("Raw order items:", orderItems);
 
       if (error) throw error;
 
-      console.log('Order items fetched:', {
+      console.log("Order items fetched:", {
         orderItemsCount: orderItems?.length,
-        orderItems: orderItems?.slice(0, 3) // Show first 3 items for debugging
+        orderItems: orderItems?.slice(0, 3), // Show first 3 items for debugging
       });
 
       // Process data to get top selling products by quantity
-      const productQuantityMap = new Map<string, {
-        category: string;
-        product: string;
-        variation: string;
-        quantity: number;
-      }>();
+      const productQuantityMap = new Map<
+        string,
+        {
+          category: string;
+          product: string;
+          variation: string;
+          quantity: number;
+        }
+      >();
 
-      const productValueMap = new Map<string, {
-        product: string;
-        variation: string;
-        value: number;
-      }>();
+      const productValueMap = new Map<
+        string,
+        {
+          product: string;
+          variation: string;
+          value: number;
+        }
+      >();
+
+      console.log("Processing order items:", orderItems);
 
       orderItems?.forEach((item: any) => {
-        const productName = item.product_name || "Unknown Product";
-        const variation = "small"; // You can extract this from product data if available
-        const category = "Chilli"; // You can extract this from product data if available
+        const productName = item.product_name;
+        const productCode = item.product_code || "N/A";
         const quantity = item.quantity || 0;
-        const value = (item.price || 0) * quantity;
+        const totalPrice = item.total_price || 0;
+
+        console.log("Processing item:", { productName, productCode, quantity, totalPrice });
+
+        // Determine category from product name
+        let category = "Other";
+        if (productName.toLowerCase().includes("chilli")) {
+          category = "Chilli";
+        }
+        // Add more category logic here if needed
 
         // Group by product name for quantity
-        const quantityKey = `${productName}-${variation}`;
+        const quantityKey = productName;
         if (productQuantityMap.has(quantityKey)) {
           const existing = productQuantityMap.get(quantityKey)!;
           existing.quantity += quantity;
@@ -410,21 +448,21 @@ export default function ManagementDashboard() {
           productQuantityMap.set(quantityKey, {
             category,
             product: productName,
-            variation,
-            quantity
+            variation: productCode,
+            quantity,
           });
         }
 
         // Group by product name for value
-        const valueKey = `${productName}-${variation}`;
+        const valueKey = productName;
         if (productValueMap.has(valueKey)) {
           const existing = productValueMap.get(valueKey)!;
-          existing.value += value;
+          existing.value += totalPrice;
         } else {
           productValueMap.set(valueKey, {
             product: productName,
-            variation,
-            value
+            variation: productCode,
+            value: totalPrice,
           });
         }
       });
@@ -438,10 +476,20 @@ export default function ManagementDashboard() {
         .sort((a, b) => b.value - a.value)
         .slice(0, 3);
 
-      setTopSellingProducts({
-        byQuantity: topByQuantity,
-        byPrice: topByValue
+      console.log("Processed data:", {
+        topByQuantity,
+        topByValue,
+        productQuantityMap: Object.fromEntries(productQuantityMap),
+        productValueMap: Object.fromEntries(productValueMap),
       });
+
+      const finalData = {
+        byQuantity: topByQuantity,
+        byPrice: topByValue,
+      };
+
+      console.log("Setting top selling products:", finalData);
+      setTopSellingProducts(finalData);
     } catch (error) {
       console.error("Error fetching top selling products:", error);
     }
@@ -512,7 +560,7 @@ export default function ManagementDashboard() {
     {
       id: "signin-monitoring",
       title: "Sign-in Monitoring",
-      description: "Track user authentication",
+
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -626,7 +674,6 @@ export default function ManagementDashboard() {
       ],
     };
 
-
     return (
       <motion.div
         animate={{ opacity: 1, y: 0 }}
@@ -675,10 +722,10 @@ export default function ManagementDashboard() {
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Top Selling Products (by Qty)</h3>
               <select
-                value={selectedMonth}
+                value={selectedMonthQuantity}
                 onChange={(e) => {
-                  setSelectedMonth(e.target.value);
-                  fetchTopSellingProducts(e.target.value);
+                  setSelectedMonthQuantity(e.target.value);
+                  fetchTopSellingProducts(e.target.value, "quantity");
                 }}
                 className="px-3 py-1 pr-8 bg-blue-100 text-blue-600 rounded text-sm font-medium border-0 focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none bg-no-repeat bg-right bg-[length:16px] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQgNkw4IDEwTDEyIDYiIHN0cm9rZT0iIzM3NDE1MSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+')]"
               >
@@ -728,7 +775,7 @@ export default function ManagementDashboard() {
                   ) : (
                     <tr>
                       <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
-                        No data available
+                        No sales data available for {selectedMonthQuantity}
                       </td>
                     </tr>
                   )}
@@ -742,10 +789,10 @@ export default function ManagementDashboard() {
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Top Selling Products (by Price)</h3>
               <select
-                value={selectedMonth}
+                value={selectedMonthPrice}
                 onChange={(e) => {
-                  setSelectedMonth(e.target.value);
-                  fetchTopSellingProducts(e.target.value);
+                  setSelectedMonthPrice(e.target.value);
+                  fetchTopSellingProducts(e.target.value, "price");
                 }}
                 className="px-3 py-1 pr-8 bg-blue-100 text-blue-600 rounded text-sm font-medium border-0 focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none bg-no-repeat bg-right bg-[length:16px] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQgNkw4IDEwTDEyIDYiIHN0cm9rZT0iIzM3NDE1MSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+')]"
               >
@@ -789,7 +836,7 @@ export default function ManagementDashboard() {
                   ) : (
                     <tr>
                       <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
-                        No data available
+                        No sales data available for {selectedMonthPrice}
                       </td>
                     </tr>
                   )}
@@ -838,10 +885,10 @@ export default function ManagementDashboard() {
                           order.status === "completed"
                             ? "bg-green-100 text-green-800"
                             : order.status === "pending"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : order.status === "cancelled"
-                            ? "bg-red-100 text-red-800"
-                            : "bg-gray-100 text-gray-800"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : order.status === "cancelled"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-gray-100 text-gray-800"
                         }`}
                       >
                         {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
@@ -1372,133 +1419,134 @@ export default function ManagementDashboard() {
                                                     </div>
                                                     <div className="flex items-center space-x-2">
                                                       <input
-                                                      min="0"
-                                                      placeholder="Offer new price"
-                                                      step="0.01"
-                                                      type="number"
-                                                      value={
-                                                        offerPrices[
-                                                          `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`
-                                                        ] || ""
-                                                      }
-                                                      onBlur={(e) => {
-                                                        // Validate and clean up on blur
-                                                        const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
-                                                        const value = e.target.value;
-                                                        if (
-                                                          value === "" ||
-                                                          value === "0" ||
-                                                          isNaN(Number(value))
-                                                        ) {
-                                                          setOfferPrices((prev) => {
-                                                            const newState = { ...prev };
-                                                            delete newState[key];
-                                                            return newState;
-                                                          });
+                                                        min="0"
+                                                        placeholder="Offer new price"
+                                                        step="0.01"
+                                                        type="number"
+                                                        value={
+                                                          offerPrices[
+                                                            `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`
+                                                          ] || ""
                                                         }
-                                                      }}
-                                                      onChange={(e) => {
-                                                        const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
-                                                        const value = e.target.value;
-
-                                                        if (
-                                                          value === "" ||
-                                                          value === null ||
-                                                          value === undefined
-                                                        ) {
-                                                          // Clear the value when input is empty
-                                                          setOfferPrices((prev) => {
-                                                            const newState = { ...prev };
-                                                            delete newState[key];
-                                                            return newState;
-                                                          });
-                                                        } else {
-                                                          const numValue = Number(value);
-                                                          if (!isNaN(numValue)) {
-                                                            setOfferPrices((prev) => ({
-                                                              ...prev,
-                                                              [key]: numValue,
-                                                            }));
-                                                          }
-                                                        }
-                                                      }}
-                                                      onFocus={(e) => {
-                                                        // Select all text when focused
-                                                        e.target.select();
-                                                      }}
-                                                    />
-                                                    {offerPrices[
-                                                      `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`
-                                                    ] && (
-                                                      <button
-                                                        className="px-2 py-1 text-xs text-red-600 hover:text-red-800 border border-red-300 hover:border-red-500 rounded"
-                                                        title="Clear offer price"
-                                                        type="button"
-                                                        onClick={() => {
+                                                        onBlur={(e) => {
+                                                          // Validate and clean up on blur
                                                           const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
-                                                          setOfferPrices((prev) => {
-                                                            const newState = { ...prev };
-                                                            delete newState[key];
-                                                            return newState;
-                                                          });
+                                                          const value = e.target.value;
+                                                          if (
+                                                            value === "" ||
+                                                            value === "0" ||
+                                                            isNaN(Number(value))
+                                                          ) {
+                                                            setOfferPrices((prev) => {
+                                                              const newState = { ...prev };
+                                                              delete newState[key];
+                                                              return newState;
+                                                            });
+                                                          }
                                                         }}
-                                                      >
-                                                        ✕
-                                                      </button>
-                                                    )}
-                                                    <button
-                                                      onClick={async () => {
-                                                        if (!order.customer_id) {
-                                                          alert("Customer ID not found!");
-                                                          return;
-                                                        }
-                                                        const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
-                                                        const currentOfferPrice = offerPrices[key];
-                                                        if (!currentOfferPrice) {
-                                                          alert("Please enter an offer price");
-                                                          return;
-                                                        }
-                                                        try {
-                                                          const { error } = await supabase
-                                                            .from("price_offers")
-                                                            .insert([
-                                                              {
-                                                                customer_id: order.customer_id,
-                                                                product_id: product.id,
-                                                                offered_price: currentOfferPrice,
-                                                                status: "pending",
-                                                                created_at:
-                                                                  new Date().toISOString(),
-                                                              },
-                                                            ]);
+                                                        onChange={(e) => {
+                                                          const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
+                                                          const value = e.target.value;
 
-                                                          if (error) {
-                                                            alert(
-                                                              "Failed to send offer: " +
-                                                                error.message
-                                                            );
+                                                          if (
+                                                            value === "" ||
+                                                            value === null ||
+                                                            value === undefined
+                                                          ) {
+                                                            // Clear the value when input is empty
+                                                            setOfferPrices((prev) => {
+                                                              const newState = { ...prev };
+                                                              delete newState[key];
+                                                              return newState;
+                                                            });
+                                                          } else {
+                                                            const numValue = Number(value);
+                                                            if (!isNaN(numValue)) {
+                                                              setOfferPrices((prev) => ({
+                                                                ...prev,
+                                                                [key]: numValue,
+                                                              }));
+                                                            }
+                                                          }
+                                                        }}
+                                                        onFocus={(e) => {
+                                                          // Select all text when focused
+                                                          e.target.select();
+                                                        }}
+                                                      />
+                                                      {offerPrices[
+                                                        `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`
+                                                      ] && (
+                                                        <button
+                                                          className="px-2 py-1 text-xs text-red-600 hover:text-red-800 border border-red-300 hover:border-red-500 rounded"
+                                                          title="Clear offer price"
+                                                          type="button"
+                                                          onClick={() => {
+                                                            const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
+                                                            setOfferPrices((prev) => {
+                                                              const newState = { ...prev };
+                                                              delete newState[key];
+                                                              return newState;
+                                                            });
+                                                          }}
+                                                        >
+                                                          ✕
+                                                        </button>
+                                                      )}
+                                                      <button
+                                                        onClick={async () => {
+                                                          if (!order.customer_id) {
+                                                            alert("Customer ID not found!");
                                                             return;
                                                           }
+                                                          const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
+                                                          const currentOfferPrice =
+                                                            offerPrices[key];
+                                                          if (!currentOfferPrice) {
+                                                            alert("Please enter an offer price");
+                                                            return;
+                                                          }
+                                                          try {
+                                                            const { error } = await supabase
+                                                              .from("price_offers")
+                                                              .insert([
+                                                                {
+                                                                  customer_id: order.customer_id,
+                                                                  product_id: product.id,
+                                                                  offered_price: currentOfferPrice,
+                                                                  status: "pending",
+                                                                  created_at:
+                                                                    new Date().toISOString(),
+                                                                },
+                                                              ]);
 
-                                                          // Clear the offer price after sending successfully
-                                                          setOfferPrices((prev) => {
-                                                            const newState = { ...prev };
-                                                            delete newState[key];
-                                                            return newState;
-                                                          });
+                                                            if (error) {
+                                                              alert(
+                                                                "Failed to send offer: " +
+                                                                  error.message
+                                                              );
+                                                              return;
+                                                            }
 
-                                                          alert(
-                                                            `Offer sent successfully to ${order.customer_name} for $${currentOfferPrice}`
-                                                          );
-                                                        } catch (err) {
-                                                          alert(
-                                                            "Failed to send offer. Please try again."
-                                                          );
-                                                        }
-                                                      }}
-                                                    >
-                                                      Send Offer
-                                                    </button>
+                                                            // Clear the offer price after sending successfully
+                                                            setOfferPrices((prev) => {
+                                                              const newState = { ...prev };
+                                                              delete newState[key];
+                                                              return newState;
+                                                            });
+
+                                                            alert(
+                                                              `Offer sent successfully to ${order.customer_name} for $${currentOfferPrice}`
+                                                            );
+                                                          } catch (err) {
+                                                            alert(
+                                                              "Failed to send offer. Please try again."
+                                                            );
+                                                          }
+                                                        }}
+                                                      >
+                                                        Send Offer
+                                                      </button>
                                                     </div>
                                                   </div>
                                                 );
@@ -1651,7 +1699,7 @@ export default function ManagementDashboard() {
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-900">Sign-in Monitoring</h2>
             </div>
-            
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div>
                 <SignInStats title="Sign-in Statistics" />
@@ -1660,7 +1708,7 @@ export default function ManagementDashboard() {
                 <QuickSignInCheck limit={10} />
               </div>
             </div>
-            
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div>
                 <QuickSignInCheck limit={10} showFailedOnly={true} />
@@ -1676,7 +1724,7 @@ export default function ManagementDashboard() {
                       View Full Sign-in History
                     </a>
                     <button
-                      onClick={() => window.open('/admin/signin-records', '_blank')}
+                      onClick={() => window.open("/admin/signin-records", "_blank")}
                       className="block w-full px-4 py-2 text-left text-sm text-green-600 hover:text-green-800 hover:bg-green-50 rounded-md"
                     >
                       Export Sign-in Data
@@ -1717,10 +1765,12 @@ export default function ManagementDashboard() {
       setOrderDetails((prevOrders) =>
         prevOrders.map((order) => (order.id === orderId ? { ...order, status: newStatus } : order))
       );
-      
+
       // Update recent orders as well
       setRecentOrders((prevOrders) =>
-        prevOrders.map((order) => (order.id === parseInt(orderId) ? { ...order, status: newStatus } : order))
+        prevOrders.map((order) =>
+          order.id === parseInt(orderId) ? { ...order, status: newStatus } : order
+        )
       );
 
       // Show success message

@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/app/lib/supabaseClient";
-import { 
-  SESSION_REFRESH_INTERVAL, 
-  SESSION_CHECK_INTERVAL, 
+import {
+  SESSION_REFRESH_INTERVAL,
+  SESSION_CHECK_INTERVAL,
   USER_ACTIVITY_TIMEOUT,
   SESSION_RETRY_DELAY,
   MAX_SESSION_RETRIES,
   LOADING_TIMEOUT,
-  STORAGE_KEYS
+  STORAGE_KEYS,
 } from "@/app/constants/app-constants";
 
 interface UseSessionReturn {
@@ -50,43 +50,49 @@ export const useSession = (): UseSessionReturn => {
   }, []);
 
   // Function to fetch user role with retry
-  const fetchUserRoleWithRetry = useCallback(async (userId: string, retries = MAX_SESSION_RETRIES) => {
-    for (let i = 0; i < retries; i++) {
-      try {
-        const { data: userData, error } = await supabase
-          .from("users")
-          .select("role")
-          .eq("id", userId)
-          .single();
+  const fetchUserRoleWithRetry = useCallback(
+    async (userId: string, retries = MAX_SESSION_RETRIES) => {
+      for (let i = 0; i < retries; i++) {
+        try {
+          const { data: userData, error } = await supabase
+            .from("users")
+            .select("role")
+            .eq("id", userId)
+            .single();
 
-        if (userData && !error) {
-          setUserRole(userData.role);
-          return userData.role;
-        } else if (i < retries - 1) {
-          await new Promise((resolve) => setTimeout(resolve, SESSION_RETRY_DELAY));
-        }
-      } catch (error) {
-        console.error(`Attempt ${i + 1} error:`, error);
-        if (i < retries - 1) {
-          await new Promise((resolve) => setTimeout(resolve, SESSION_RETRY_DELAY));
+          if (userData && !error) {
+            setUserRole(userData.role);
+            return userData.role;
+          } else if (i < retries - 1) {
+            await new Promise((resolve) => setTimeout(resolve, SESSION_RETRY_DELAY));
+          }
+        } catch (error) {
+          console.error(`Attempt ${i + 1} error:`, error);
+          if (i < retries - 1) {
+            await new Promise((resolve) => setTimeout(resolve, SESSION_RETRY_DELAY));
+          }
         }
       }
-    }
-    setUserRole("");
-    return null;
-  }, []);
+      setUserRole("");
+      return null;
+    },
+    []
+  );
 
   // Aggressive session recovery function
   const aggressiveSessionRecovery = useCallback(async () => {
     // Method 1: Try refreshSession
     try {
-      const { data: { session }, error } = await supabase.auth.refreshSession();
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.refreshSession();
 
       if (error?.message?.includes("session_not_found") || error?.code === "session_not_found") {
         // Clear all invalid session data
         const keys = Object.keys(localStorage);
-        const supabaseKeys = keys.filter((key) => 
-          key.includes("supabase") || key.includes(STORAGE_KEYS.SUPABASE_PREFIX)
+        const supabaseKeys = keys.filter(
+          (key) => key.includes("supabase") || key.includes(STORAGE_KEYS.SUPABASE_PREFIX)
         );
 
         supabaseKeys.forEach((key) => localStorage.removeItem(key));
@@ -111,8 +117,8 @@ export const useSession = (): UseSessionReturn => {
     // Method 2: Check localStorage for stored session
     try {
       const keys = Object.keys(localStorage);
-      const supabaseKeys = keys.filter((key) => 
-        key.includes("supabase") || key.includes(STORAGE_KEYS.SUPABASE_PREFIX)
+      const supabaseKeys = keys.filter(
+        (key) => key.includes("supabase") || key.includes(STORAGE_KEYS.SUPABASE_PREFIX)
       );
 
       for (const key of supabaseKeys) {
@@ -123,12 +129,18 @@ export const useSession = (): UseSessionReturn => {
             if (parsed?.user || parsed?.access_token) {
               if (parsed.access_token) {
                 try {
-                  const { data: { session: restoredSession }, error } = await supabase.auth.setSession({
+                  const {
+                    data: { session: restoredSession },
+                    error,
+                  } = await supabase.auth.setSession({
                     access_token: parsed.access_token,
                     refresh_token: parsed.refresh_token || "",
                   });
 
-                  if (error?.message?.includes("session_not_found") || error?.code === "session_not_found") {
+                  if (
+                    error?.message?.includes("session_not_found") ||
+                    error?.code === "session_not_found"
+                  ) {
                     localStorage.removeItem(key);
                     return false;
                   }
@@ -259,7 +271,10 @@ export const useSession = (): UseSessionReturn => {
               const parsed = JSON.parse(storedSession);
               if (parsed?.access_token && parsed?.user) {
                 console.log("Attempting to restore stored session");
-                const { data: { session: restoredSession }, error: restoreError } = await supabase.auth.setSession({
+                const {
+                  data: { session: restoredSession },
+                  error: restoreError,
+                } = await supabase.auth.setSession({
                   access_token: parsed.access_token,
                   refresh_token: parsed.refresh_token || "",
                 });
@@ -302,7 +317,9 @@ export const useSession = (): UseSessionReturn => {
     initializeSession();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
 
       // Persist session to localStorage
@@ -334,7 +351,6 @@ export const useSession = (): UseSessionReturn => {
     });
 
     return () => {
-      clearTimeout(fallbackTimeout);
       subscription.unsubscribe();
     };
   }, [aggressiveSessionRecovery, fetchUserRole]);
@@ -345,7 +361,10 @@ export const useSession = (): UseSessionReturn => {
 
     const refreshInterval = setInterval(async () => {
       try {
-        const { data: { session: refreshedSession }, error } = await supabase.auth.refreshSession();
+        const {
+          data: { session: refreshedSession },
+          error,
+        } = await supabase.auth.refreshSession();
 
         if (error) {
           console.error("Error refreshing session:", error);
@@ -368,7 +387,10 @@ export const useSession = (): UseSessionReturn => {
     const sessionCheckInterval = setInterval(async () => {
       try {
         if (session?.user) {
-          const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+          const {
+            data: { session: currentSession },
+            error,
+          } = await supabase.auth.getSession();
 
           if (error || !currentSession?.user) {
             const recovered = await aggressiveSessionRecovery();
@@ -379,7 +401,10 @@ export const useSession = (): UseSessionReturn => {
           } else {
             // Proactively refresh session
             try {
-              const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+              const {
+                data: { session: refreshedSession },
+                error: refreshError,
+              } = await supabase.auth.refreshSession();
               if (!refreshError && refreshedSession) {
                 setSession(refreshedSession);
               }
@@ -406,7 +431,9 @@ export const useSession = (): UseSessionReturn => {
         if (!session?.user) {
           await aggressiveSessionRecovery();
         } else {
-          const { data: { session: currentSession } } = await supabase.auth.getSession();
+          const {
+            data: { session: currentSession },
+          } = await supabase.auth.getSession();
           if (!currentSession?.user) {
             const recovered = await aggressiveSessionRecovery();
             if (!recovered) {
@@ -434,7 +461,10 @@ export const useSession = (): UseSessionReturn => {
       activityTimeout = setTimeout(async () => {
         if (session?.user) {
           try {
-            const { data: { session: refreshedSession }, error } = await supabase.auth.refreshSession();
+            const {
+              data: { session: refreshedSession },
+              error,
+            } = await supabase.auth.refreshSession();
             if (!error && refreshedSession) {
               setSession(refreshedSession);
             }
@@ -460,12 +490,48 @@ export const useSession = (): UseSessionReturn => {
     };
   }, [session?.user]);
 
+  // Function to handle sign out
+  const signOut = useCallback(async () => {
+    try {
+      // First, clear all Supabase-related items from localStorage
+      const keys = Object.keys(localStorage);
+      const supabaseKeys = keys.filter(
+        (key) => key.includes("supabase") || key.includes(STORAGE_KEYS.SUPABASE_PREFIX)
+      );
+      supabaseKeys.forEach((key) => localStorage.removeItem(key));
+      localStorage.removeItem(STORAGE_KEYS.SESSION);
+
+      // Call Supabase signOut
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+
+      // Clear local state
+      setSession(null);
+      setUserRole("");
+
+      // Force a page reload to clear any cached state
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Error during sign out:", error);
+      // If normal signout fails, try aggressive cleanup
+      try {
+        await supabase.auth.signOut();
+        localStorage.clear(); // Clear everything as a last resort
+        window.location.href = "/";
+      } catch (finalError) {
+        console.error("Final sign out attempt failed:", finalError);
+        window.location.href = "/";
+      }
+    }
+  }, []);
+
   return {
     session,
     userRole,
     isLoading,
     isSessionValid: isSessionValid(),
     forceRefreshSession,
+    signOut, // Add signOut to the returned object
   };
 };
 
