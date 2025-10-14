@@ -96,24 +96,21 @@ export default function Home() {
     handleImageUpdate(imageUrl, setProducts);
   }, [handleImageUpdate, setProducts]);
 
-  const handleFillCustomerInfo = useCallback(async () => {
-    if (session) {
-      await fillCustomerInfo(session);
-    }
-  }, [session, fillCustomerInfo]);
-
-  // Auto-fill customer information when order panel opens
-  useEffect(() => {
-    if (isOrderPanelOpen && session && !customerName && !customerPhone && !customerAddress) {
-      handleFillCustomerInfo();
-    }
-  }, [isOrderPanelOpen, session, customerName, customerPhone, customerAddress, handleFillCustomerInfo]);
+  // Note: Auto-fill functionality is now handled directly in OrderPanel component
 
   const handleLoginSuccess = useCallback(async () => {
     try {
+      console.log("Login success callback triggered");
       setIsLoggingIn(true);
-      await forceRefreshSession();
       setIsSignupModalOpen(false);
+      
+      // Give a small delay to ensure the session is properly set
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Force refresh the session
+      await forceRefreshSession();
+      
+      console.log("Login success callback completed");
     } catch (error) {
       console.error("Error in login success callback:", error);
     } finally {
@@ -121,29 +118,29 @@ export default function Home() {
     }
   }, [forceRefreshSession]);
 
-  // Loading state - use a timeout to prevent infinite loading
+  // Loading state - simplified logic to prevent infinite loading
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const isLoading = loading || sessionLoading;
 
   // Debug logging
-  console.log('Loading states:', { loading, sessionLoading, isLoading, productsCount: products.length, sessionExists: !!session });
+  //console.log('Loading states:', { loading, sessionLoading, isLoading, productsCount: products.length, sessionExists: !!session });
 
-  // Timeout to prevent infinite loading
+  // Timeout to prevent infinite loading - reduced to 5 seconds
   useEffect(() => {
     const timeout = setTimeout(() => {
       console.log("Force loading reset after timeout");
       setIsInitialLoad(false);
-    }, 8000); // 8 second maximum loading time
+    }, 5000); // 5 second maximum loading time
 
     return () => clearTimeout(timeout);
   }, []);
 
-  // Reset initial load when data is available
+  // Reset initial load when data is available or session is loaded
   useEffect(() => {
-    if (products.length > 0 || error) {
+    if (products.length > 0 || error || !sessionLoading) {
       setIsInitialLoad(false);
     }
-  }, [products.length, error]);
+  }, [products.length, error, sessionLoading]);
 
   // Show loading skeleton only during initial load and when actually loading
   if (isLoading && isInitialLoad) {
@@ -217,6 +214,15 @@ export default function Home() {
           >
             {isEnglish ? "Refresh Page" : "刷新页面"}
           </button>
+        </div>
+      )}
+
+      {/* Fallback for when session is loading but products are available */}
+      {productGroups.length > 0 && sessionLoading && (
+        <div className="text-center py-4">
+          <p className="text-gray-500 text-sm">
+            {isEnglish ? "Loading user session..." : "正在加载用户会话..."}
+          </p>
         </div>
       )}
       

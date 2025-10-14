@@ -6,13 +6,15 @@ import CustomerLoginModal from "./CustomerLoginModal";
 import { useRouter } from "next/navigation";
 import { Customer } from "@/app/lib/definitions";
 import { supabase } from "@/app/lib/supabaseClient";
+import { performLogoutWithReload } from "@/app/utils/logout";
 
 interface TopBarLoginProps {
   session?: any;
   userRole?: string;
+  onLoginSuccess?: () => void;
 }
 
-export default function TopBarLogin({ session, userRole: propUserRole }: TopBarLoginProps) {
+export default function TopBarLogin({ session, userRole: propUserRole, onLoginSuccess }: TopBarLoginProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -71,9 +73,25 @@ export default function TopBarLogin({ session, userRole: propUserRole }: TopBarL
   }, []);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setIsDropdownOpen(false);
+    try {
+      // Reset local state first
+      setUser(null);
+      setUserRole("");
+      setCustomer(null);
+      setCustomerName("");
+      setIsDropdownOpen(false);
+      
+      // Perform comprehensive logout
+      await performLogoutWithReload();
+    } catch (error) {
+      console.error("Error during sign out:", error);
+      // Even if there's an error, ensure local state is cleared
+      setUser(null);
+      setUserRole("");
+      setCustomer(null);
+      setCustomerName("");
+      setIsDropdownOpen(false);
+    }
   };
 
   return (
@@ -157,7 +175,14 @@ export default function TopBarLogin({ session, userRole: propUserRole }: TopBarL
         </button>
       )}
 
-      <CustomerLoginModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <CustomerLoginModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)}
+        onLoginSuccess={() => {
+          onLoginSuccess?.();
+          setIsModalOpen(false);
+        }}
+      />
     </div>
   );
 }

@@ -59,7 +59,14 @@ export default function LoginButton() {
         )}
       </button>
 
-      <CustomerLoginModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <CustomerLoginModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)}
+        onLoginSuccess={() => {
+          setIsModalOpen(false);
+          // The auth state change listener will handle updating the user state
+        }}
+      />
     </>
   );
 }

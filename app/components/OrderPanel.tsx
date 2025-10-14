@@ -1,4 +1,4 @@
-import React, { memo, useState, useEffect } from "react";
+import React, { memo, useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Plus, MapPin } from "lucide-react";
 import { supabase } from "@/app/lib/supabaseClient";
@@ -79,6 +79,89 @@ export const OrderPanel = memo<OrderPanelProps>(({
     purchaseOrder: string;
     uploadedFiles: File[];
   } | null>(null);
+  const [isLoadingCustomerData, setIsLoadingCustomerData] = useState(false);
+  const [customerDataLoaded, setCustomerDataLoaded] = useState(false);
+
+  // Local storage key for customer data
+  const getCustomerCacheKey = (email: string) => `customer_data_${email}`;
+
+  // Load customer data from cache
+  const loadCustomerFromCache = (email: string) => {
+    try {
+      const cached = localStorage.getItem(getCustomerCacheKey(email));
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (err) {
+      // Silent fail
+    }
+    return null;
+  };
+
+  // Save customer data to cache
+  const saveCustomerToCache = (email: string, data: any) => {
+    try {
+      localStorage.setItem(getCustomerCacheKey(email), JSON.stringify(data));
+    } catch (err) {
+      // Silent fail
+    }
+  };
+
+  // Load addresses from addresses table
+  const loadAddresses = useCallback(async (session: any) => {
+    if (!session?.user?.email) {
+      return;
+    }
+
+    try {
+      // Get customer ID first
+      const { data: allCustomers, error: allError } = await supabase
+        .from("customers")
+        .select("id, email, user_id")
+        .eq("email", session.user.email);
+
+      if (allError || !allCustomers || allCustomers.length === 0) {
+        console.log("No customer found for email:", session.user.email);
+        return;
+      }
+
+      const customerData = allCustomers[0];
+
+      // Load addresses for this customer
+      const { data: addressesData, error: addressesError } = await supabase
+        .from("addresses")
+        .select("*")
+        .eq("customer_id", customerData.id)
+        .order("is_default", { ascending: false })
+        .order("created_at", { ascending: true });
+
+      if (addressesError) {
+        console.error("Error loading addresses:", addressesError);
+        return;
+      }
+
+      if (addressesData && addressesData.length > 0) {
+        const formattedAddresses: Address[] = addressesData.map(addr => ({
+          id: addr.id.toString(),
+          name: addr.name,
+          address: addr.address,
+          isDefault: addr.is_default
+        }));
+
+        setAddresses(formattedAddresses);
+
+        // Auto-select default address if available
+        const defaultAddress = formattedAddresses.find(addr => addr.isDefault);
+        if (defaultAddress) {
+          setSelectedAddressId(defaultAddress.id);
+          onCustomerAddressChange(defaultAddress.address);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading addresses:", error);
+    }
+  }, [onCustomerAddressChange]);
+
 
   const subtotal = selectedProducts.reduce(
     (sum, item) => sum + item.product.price * item.quantity,
@@ -89,52 +172,99 @@ export const OrderPanel = memo<OrderPanelProps>(({
   const gstAmount = subtotal * gstRate;
   const totalAmount = subtotal + gstAmount;
 
-  // Load addresses from Supabase when panel opens
+  // Auto-fill customer data when panel opens
   useEffect(() => {
-    const loadAddresses = async () => {
-      if (isOpen && session?.user?.id) {
+    if (isOpen && session?.user?.email && !customerDataLoaded) {
+      // First, try to load from cache
+      const cachedData = loadCustomerFromCache(session.user.email);
+      if (cachedData) {
+        if (!customerName && cachedData.name) {
+          onCustomerNameChange(cachedData.name);
+        }
+        if (!customerPhone && cachedData.phone) {
+          onCustomerPhoneChange(cachedData.phone);
+        }
+        if (!customerAddress) {
+          const fallbackAddress = cachedData.delivery_address || cachedData.address;
+          if (fallbackAddress) {
+            onCustomerAddressChange(fallbackAddress);
+          }
+        }
+        setCustomerDataLoaded(true);
+        return;
+      }
+      
+      // If no cache, try database
+      setIsLoadingCustomerData(true);
+      
+      const trySimpleQuery = async () => {
         try {
-          // First get customer ID
-          const { data: customerData, error: customerError } = await supabase
+          // Add timeout to prevent hanging
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error("Customer data query timeout")), 5000);
+          });
+
+          const queryPromise = supabase
             .from("customers")
-            .select("id")
-            .eq("user_id", session.user.id)
-            .single();
+            .select("name, phone, address, delivery_address, email, user_id");
 
-          if (customerData && !customerError) {
-            // Load addresses from addresses table
-            const { data: addressesData, error: addressesError } = await supabase
-              .from("addresses")
-              .select("*")
-              .eq("customer_id", customerData.id)
-              .order("is_default", { ascending: false })
-              .order("created_at", { ascending: true });
-
-            if (addressesData && !addressesError) {
-              const loadedAddresses: Address[] = addressesData.map(addr => ({
-                id: addr.id.toString(),
-                name: addr.name,
-                address: addr.address,
-                isDefault: addr.is_default
-              }));
-              setAddresses(loadedAddresses);
+          const { data: allCustomers, error: allError } = await Promise.race([queryPromise, timeoutPromise]) as any;
+          
+          if (allCustomers && !allError) {
+            const customer = allCustomers.find((c: any) => 
+              c.email === session.user.email || c.user_id === session.user.id
+            );
+            
+            if (customer) {
+              // Save to cache
+              saveCustomerToCache(session.user.email, customer);
               
-              // Auto-select the default address
-              const defaultAddress = loadedAddresses.find(addr => addr.isDefault);
-              if (defaultAddress) {
-                setSelectedAddressId(defaultAddress.id);
-                onCustomerAddressChange(defaultAddress.address);
+              // Auto-fill the data
+              if (!customerName && customer.name) {
+                onCustomerNameChange(customer.name);
               }
+              if (!customerPhone && customer.phone) {
+                onCustomerPhoneChange(customer.phone);
+              }
+              if (!customerAddress) {
+                const fallbackAddress = customer.delivery_address || customer.address;
+                if (fallbackAddress) {
+                  onCustomerAddressChange(fallbackAddress);
+                }
+              }
+              setCustomerDataLoaded(true);
+              return;
             }
           }
-        } catch (error) {
-          console.error("Error loading addresses:", error);
+          
+          // Fallback to session data
+          if (!customerName) {
+            onCustomerNameChange(session.user.email.split("@")[0] || "Customer");
+          }
+        } catch (err) {
+          console.log("Customer data query failed or timed out:", err);
+          // Fallback to session data
+          if (!customerName) {
+            onCustomerNameChange(session.user.email.split("@")[0] || "Customer");
+          }
+        } finally {
+          setIsLoadingCustomerData(false);
+          setCustomerDataLoaded(true);
         }
-      }
-    };
+      };
+      
+      trySimpleQuery();
+    }
+  }, [isOpen, session, customerDataLoaded]);
 
-    loadAddresses();
-  }, [isOpen, session]);
+  // Load addresses when panel opens
+  useEffect(() => {
+    if (isOpen && session?.user?.email) {
+      loadAddresses(session);
+    }
+  }, [isOpen, session, loadAddresses]);
+
+  // Note: Old complex useEffect removed - using simplified approach above
 
   // Address management functions
   const handleAddressSelect = async (addressId: string) => {
@@ -146,15 +276,11 @@ export const OrderPanel = memo<OrderPanelProps>(({
   };
 
   const handleAddNewAddress = async () => {
-    console.log("handleAddNewAddress called", { newAddress, session: !!session });
-    
     if (!newAddress.name?.trim() || !newAddress.address?.trim()) {
-      console.log("Validation failed: missing name or address");
       return;
     }
 
     if (!session?.user?.id) {
-      console.log("No session or user ID");
       alert(isEnglish ? "Please log in to save addresses." : "请登录以保存地址。");
       return;
     }
@@ -162,20 +288,18 @@ export const OrderPanel = memo<OrderPanelProps>(({
     setIsSavingAddress(true);
 
     try {
-      console.log("Saving address to Supabase...");
-      
-      // First get customer ID
-      const { data: customerData, error: customerError } = await supabase
+      // Get customer ID using the same approach that works
+      const { data: allCustomers, error: allError } = await supabase
         .from("customers")
-        .select("id")
-        .eq("user_id", session.user.id)
-        .single();
+        .select("id, email, user_id")
+        .eq("email", session.user.email);
 
-      if (customerError || !customerData) {
-        console.error("Error getting customer:", customerError);
+      if (allError || !allCustomers || allCustomers.length === 0) {
         alert(isEnglish ? "Failed to get customer information." : "获取客户信息失败。");
         return;
       }
+
+      const customerData = allCustomers[0];
 
       // Save to addresses table
       const { data: newAddressData, error } = await supabase
@@ -190,12 +314,9 @@ export const OrderPanel = memo<OrderPanelProps>(({
         .single();
 
       if (error) {
-        console.error("Error saving address:", error);
         alert(isEnglish ? "Failed to save address. Please try again." : "保存地址失败，请重试。");
         return;
       }
-
-      console.log("Address saved successfully");
 
       // Update local state
       const newAddr: Address = {
@@ -262,14 +383,17 @@ export const OrderPanel = memo<OrderPanelProps>(({
     if (!session?.user?.id) return;
 
     try {
-      // First get customer ID
-      const { data: customerData, error: customerError } = await supabase
+      // Get customer ID using the same approach that works
+      const { data: allCustomers, error: allError } = await supabase
         .from("customers")
-        .select("id")
-        .eq("user_id", session.user.id)
-        .single();
+        .select("id, email, user_id")
+        .eq("email", session.user.email);
 
-      if (customerError || !customerData) return;
+      if (allError || !allCustomers || allCustomers.length === 0) {
+        return;
+      }
+
+      const customerData = allCustomers[0];
 
       // Update all addresses for this customer to not be default
       await supabase
@@ -382,7 +506,9 @@ export const OrderPanel = memo<OrderPanelProps>(({
 
             {/* Customer Information */}
             <div className="mb-4 space-y-3">
-              <h3 className="font-semibold">{isEnglish ? "Customer Information" : "客户信息"}</h3>
+              <div className="flex justify-between items-center">
+                <h3 className="font-semibold">{isEnglish ? "Customer Information" : "客户信息"}</h3>
+              </div>
               <div className="space-y-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">

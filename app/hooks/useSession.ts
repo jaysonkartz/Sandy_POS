@@ -168,126 +168,126 @@ export const useSession = (): UseSessionReturn => {
   // Function to force refresh session and role
   const forceRefreshSession = useCallback(async () => {
     try {
-      if (session?.user) {
-        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+      console.log("Force refreshing session");
+      
+      // Get current session
+      const { data: { session: currentSession }, error } = await supabase.auth.getSession();
 
-        if (error || !currentSession?.user) {
-          const recovered = await aggressiveSessionRecovery();
-          if (recovered) return;
-        } else {
-          return;
-        }
-      }
-
-      const recovered = await aggressiveSessionRecovery();
-      if (recovered) return;
-
-      // Fallback methods
-      const { data: { session: freshSession }, error: sessionError } = await supabase.auth.getSession();
-
-      if (sessionError) {
-        console.error("Error getting session:", sessionError);
-        return;
-      }
-
-      if (!freshSession?.user) {
-        // Try to refresh the session
-        try {
-          const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-
-          if (!refreshError && refreshedSession?.user) {
-            setSession(refreshedSession);
-            if (refreshedSession.user.id) {
-              await fetchUserRoleWithRetry(refreshedSession.user.id);
-            }
-            return;
-          }
-        } catch (refreshError) {
-          // Session refresh failed
-        }
-
+      if (error) {
+        console.error("Error getting session:", error);
         setSession(null);
         setUserRole("");
         return;
       }
 
-      setSession(freshSession);
-      if (freshSession?.user?.id) {
-        await fetchUserRoleWithRetry(freshSession.user.id);
-      } else {
-        setUserRole("");
+      if (currentSession?.user) {
+        console.log("Session found, updating state");
+        setSession(currentSession);
+        if (currentSession.user.id) {
+          await fetchUserRole(currentSession.user.id);
+        }
+        return;
       }
+
+      // No session found, try to refresh
+      console.log("No session found, attempting refresh");
+      try {
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+
+        if (!refreshError && refreshedSession?.user) {
+          console.log("Session refreshed successfully");
+          setSession(refreshedSession);
+          if (refreshedSession.user.id) {
+            await fetchUserRole(refreshedSession.user.id);
+          }
+          return;
+        }
+      } catch (refreshError) {
+        console.log("Session refresh failed:", refreshError);
+      }
+
+      // No session available
+      console.log("No session available after refresh");
+      setSession(null);
+      setUserRole("");
     } catch (error) {
       console.error("Error in force refresh:", error);
+      setSession(null);
+      setUserRole("");
     }
-  }, [session?.user, aggressiveSessionRecovery, fetchUserRoleWithRetry]);
+  }, [fetchUserRole]);
 
   // Initialize session
   useEffect(() => {
     const initializeSession = async () => {
       try {
+        console.log("Starting session initialization");
+        
         // Set a maximum timeout for session initialization
         const timeoutPromise = new Promise<void>((resolve) => {
           setTimeout(() => {
             console.log("Session initialization timeout reached");
             setIsLoading(false);
             resolve();
-          }, 3000); // 3 second timeout
+          }, 5000); // Increased to 5 second timeout
         });
 
         const sessionPromise = (async () => {
-          // Check for stored session first
+          // Try to get current session first (most reliable)
+          const { data: { session }, error } = await supabase.auth.getSession();
+
+          if (error) {
+            console.error("Error getting initial session:", error);
+            setIsLoading(false);
+            return;
+          }
+
+          if (session?.user) {
+            console.log("Session found, setting session and fetching role");
+            setSession(session);
+            if (session.user.id) {
+              await fetchUserRole(session.user.id);
+            }
+            setIsLoading(false);
+            return;
+          }
+
+          // If no session found, check for stored session
           const storedSession = localStorage.getItem(STORAGE_KEYS.SESSION);
           if (storedSession) {
             try {
               const parsed = JSON.parse(storedSession);
               if (parsed?.access_token && parsed?.user) {
+                console.log("Attempting to restore stored session");
                 const { data: { session: restoredSession }, error: restoreError } = await supabase.auth.setSession({
                   access_token: parsed.access_token,
                   refresh_token: parsed.refresh_token || "",
                 });
 
                 if (!restoreError && restoredSession?.user) {
+                  console.log("Stored session restored successfully");
                   setSession(restoredSession);
                   if (restoredSession.user.id) {
                     await fetchUserRole(restoredSession.user.id);
                   }
+                  setIsLoading(false);
                   return;
+                } else {
+                  console.log("Failed to restore stored session, clearing it");
+                  localStorage.removeItem(STORAGE_KEYS.SESSION);
                 }
               }
             } catch (parseError) {
               console.log("Failed to parse stored session:", parseError);
+              localStorage.removeItem(STORAGE_KEYS.SESSION);
             }
           }
 
-          // Try to get initial session
-          const { data: { session }, error } = await supabase.auth.getSession();
-
-          if (error) {
-            console.error("Error getting initial session:", error);
-          }
-
-          if (session?.user) {
-            setSession(session);
-            if (session.user.id) {
-              await fetchUserRole(session.user.id);
-            }
-            return;
-          }
-
-          // Try simple recovery without aggressive methods
-          try {
-            const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-            if (!refreshError && refreshedSession?.user) {
-              setSession(refreshedSession);
-              if (refreshedSession.user.id) {
-                await fetchUserRole(refreshedSession.user.id);
-              }
-              return;
-            }
-          } catch (refreshError) {
-            console.log("Session refresh failed:", refreshError);
-          }
+          // No session found anywhere
+          console.log("No session found, setting loading to false");
+          setSession(null);
+          setUserRole("");
+          setIsLoading(false);
         })();
 
         // Race between session initialization and timeout
@@ -468,3 +468,4 @@ export const useSession = (): UseSessionReturn => {
     forceRefreshSession,
   };
 };
+

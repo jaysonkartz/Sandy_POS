@@ -8,9 +8,10 @@ import { useSignInLogging } from "@/app/hooks/useSignInLogging";
 interface CustomerLoginModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onLoginSuccess?: () => void;
 }
 
-export default function CustomerLoginModal({ isOpen, onClose }: CustomerLoginModalProps) {
+export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: CustomerLoginModalProps) {
   const router = useRouter();
   const { logSignInSuccess, logSignInFailure } = useSignInLogging();
   const supabase = createBrowserClient(
@@ -54,6 +55,8 @@ export default function CustomerLoginModal({ isOpen, onClose }: CustomerLoginMod
           data.session?.access_token
         );
 
+        // Notify parent component of successful login
+        onLoginSuccess?.();
         router.refresh();
         onClose();
       }

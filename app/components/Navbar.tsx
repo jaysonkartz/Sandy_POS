@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import { useEffect, useState } from "react";
+import { performLogout } from "@/app/utils/logout";
 
 export default function Navbar() {
   const router = useRouter();
@@ -20,9 +21,21 @@ export default function Navbar() {
   }
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setIsLoggedIn(false);
-    router.push("/");
+    try {
+      // Reset local state first
+      setIsLoggedIn(false);
+      
+      // Perform comprehensive logout
+      await performLogout();
+      
+      // Navigate to home page
+      router.push("/");
+    } catch (error) {
+      console.error("Error during logout:", error);
+      // Even if there's an error, try to clear local state and navigate
+      setIsLoggedIn(false);
+      router.push("/");
+    }
   };
 
   return (

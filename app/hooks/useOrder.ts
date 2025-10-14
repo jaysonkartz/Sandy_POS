@@ -95,25 +95,32 @@ export const useOrder = (): UseOrderReturn => {
 
   const fillCustomerInfo = useCallback(async (session: any) => {
     if (!session?.user?.id) {
-      console.warn("No session or user ID available");
+      console.warn("No session or user ID available for auto-fill");
       return;
     }
+
+    console.log("Attempting to auto-fill customer info for user:", session.user.id);
 
     try {
       // Try to fetch customer data by user_id first
       const { data: customerData, error: customerError } = await supabase
         .from("customers")
         .select("name, email, phone, address, delivery_address")
-        .eq("user_id", session.user.id)
+        .eq("id", session.user.id)
         .single();
 
+        console.log("Customer data:", customerData);
+
       if (customerData && !customerError) {
+        console.log("Found customer data by user_id:", customerData);
         // Use customer data if available
         setCustomerName(customerData.name || "");
         setCustomerPhone(customerData.phone || "");
         setCustomerAddress(customerData.delivery_address || customerData.address || "");
         return;
       }
+
+      console.log("No customer data found by user_id, trying email lookup");
 
       // If no customer data found, try to fetch by email
       const { data: customerByEmail, error: emailError } = await supabase
@@ -123,12 +130,14 @@ export const useOrder = (): UseOrderReturn => {
         .single();
 
       if (customerByEmail && !emailError) {
+        console.log("Found customer data by email:", customerByEmail);
         setCustomerName(customerByEmail.name || "");
         setCustomerPhone(customerByEmail.phone || "");
         setCustomerAddress(customerByEmail.delivery_address || customerByEmail.address || "");
         return;
       }
 
+      console.log("No customer data found, using basic user info");
       // If no customer data found at all, use basic user info
       setCustomerName(session.user.email?.split("@")[0] || "");
       setCustomerPhone("");
@@ -144,41 +153,44 @@ export const useOrder = (): UseOrderReturn => {
   }, []);
 
   const loadCustomerAddresses = useCallback(async (session: any): Promise<Address[]> => {
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return [];
     }
 
     try {
-      // For now, we'll create addresses from the customer's existing address data
-      // In a real implementation, you might have a separate addresses table
-      const { data: customerData, error } = await supabase
+      // Get customer ID first
+      const { data: allCustomers, error: allError } = await supabase
         .from("customers")
-        .select("address, delivery_address")
-        .eq("user_id", session.user.id)
-        .single();
+        .select("id, email, user_id")
+        .eq("email", session.user.email);
 
-      if (customerData && !error) {
-        const addresses: Address[] = [];
-        
-        if (customerData.delivery_address) {
-          addresses.push({
-            id: "delivery",
-            name: "Delivery Address",
-            address: customerData.delivery_address,
-            isDefault: true
-          });
-        }
-        
-        if (customerData.address && customerData.address !== customerData.delivery_address) {
-          addresses.push({
-            id: "home",
-            name: "Home Address",
-            address: customerData.address,
-            isDefault: false
-          });
-        }
+      if (allError || !allCustomers || allCustomers.length === 0) {
+        console.log("No customer found for email:", session.user.email);
+        return [];
+      }
 
-        return addresses;
+      const customerData = allCustomers[0];
+
+      // Load addresses for this customer from addresses table
+      const { data: addressesData, error: addressesError } = await supabase
+        .from("addresses")
+        .select("*")
+        .eq("customer_id", customerData.id)
+        .order("is_default", { ascending: false })
+        .order("created_at", { ascending: true });
+
+      if (addressesError) {
+        console.error("Error loading addresses:", addressesError);
+        return [];
+      }
+
+      if (addressesData && addressesData.length > 0) {
+        return addressesData.map(addr => ({
+          id: addr.id.toString(),
+          name: addr.name,
+          address: addr.address,
+          isDefault: addr.is_default
+        }));
       }
 
       return [];

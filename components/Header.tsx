@@ -154,6 +154,30 @@ export default function Header() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const handleLoginSuccess = async () => {
+    try {
+      // Force refresh the session after successful login
+      const { data: { session: newSession }, error } = await supabase.auth.getSession();
+      
+      if (newSession?.user && !error) {
+        setSession(newSession);
+        
+        // Fetch user role
+        const { data: userData } = await supabase
+          .from("users")
+          .select("role")
+          .eq("id", newSession.user.id)
+          .single();
+
+        if (userData) {
+          setUserRole(userData.role);
+        }
+      }
+    } catch (error) {
+      console.error("Error refreshing session after login:", error);
+    }
+  };
+
   return (
     <>
       <header className="flex justify-between items-center p-4 bg-white shadow-md">
@@ -168,7 +192,7 @@ export default function Header() {
               rel="noopener noreferrer"
               target="_blank"
             ></a>
-            <TopBarLogin session={session} userRole={userRole} />
+            <TopBarLogin session={session} userRole={userRole} onLoginSuccess={handleLoginSuccess} />
           </>
         )}
       </header>
