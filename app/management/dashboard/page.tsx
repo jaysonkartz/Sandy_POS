@@ -132,6 +132,7 @@ export default function ManagementDashboard() {
       value: number;
     }>;
   }>({ byQuantity: [], byPrice: [] });
+  const [isLoadingTopProducts, setIsLoadingTopProducts] = useState(true);
   const [selectedMonthQuantity, setSelectedMonthQuantity] = useState<string>("Loading...");
   const [selectedMonthPrice, setSelectedMonthPrice] = useState<string>("Loading...");
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
@@ -295,7 +296,8 @@ export default function ManagementDashboard() {
     console.log("Order items table:", { items, itemsError });
   };
 
-  const fetchTopSellingProducts = async (month?: string) => {
+  const fetchTopSellingProducts = async (month?: string, type?: string) => {
+    setIsLoadingTopProducts(true);
     // Check tables first
     await checkDatabaseTables();
     try {
@@ -376,7 +378,8 @@ export default function ManagementDashboard() {
 
       console.log("Fetching data for date range:", { startDate, endDate });
 
-      const { data: orderItems, error } = await supabase.from("order_items").select(
+      // Try the filtered query first
+      let { data: orderItems, error } = await supabase.from("order_items").select(
         `
           id,
           order_id,
@@ -386,20 +389,54 @@ export default function ManagementDashboard() {
           total_price,
           product_name,
           product_code,
-          orders!inner(
-            created_at,
-            status
-          )
+          created_at
         `
-      );
+      ).gte('created_at', startDate).lte('created_at', endDate);
+
+      // If no results or error, try without date filtering to see if there's data
+      if (!orderItems || orderItems.length === 0 || error) {
+        console.log("No filtered results, trying without date filter...");
+        const { data: allOrderItems, error: allError } = await supabase.from("order_items").select(
+          `
+            id,
+            order_id,
+            product_id,
+            quantity,
+            price,
+            total_price,
+            product_name,
+            product_code,
+            created_at
+          `
+        );
+        
+        if (!error && allOrderItems) {
+          console.log("Found data without date filter, filtering manually...");
+          // Filter manually by date
+          orderItems = allOrderItems.filter((item: any) => {
+            const itemDate = new Date(item.created_at);
+            return itemDate >= new Date(startDate) && itemDate <= new Date(endDate);
+          });
+          error = null;
+        } else {
+          orderItems = allOrderItems;
+          error = allError;
+        }
+      }
 
       console.log("Raw order items:", orderItems);
+      console.log("Query error:", error);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Database query error:", error);
+        throw error;
+      }
 
       console.log("Order items fetched:", {
         orderItemsCount: orderItems?.length,
         orderItems: orderItems?.slice(0, 3), // Show first 3 items for debugging
+        startDate,
+        endDate,
       });
 
       // Process data to get top selling products by quantity
@@ -492,6 +529,10 @@ export default function ManagementDashboard() {
       setTopSellingProducts(finalData);
     } catch (error) {
       console.error("Error fetching top selling products:", error);
+      // Set empty data on error
+      setTopSellingProducts({ byQuantity: [], byPrice: [] });
+    } finally {
+      setIsLoadingTopProducts(false);
     }
   };
 
@@ -755,7 +796,13 @@ export default function ManagementDashboard() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {topSellingProducts.byQuantity.length > 0 ? (
+                  {isLoadingTopProducts ? (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                        Loading top selling products...
+                      </td>
+                    </tr>
+                  ) : topSellingProducts.byQuantity.length > 0 ? (
                     topSellingProducts.byQuantity.map((product, index) => (
                       <tr key={index}>
                         <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -819,7 +866,13 @@ export default function ManagementDashboard() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {topSellingProducts.byPrice.length > 0 ? (
+                  {isLoadingTopProducts ? (
+                    <tr>
+                      <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
+                        Loading top selling products...
+                      </td>
+                    </tr>
+                  ) : topSellingProducts.byPrice.length > 0 ? (
                     topSellingProducts.byPrice.map((product, index) => (
                       <tr key={index}>
                         <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
