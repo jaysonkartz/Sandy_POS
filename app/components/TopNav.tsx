@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { performLogout } from "@/app/utils/logout";
+import { supabase } from "../lib/supabaseClient";
 
 export default function TopNav() {
   const router = useRouter();

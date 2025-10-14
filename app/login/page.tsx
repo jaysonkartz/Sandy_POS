@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/app/lib/supabase";
+import { supabase } from "@/app/lib/supabaseClient";
 import { motion } from "framer-motion";
 import { useSignInLogging } from "@/app/hooks/useSignInLogging";
 

@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { supabase } from "./supabaseClient";
 import { Database } from "@/types/supabase";
 
 type SignInRecord = Database["public"]["Tables"]["sign_in_records"]["Insert"];

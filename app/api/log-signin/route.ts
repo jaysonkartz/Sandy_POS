@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/app/lib/supabase';
+import { supabase } from '@/app/lib/supabaseClient';
 import { SignInLogger } from '@/app/lib/signin-logger';
 
 export async function POST(request: NextRequest) {
@@ -25,11 +25,11 @@ export async function POST(request: NextRequest) {
       userId,
       email,
       success: success || false,
-      failureReason: failureReason || null,
-      sessionId: sessionId || null,
-      ipAddress: ipAddress || null,
-      userAgent: userAgent || null,
-      deviceInfo: deviceInfo || null,
+      failureReason: failureReason || undefined,
+      sessionId: sessionId || undefined,
+      ipAddress: ipAddress || undefined,
+      userAgent: userAgent || undefined,
+      deviceInfo: deviceInfo || undefined,
     });
 
     return NextResponse.json({ success: true });

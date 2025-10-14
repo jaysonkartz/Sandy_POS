@@ -1,4 +1,4 @@
-import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabaseClient";
 import { invoices, customers, revenue, users } from "../lib/placeholder-data";
 import { NextResponse } from "next/server";
 
