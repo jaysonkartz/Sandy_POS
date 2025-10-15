@@ -7,6 +7,7 @@ import { Plus, Edit3, Trash2, Search, Camera, Image as ImageIcon, Eye, EyeOff } 
 import EditProductModal from "./EditProductModal";
 import ProductPhotoEditor from "./ProductPhotoEditor";
 import ProductImage from "./ProductImage";
+import { ProductVariant } from "@/app/types/product";
 
 interface Product {
   id: number;
@@ -23,6 +24,7 @@ interface Product {
   image_url?: string;
   created_at: string;
   updated_at: string;
+  variants?: ProductVariant[];
 }
 
 interface Category {
@@ -61,10 +63,27 @@ export default function ProductManagement() {
         query = query.eq("Category", selectedCategory);
       }
 
-      const { data, error } = await query;
+      const { data: productsData, error } = await query;
 
       if (error) throw error;
-      setProducts(data || []);
+
+      // Fetch variants for each product
+      const productsWithVariants = await Promise.all(
+        (productsData || []).map(async (product) => {
+          const { data: variantsData } = await supabase
+            .from('product_variants')
+            .select('*')
+            .eq('product_id', product.id)
+            .order('created_at', { ascending: true });
+
+          return {
+            ...product,
+            variants: variantsData || []
+          };
+        })
+      );
+
+      setProducts(productsWithVariants);
     } catch (err) {
       console.error("Error fetching products:", err);
       setError(err instanceof Error ? err.message : "Failed to load products");

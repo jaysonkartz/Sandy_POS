@@ -82,19 +82,72 @@ export const useProducts = (
 
     // Filter by category first
     if (selectedCategory && selectedCategory !== "all") {
-      filtered = filtered.filter((product) => product.Category === selectedCategory);
+      console.log("🔍 Filtering by category:", selectedCategory);
+      console.log("📊 Total products before filtering:", products.length);
+      
+      // Show all unique category values in the database
+      const uniqueCategories = [...new Set(products.map(p => p.Category))];
+      console.log("🗂️ Unique categories in database:", uniqueCategories);
+      
+      filtered = filtered.filter((product) => {
+        // Handle both category ID (number/string) and category name (string)
+        const productCategory = product.Category;
+        const selectedCategoryId = selectedCategory;
+        
+        // Skip if product category is null/undefined
+        if (!productCategory) {
+          console.log(`⚠️ Product ${product.Product} has null/undefined category`);
+          return false;
+        }
+        
+        // Debug logging
+        console.log(`Product: ${product.Product}, Category: "${productCategory}" (${typeof productCategory}), Selected: "${selectedCategoryId}" (${typeof selectedCategoryId})`);
+        
+        // Check if it matches the category ID directly
+        if (productCategory === selectedCategoryId || 
+            String(productCategory) === selectedCategoryId ||
+            Number(productCategory) === Number(selectedCategoryId)) {
+          console.log("✅ Match found by ID");
+          return true;
+        }
+        
+        // Check if it matches the category name
+        const categoryName = getCategoryName(selectedCategoryId);
+        console.log(`Checking category name: "${categoryName}"`);
+        if (productCategory === categoryName) {
+          console.log("✅ Match found by name");
+          return true;
+        }
+        
+        // Additional debug: show what we're comparing
+        console.log(`❌ No match: "${productCategory}" !== "${selectedCategoryId}" and "${productCategory}" !== "${categoryName}"`);
+        
+        return false;
+      });
+      
+      console.log("📊 Products after filtering:", filtered.length);
     }
 
     // Then filter by search term
     if (searchTerm.trim()) {
-    const searchLower = searchTerm.toLowerCase();
+      const searchLower = searchTerm.toLowerCase();
+      console.log("🔍 Searching for:", searchLower);
       filtered = filtered.filter(
-      (product) =>
-        product.Product.toLowerCase().includes(searchLower) ||
-        (product.Product_CH && product.Product_CH.toLowerCase().includes(searchLower)) ||
-        product["Item Code"].toLowerCase().includes(searchLower) ||
-        product.Category.toLowerCase().includes(searchLower)
-    );
+        (product) => {
+          const matches = 
+            (product.Product && String(product.Product).toLowerCase().includes(searchLower)) ||
+            (product.Product_CH && String(product.Product_CH).toLowerCase().includes(searchLower)) ||
+            (product["Item Code"] && String(product["Item Code"]).toLowerCase().includes(searchLower)) ||
+            (product.Category && String(product.Category).toLowerCase().includes(searchLower));
+          
+          if (matches) {
+            console.log(`✅ Search match found in product: ${product.Product}`);
+          }
+          
+          return matches;
+        }
+      );
+      console.log("📊 Products after search filtering:", filtered.length);
     }
 
     return filtered;
@@ -160,76 +213,35 @@ export const useProducts = (
         console.log("❌ Supabase environment variables not configured");
         console.log("NEXT_PUBLIC_SUPABASE_URL:", supabaseUrl ? "✅ Set" : "❌ Missing");
         console.log("NEXT_PUBLIC_SUPABASE_ANON_KEY:", supabaseKey ? "✅ Set" : "❌ Missing");
-        console.log("Using mock data as fallback...");
-        
-        // Use mock data when environment variables are missing
-        const mockProducts = [
-          {
-            id: 1,
-            "Item Code": "DA001",
-            Product: "Dried Anchovy",
-            Category: "Dried Seafood",
-            weight: "500g",
-            UOM: "kg",
-            Country: "Malaysia",
-            Product_CH: "乾魚仔",
-            Category_CH: "乾海產",
-            Country_CH: "馬來西亞",
-            Variation: "Premium",
-            Variation_CH: "優質",
-            price: 15.99,
-            uom: "kg",
-            stock_quantity: 50,
-            image_url: "/Img/Dried Seafood/Dried Anchovy.png"
-          },
-          {
-            id: 2,
-            "Item Code": "DS002",
-            Product: "Dried Shrimp",
-            Category: "Dried Seafood",
-            weight: "300g",
-            UOM: "kg",
-            Country: "Thailand",
-            Product_CH: "乾蝦米",
-            Category_CH: "乾海產",
-            Country_CH: "泰國",
-            Variation: "Large",
-            Variation_CH: "大號",
-            price: 22.50,
-            uom: "kg",
-            stock_quantity: 30,
-            image_url: "/Img/Dried Seafood/Dried Shrimp.png"
-          },
-          {
-            id: 3,
-            "Item Code": "DC003",
-            Product: "Dried Chilli",
-            Category: "Dried Chilli",
-            weight: "200g",
-            UOM: "kg",
-            Country: "China",
-            Product_CH: "乾辣椒",
-            Category_CH: "乾辣椒",
-            Country_CH: "中國",
-            Variation: "Hot",
-            Variation_CH: "辣",
-            price: 8.99,
-            uom: "kg",
-            stock_quantity: 100,
-            image_url: "/product-placeholder.png"
-          }
-        ];
-        
-        setProducts(mockProducts);
-        console.log("✅ Mock products loaded:", mockProducts.length);
+        console.log("Please set up your Supabase environment variables in .env.local");
+        setError("Supabase environment variables not configured. Please set up .env.local file.");
+        setLoading(false);
         return;
       }
 
       console.log("✅ Supabase environment variables configured");
-      console.log("⚠️  Database queries are timing out, using mock data instead...");
+      console.log("🔄 Fetching products from Supabase...");
+
+      let query = supabase.from("products").select("*");
+
+      if (selectedCategory !== "all") {
+        query = query.eq("Category", selectedCategory);
+      }
+
+      const { data: productsData, error: productsError } = await query;
+
+      if (productsError) {
+        console.error("❌ Error fetching products:", productsError);
+        throw productsError;
+      }
+
+      console.log("✅ Products fetched from Supabase:", productsData?.length || 0);
+      setProducts(productsData || []);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      console.log("Using mock data as fallback due to error...");
       
-      // Skip database queries since they're timing out
-      // Use mock data directly to avoid console errors
+      // Use mock data when database fails
       const mockProducts = [
         // Dried Seafood (Category ID: 6)
         {
@@ -853,238 +865,6 @@ export const useProducts = (
       setProducts(mockProducts);
       console.log("✅ Mock products loaded (skipping database queries):", mockProducts.length);
       return;
-    } catch (error) {
-      console.error("Error fetching products:", error);
-      console.log("Using mock data as fallback due to error...");
-      
-      // Use mock data when database fails
-      const mockProducts = [
-        // Dried Seafood (Category ID: 6)
-        {
-          id: 1,
-          "Item Code": "DA001",
-          Product: "Dried Anchovy",
-          Category: "6",
-          weight: "500g",
-          UOM: "kg",
-          Country: "Malaysia",
-          Product_CH: "乾魚仔",
-          Category_CH: "乾海產",
-          Country_CH: "馬來西亞",
-          Variation: "Premium",
-          Variation_CH: "優質",
-          price: 15.99,
-          uom: "kg",
-          stock_quantity: 50,
-          image_url: "/Img/Dried Seafood/Dried Anchovy.png"
-        },
-        {
-          id: 2,
-          "Item Code": "DS002",
-          Product: "Dried Shrimp",
-          Category: "6",
-          weight: "300g",
-          UOM: "kg",
-          Country: "Thailand",
-          Product_CH: "乾蝦米",
-          Category_CH: "乾海產",
-          Country_CH: "泰國",
-          Variation: "Large",
-          Variation_CH: "大號",
-          price: 22.50,
-          uom: "kg",
-          stock_quantity: 30,
-          image_url: "/Img/Dried Seafood/Dried Shrimp.png"
-        },
-        {
-          id: 3,
-          "Item Code": "DS003",
-          Product: "Dried Squid",
-          Category: "6",
-          weight: "400g",
-          UOM: "kg",
-          Country: "Japan",
-          Product_CH: "乾魷魚",
-          Category_CH: "乾海產",
-          Country_CH: "日本",
-          Variation: "Medium",
-          Variation_CH: "中號",
-          price: 28.99,
-          uom: "kg",
-          stock_quantity: 25,
-          image_url: "/Img/Dried Seafood/Dried Squid.png"
-        },
-        {
-          id: 4,
-          "Item Code": "DS004",
-          Product: "Dried Silverfish",
-          Category: "6",
-          weight: "250g",
-          UOM: "kg",
-          Country: "Malaysia",
-          Product_CH: "乾銀魚",
-          Category_CH: "乾海產",
-          Country_CH: "馬來西亞",
-          Variation: "Small",
-          Variation_CH: "小號",
-          price: 18.50,
-          uom: "kg",
-          stock_quantity: 40,
-          image_url: "/Img/Dried Seafood/Dried Silverfish.png"
-        },
-        // Dried Chilli (Category ID: 1)
-        {
-          id: 5,
-          "Item Code": "DC001",
-          Product: "Dried Chilli",
-          Category: "1",
-          weight: "200g",
-          UOM: "kg",
-          Country: "China",
-          Product_CH: "乾辣椒",
-          Category_CH: "乾辣椒",
-          Country_CH: "中國",
-          Variation: "Hot",
-          Variation_CH: "辣",
-          price: 8.99,
-          uom: "kg",
-          stock_quantity: 100,
-          image_url: "/product-placeholder.png"
-        },
-        {
-          id: 6,
-          "Item Code": "DC002",
-          Product: "Dried Bird's Eye Chilli",
-          Category: "1",
-          weight: "150g",
-          UOM: "kg",
-          Country: "Thailand",
-          Product_CH: "乾指天椒",
-          Category_CH: "乾辣椒",
-          Country_CH: "泰國",
-          Variation: "Extra Hot",
-          Variation_CH: "超辣",
-          price: 12.99,
-          uom: "kg",
-          stock_quantity: 75,
-          image_url: "/product-placeholder.png"
-        },
-        // Beans & Legumes (Category ID: 2)
-        {
-          id: 7,
-          "Item Code": "BL001",
-          Product: "Dried Mung Beans",
-          Category: "2",
-          weight: "500g",
-          UOM: "kg",
-          Country: "China",
-          Product_CH: "乾綠豆",
-          Category_CH: "豆類",
-          Country_CH: "中國",
-          Variation: "Premium",
-          Variation_CH: "優質",
-          price: 6.99,
-          uom: "kg",
-          stock_quantity: 80,
-          image_url: "/product-placeholder.png"
-        },
-        {
-          id: 8,
-          "Item Code": "BL002",
-          Product: "Dried Red Beans",
-          Category: "2",
-          weight: "400g",
-          UOM: "kg",
-          Country: "Thailand",
-          Product_CH: "乾紅豆",
-          Category_CH: "豆類",
-          Country_CH: "泰國",
-          Variation: "Large",
-          Variation_CH: "大號",
-          price: 7.50,
-          uom: "kg",
-          stock_quantity: 65,
-          image_url: "/product-placeholder.png"
-        },
-        // Nuts & Seeds (Category ID: 3)
-        {
-          id: 9,
-          "Item Code": "NS001",
-          Product: "Cashew Nuts",
-          Category: "3",
-          weight: "500g",
-          UOM: "kg",
-          Country: "Vietnam",
-          Product_CH: "腰果",
-          Category_CH: "堅果種子",
-          Country_CH: "越南",
-          Variation: "Roasted",
-          Variation_CH: "烤",
-          price: 24.99,
-          uom: "kg",
-          stock_quantity: 35,
-          image_url: "/product-placeholder.png"
-        },
-        {
-          id: 10,
-          "Item Code": "NS002",
-          Product: "Almonds",
-          Category: "3",
-          weight: "400g",
-          UOM: "kg",
-          Country: "USA",
-          Product_CH: "杏仁",
-          Category_CH: "堅果種子",
-          Country_CH: "美國",
-          Variation: "Raw",
-          Variation_CH: "生",
-          price: 32.99,
-          uom: "kg",
-          stock_quantity: 20,
-          image_url: "/product-placeholder.png"
-        },
-        // Grains (Category ID: 5)
-        {
-          id: 11,
-          "Item Code": "GR001",
-          Product: "Jasmine Rice",
-          Category: "5",
-          weight: "1kg",
-          UOM: "kg",
-          Country: "Thailand",
-          Product_CH: "茉莉香米",
-          Category_CH: "穀物",
-          Country_CH: "泰國",
-          Variation: "Premium",
-          Variation_CH: "優質",
-          price: 6.99,
-          uom: "kg",
-          stock_quantity: 80,
-          image_url: "/product-placeholder.png"
-        },
-        {
-          id: 12,
-          "Item Code": "GR002",
-          Product: "Black Rice",
-          Category: "5",
-          weight: "500g",
-          UOM: "kg",
-          Country: "China",
-          Product_CH: "黑米",
-          Category_CH: "穀物",
-          Country_CH: "中國",
-          Variation: "Organic",
-          Variation_CH: "有機",
-          price: 9.99,
-          uom: "kg",
-          stock_quantity: 55,
-          image_url: "/product-placeholder.png"
-        }
-      ];
-      
-      setProducts(mockProducts);
-      console.log("✅ Mock products loaded after error:", mockProducts.length);
-      console.log("=== FETCH PRODUCTS ERROR (with fallback) ===");
     } finally {
       setLoading(false);
     }

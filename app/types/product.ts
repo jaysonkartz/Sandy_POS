@@ -1,3 +1,17 @@
+export interface ProductVariant {
+  id?: number;
+  product_id: number;
+  variation_name: string;
+  variation_name_ch?: string;
+  price: number;
+  weight?: string;
+  stock_quantity: number;
+  image_url?: string;
+  is_default?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Product {
   id: number;
   "Item Code": string;
@@ -15,6 +29,7 @@ export interface Product {
   uom: string;
   stock_quantity: number;
   image_url?: string;
+  variants?: ProductVariant[];
 }
 
 export interface ProductGroup {

@@ -25,6 +25,9 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import QuickSignInCheck from "@/app/components/QuickSignInCheck";
 import SignInStats from "@/app/components/SignInStats";
+import VariantManager from "@/components/VariantManager";
+import VariantExtractor from "@/components/VariantExtractor";
+import { ProductVariant } from "@/app/types/product";
 
 ChartJS.register(
   CategoryScale,
@@ -58,6 +61,7 @@ interface Product {
   Product: string;
   price: number;
   Category: string;
+  variants?: ProductVariant[];
   priceHistory?: {
     previous_price: number;
     last_price_update: string;
@@ -119,22 +123,28 @@ export default function ManagementDashboard() {
   }>({});
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [isNavOpen, setIsNavOpen] = useState(false);
-  const [topSellingProducts, setTopSellingProducts] = useState<{
-    byQuantity: Array<{
-      category: string;
-      product: string;
-      variation: string;
-      quantity: number;
-    }>;
-    byPrice: Array<{
-      product: string;
-      variation: string;
-      value: number;
-    }>;
-  }>({ byQuantity: [], byPrice: [] });
+  const [topSellingProductsByQuantity, setTopSellingProductsByQuantity] = useState<Array<{
+    category: string;
+    product: string;
+    variation: string;
+    quantity: number;
+  }>>([]);
+  const [topSellingProductsByPrice, setTopSellingProductsByPrice] = useState<Array<{
+    product: string;
+    variation: string;
+    value: number;
+  }>>([]);
   const [isLoadingTopProducts, setIsLoadingTopProducts] = useState(true);
-  const [selectedMonthQuantity, setSelectedMonthQuantity] = useState<string>("Loading...");
-  const [selectedMonthPrice, setSelectedMonthPrice] = useState<string>("Loading...");
+  const [selectedMonthQuantity, setSelectedMonthQuantity] = useState<string>(() => {
+    const currentMonth = new Date().toLocaleString("default", { month: "long" });
+    const currentYear = new Date().getFullYear();
+    return `${currentMonth} ${currentYear}`;
+  });
+  const [selectedMonthPrice, setSelectedMonthPrice] = useState<string>(() => {
+    const currentMonth = new Date().toLocaleString("default", { month: "long" });
+    const currentYear = new Date().getFullYear();
+    return `${currentMonth} ${currentYear}`;
+  });
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
   const [monthYearMap, setMonthYearMap] = useState<Map<string, number>>(new Map());
   const [recentOrders, setRecentOrders] = useState<
@@ -147,6 +157,9 @@ export default function ManagementDashboard() {
       status: string;
     }>
   >([]);
+  const [isLoadingRecentOrders, setIsLoadingRecentOrders] = useState(true);
+  const [showVariantManager, setShowVariantManager] = useState<number | null>(null);
+  const [useNewVariantSystem, setUseNewVariantSystem] = useState(false);
 
   const priceHistoryMap: Record<number, { previous_price: number; last_price_update: string }[]> =
     {};
@@ -232,9 +245,26 @@ export default function ManagementDashboard() {
         priceHistoryMap[ph.product_id].push(ph);
       });
 
+      // Fetch variants for each product
+      const productsWithVariants = await Promise.all(
+        (products || []).map(async (product: any) => {
+          const { data: variantsData } = await supabase
+            .from('product_variants')
+            .select('*')
+            .eq('product_id', product.id)
+            .order('created_at', { ascending: true });
+
+          return {
+            ...product,
+            variants: variantsData || [],
+            priceHistory: (priceHistoryMap[product.id] || []).slice(0, 3),
+          };
+        })
+      );
+
       // Group products by category
       const categoryGroups: { [key: string]: Product[] } = {};
-      (products || []).forEach((product: any) => {
+      productsWithVariants.forEach((product: any) => {
         // Get category name from ID, fallback to ID if not found
         const categoryId = product.Category;
         const categoryName = CATEGORY_ID_NAME_MAP[categoryId] || categoryId || "Uncategorized";
@@ -242,10 +272,7 @@ export default function ManagementDashboard() {
         if (!categoryGroups[categoryName]) {
           categoryGroups[categoryName] = [];
         }
-        categoryGroups[categoryName].push({
-          ...product,
-          priceHistory: (priceHistoryMap[product.id] || []).slice(0, 3),
-        });
+        categoryGroups[categoryName].push(product);
       });
 
       // Convert to array format
@@ -263,13 +290,8 @@ export default function ManagementDashboard() {
     }
   };
 
-  useEffect(() => {
-    fetchCategories();
-    fetchTopSellingProducts();
-    fetchRecentOrders();
-  }, []);
-
   const fetchRecentOrders = async () => {
+    setIsLoadingRecentOrders(true);
     try {
       const { data, error } = await supabase
         .from("orders")
@@ -277,12 +299,26 @@ export default function ManagementDashboard() {
         .order("created_at", { ascending: false })
         .limit(10);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching recent orders:", error);
+        throw error;
+      }
+      
       setRecentOrders(data || []);
     } catch (error) {
       console.error("Error fetching recent orders:", error);
+      setRecentOrders([]);
+    } finally {
+      setIsLoadingRecentOrders(false);
     }
   };
+
+  useEffect(() => {
+    fetchCategories();
+    fetchTopSellingProducts(undefined, "quantity");
+    fetchTopSellingProducts(undefined, "price");
+    fetchRecentOrders();
+  }, []);
 
   const checkDatabaseTables = async () => {
     console.log("Checking database tables...");
@@ -336,9 +372,11 @@ export default function ManagementDashboard() {
       setAvailableMonths(monthsArray);
       setMonthYearMap(monthYearMap);
 
-      // If no month specified, use the first available month or current month
-      const targetMonth =
-        month || monthsArray[0] || new Date().toLocaleString("default", { month: "long" });
+      // If no month specified, use the current month
+      const currentMonth = new Date().toLocaleString("default", { month: "long" });
+      const currentMonthYear = `${currentMonth} ${currentYear}`;
+      
+      const targetMonth = month || currentMonthYear;
       if (type === "quantity") {
         setSelectedMonthQuantity(targetMonth);
       } else {
@@ -520,17 +558,30 @@ export default function ManagementDashboard() {
         productValueMap: Object.fromEntries(productValueMap),
       });
 
-      const finalData = {
-        byQuantity: topByQuantity,
-        byPrice: topByValue,
-      };
-
-      console.log("Setting top selling products:", finalData);
-      setTopSellingProducts(finalData);
+      console.log("Setting top selling products:", { topByQuantity, topByValue });
+      
+      // Update the appropriate state based on the type
+      if (type === "quantity") {
+        setTopSellingProductsByQuantity(topByQuantity);
+      } else if (type === "price") {
+        setTopSellingProductsByPrice(topByValue);
+      } else {
+        // If no type specified (initial load), update both
+        setTopSellingProductsByQuantity(topByQuantity);
+        setTopSellingProductsByPrice(topByValue);
+      }
     } catch (error) {
       console.error("Error fetching top selling products:", error);
       // Set empty data on error
-      setTopSellingProducts({ byQuantity: [], byPrice: [] });
+      if (type === "quantity") {
+        setTopSellingProductsByQuantity([]);
+      } else if (type === "price") {
+        setTopSellingProductsByPrice([]);
+      } else {
+        // If no type specified (initial load), clear both
+        setTopSellingProductsByQuantity([]);
+        setTopSellingProductsByPrice([]);
+      }
     } finally {
       setIsLoadingTopProducts(false);
     }
@@ -601,7 +652,7 @@ export default function ManagementDashboard() {
     {
       id: "signin-monitoring",
       title: "Sign-in Monitoring",
-
+      description: "",
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -802,8 +853,8 @@ export default function ManagementDashboard() {
                         Loading top selling products...
                       </td>
                     </tr>
-                  ) : topSellingProducts.byQuantity.length > 0 ? (
-                    topSellingProducts.byQuantity.map((product, index) => (
+                  ) : topSellingProductsByQuantity.length > 0 ? (
+                    topSellingProductsByQuantity.map((product, index) => (
                       <tr key={index}>
                         <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
                           {product.category}
@@ -872,8 +923,8 @@ export default function ManagementDashboard() {
                         Loading top selling products...
                       </td>
                     </tr>
-                  ) : topSellingProducts.byPrice.length > 0 ? (
-                    topSellingProducts.byPrice.map((product, index) => (
+                  ) : topSellingProductsByPrice.length > 0 ? (
+                    topSellingProductsByPrice.map((product, index) => (
                       <tr key={index}>
                         <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
                           {product.product}
@@ -901,7 +952,16 @@ export default function ManagementDashboard() {
 
         {/* Recent Activity */}
         <div className="bg-white p-4 rounded-lg shadow-sm">
-          <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">Recent Activity</h3>
+            <button
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              onClick={fetchRecentOrders}
+              disabled={isLoadingRecentOrders}
+            >
+              {isLoadingRecentOrders ? "Loading..." : "Refresh"}
+            </button>
+          </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -921,34 +981,48 @@ export default function ManagementDashboard() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {recentOrders.map((order, index) => (
-                  <tr key={order.id}>
-                    <td className="px-6 py-4 whitespace-nowrap font-medium text-blue-600">
-                      {order.id}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {new Date(order.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {order.customer_name} - ${order.total_amount.toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          order.status === "completed"
-                            ? "bg-green-100 text-green-800"
-                            : order.status === "pending"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : order.status === "cancelled"
-                                ? "bg-red-100 text-red-800"
-                                : "bg-gray-100 text-gray-800"
-                        }`}
-                      >
-                        {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                      </span>
+                {isLoadingRecentOrders ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                      Loading recent orders...
                     </td>
                   </tr>
-                ))}
+                ) : recentOrders.length > 0 ? (
+                  recentOrders.map((order, index) => (
+                    <tr key={order.id}>
+                      <td className="px-6 py-4 whitespace-nowrap font-medium text-blue-600">
+                        {order.id}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {new Date(order.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {order.customer_name} - ${order.total_amount ? order.total_amount.toFixed(2) : '0.00'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            order.status === "completed"
+                              ? "bg-green-100 text-green-800"
+                              : order.status === "pending"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : order.status === "cancelled"
+                                  ? "bg-red-100 text-red-800"
+                                  : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                      No recent orders found
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -1610,6 +1684,114 @@ export default function ManagementDashboard() {
                                               <span className="text-gray-500">
                                                 No customers found
                                               </span>
+                                            )}
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    )}
+                                    {selectedProduct === product.id && (
+                                      <tr>
+                                        <td className="px-4 py-2 bg-gray-50" colSpan={3}>
+                                          <div className="pl-8">
+                                            <div className="flex justify-between items-center mb-4">
+                                              <h4 className="font-medium text-gray-700">
+                                                Product Variants:
+                                              </h4>
+                                              <div className="flex items-center gap-2">
+                                                <label className="flex items-center text-sm">
+                                                  <input
+                                                    type="checkbox"
+                                                    className="mr-2"
+                                                    checked={useNewVariantSystem}
+                                                    onChange={(e) => setUseNewVariantSystem(e.target.checked)}
+                                                  />
+                                                  Use New Variant System
+                                                </label>
+                                                <button
+                                                  className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                                                  onClick={() => 
+                                                    setShowVariantManager(
+                                                      showVariantManager === product.id ? null : product.id
+                                                    )
+                                                  }
+                                                >
+                                                  {showVariantManager === product.id ? 'Hide Variants' : 'Manage Variants'}
+                                                </button>
+                                              </div>
+                                            </div>
+                                            
+                                            {showVariantManager === product.id && (
+                                              <div className="mt-4">
+                                                {useNewVariantSystem ? (
+                                                  <VariantManager
+                                                    productId={product.id}
+                                                    variants={product.variants || []}
+                                                    onVariantsChange={(newVariants) => {
+                                                      // Update the product in the categories state
+                                                      setCategories(prevCategories => 
+                                                        prevCategories.map(category => ({
+                                                          ...category,
+                                                          products: category.products.map(p => 
+                                                            p.id === product.id 
+                                                              ? { ...p, variants: newVariants }
+                                                              : p
+                                                          )
+                                                        }))
+                                                      );
+                                                    }}
+                                                  />
+                                                ) : (
+                                                  <VariantExtractor
+                                                    productId={product.id}
+                                                    productName={product.Product}
+                                                    onVariantsChange={(variants) => {
+                                                      console.log('Variants updated:', variants);
+                                                    }}
+                                                  />
+                                                )}
+                                              </div>
+                                            )}
+                                            
+                                            {product.variants && product.variants.length > 0 && (
+                                              <div className="mt-2">
+                                                <div className="text-sm text-gray-600 mb-2">
+                                                  Current variants ({product.variants.length}):
+                                                </div>
+                                                <div className="space-y-1">
+                                                  {product.variants.map((variant) => (
+                                                    <div key={variant.id} className="flex items-center justify-between bg-white p-2 rounded border">
+                                                      <div className="flex items-center space-x-3">
+                                                        {variant.image_url && (
+                                                          <img 
+                                                            src={variant.image_url} 
+                                                            alt={variant.variation_name}
+                                                            className="w-8 h-8 object-cover rounded"
+                                                          />
+                                                        )}
+                                                        <div>
+                                                          <span className="font-medium">{variant.variation_name}</span>
+                                                          {variant.variation_name_ch && (
+                                                            <span className="text-gray-500 ml-2">({variant.variation_name_ch})</span>
+                                                          )}
+                                                          {variant.is_default && (
+                                                            <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">Default</span>
+                                                          )}
+                                                        </div>
+                                                      </div>
+                                                      <div className="text-sm text-gray-600">
+                                                        ${variant.price.toFixed(2)} | Stock: {variant.stock_quantity}
+                                                        {variant.weight && ` | ${variant.weight}`}
+                                                      </div>
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              </div>
+                                            )}
+                                            
+                                            {(!product.variants || product.variants.length === 0) && showVariantManager !== product.id && (
+                                              <div className="text-gray-500 text-sm">
+                                                No variants configured. Click "Manage Variants" to add product variations.
+                                              </div>
                                             )}
                                           </div>
                                         </td>

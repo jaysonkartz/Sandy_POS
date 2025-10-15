@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
 import { createBrowserClient } from "@supabase/ssr";
 import { Edit3, Save, X, Camera, Image as ImageIcon } from "lucide-react";
 import ProductPhotoEditor from "./ProductPhotoEditor";
+import VariantManager from "./VariantManager";
+import { ProductVariant } from "@/app/types/product";
 
 interface Product {
   id: number;
@@ -21,6 +23,7 @@ interface Product {
   image_url?: string;
   created_at: string;
   updated_at: string;
+  variants?: ProductVariant[];
 }
 
 interface EditProductModalProps {
@@ -35,11 +38,32 @@ export default function EditProductModal({ product, onClose, onUpdate }: EditPro
   const [error, setError] = useState<string | null>(null);
   const [isPhotoEditorOpen, setIsPhotoEditorOpen] = useState(false);
   const [currentImageUrl, setCurrentImageUrl] = useState(product.image_url || "");
+  const [variants, setVariants] = useState<ProductVariant[]>(product.variants || []);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
+
+  // Fetch variants when component mounts
+  useEffect(() => {
+    const fetchVariants = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('product_variants')
+          .select('*')
+          .eq('product_id', product.id)
+          .order('created_at', { ascending: true });
+
+        if (error) throw error;
+        setVariants(data || []);
+      } catch (err) {
+        console.error('Error fetching variants:', err);
+      }
+    };
+
+    fetchVariants();
+  }, [supabase, product.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -295,6 +319,15 @@ export default function EditProductModal({ product, onClose, onUpdate }: EditPro
                   }
                 />
               </div>
+            </div>
+
+            {/* Variant Management Section */}
+            <div className="border rounded-lg p-4">
+              <VariantManager
+                productId={product.id}
+                variants={variants}
+                onVariantsChange={setVariants}
+              />
             </div>
 
             {/* Error Message */}
