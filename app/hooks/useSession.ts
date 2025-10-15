@@ -17,6 +17,7 @@ interface UseSessionReturn {
   isLoading: boolean;
   isSessionValid: boolean;
   forceRefreshSession: () => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
 export const useSession = (): UseSessionReturn => {

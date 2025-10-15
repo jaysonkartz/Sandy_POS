@@ -139,9 +139,9 @@ export default function SignInHistory({ userId, limit = 10, showAll = false }: S
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {record.device_info ? (
                       <div className="text-xs">
-                        <div>{record.device_info.browser || 'Unknown'}</div>
-                        <div>{record.device_info.os || 'Unknown'}</div>
-                        <div>{record.device_info.deviceType || 'Unknown'}</div>
+                        <div>{(record.device_info as any)?.browser || 'Unknown'}</div>
+                        <div>{(record.device_info as any)?.os || 'Unknown'}</div>
+                        <div>{(record.device_info as any)?.deviceType || 'Unknown'}</div>
                       </div>
                     ) : (
                       'N/A'

@@ -115,7 +115,7 @@ export default function OrderHistory() {
       }
 
       // Prepare items for localStorage
-      const itemsToStore = items.map((item) => ({
+      const itemsToStore = items.map((item: { product_id: number; product_name: string; price: number; quantity: number; image_url?: string }) => ({
         product: {
           id: item.product_id,
           "Item Code": "",
@@ -190,11 +190,11 @@ export default function OrderHistory() {
         .in("order_id", ordersData?.map((o) => o.id) || []);
 
       if (isLoadMore) {
-        setOrders((prev) => [...prev, ...ordersData]);
-        setItemsData((prev) => [...prev, ...itemsDataResult]);
+        setOrders((prev) => [...prev, ...(ordersData || [])]);
+        setItemsData((prev) => [...prev, ...(itemsDataResult || [])]);
       } else {
-        setOrders(ordersData);
-        setItemsData(itemsDataResult);
+        setOrders(ordersData || []);
+        setItemsData(itemsDataResult || []);
       }
 
       // Update hasMore based on count
