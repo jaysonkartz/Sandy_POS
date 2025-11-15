@@ -54,6 +54,7 @@ interface User {
   role: string;
   avatar_url: string;
   created_at: string;
+  name?: string; // Customer name from customers table
 }
 
 interface Product {
@@ -61,6 +62,11 @@ interface Product {
   Product: string;
   price: number;
   Category: string;
+  "Item Code"?: string;
+  Variation?: string;
+  UOM?: string;
+  Country?: string;
+  countryName?: string;
   variants?: ProductVariant[];
   priceHistory?: {
     previous_price: number;
@@ -112,6 +118,9 @@ export default function ManagementDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10; // Number of orders per page
   const [totalOrders, setTotalOrders] = useState(0);
+  const [currentUserPage, setCurrentUserPage] = useState(1);
+  const usersPerPage = 10;
+  const [totalUsers, setTotalUsers] = useState(0);
   const [editingCustomer, setEditingCustomer] = useState<{
     orderItemId: number;
     price: number;
@@ -147,6 +156,7 @@ export default function ManagementDashboard() {
   });
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
   const [monthYearMap, setMonthYearMap] = useState<Map<string, number>>(new Map());
+  const [countryMap, setCountryMap] = useState<{ [key: string]: { name: string; chineseName?: string } }>({});
   const [recentOrders, setRecentOrders] = useState<
     Array<{
       id: number;
@@ -181,16 +191,44 @@ export default function ManagementDashboard() {
     clearOfferPrices();
   }, [selectedProduct]);
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (page = 1) => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("users")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const from = (page - 1) * usersPerPage;
+      const to = from + usersPerPage - 1;
 
-      if (error) throw error;
-      setUsers(data || []);
+      // Fetch users with pagination
+      const { data: usersData, error: usersError, count } = await supabase
+        .from("users")
+        .select("*", { count: "exact" })
+        .order("created_at", { ascending: false })
+        .range(from, to);
+
+      if (usersError) throw usersError;
+
+      // Fetch customers to get names
+      const { data: customersData } = await supabase
+        .from("customers")
+        .select("user_id, name");
+
+      // Create a map of user_id to customer name
+      const customerNameMap = new Map<string, string>();
+      if (customersData) {
+        customersData.forEach((customer: { user_id?: string; name?: string }) => {
+          if (customer.user_id && customer.name) {
+            customerNameMap.set(customer.user_id, customer.name);
+          }
+        });
+      }
+
+      // Combine user data with customer names
+      const usersWithNames = (usersData || []).map((user: User) => ({
+        ...user,
+        name: customerNameMap.get(user.id) || user.email?.split("@")[0] || "Unknown",
+      }));
+
+      setUsers(usersWithNames);
+      setTotalUsers(count || 0);
     } catch (error) {
       console.error("Error fetching users:", error);
     } finally {
@@ -200,13 +238,40 @@ export default function ManagementDashboard() {
 
   useEffect(() => {
     if (activeSection === "users") {
-      fetchUsers();
+      fetchUsers(currentUserPage);
     }
-  }, [activeSection]);
+  }, [activeSection, currentUserPage]);
 
   const fetchCategories = async () => {
     setIsLoading(true);
     try {
+      // First, fetch countries to create a mapping (optional, don't fail if this errors)
+      let countryMapping: { [key: string]: { name: string; chineseName?: string } } = {};
+      try {
+        const { data: countriesData } = await supabase
+          .from("countries")
+          .select("id, country, chineseName");
+        
+        if (countriesData && countriesData.length > 0) {
+          countriesData.forEach((country: any) => {
+            // Map country ID to country name (country is the column name in countries table)
+            if (country.id != null && country.country) {
+              const idKey = String(country.id);
+              countryMapping[idKey] = {
+                name: country.country,
+                chineseName: country.chineseName || undefined,
+              };
+            }
+          });
+          setCountryMap(countryMapping);
+          console.log("Country mapping created with", Object.keys(countryMapping).length, "countries:", countryMapping);
+        } else {
+          console.warn("No countries data received or empty array");
+        }
+      } catch (countriesError) {
+        console.warn("Failed to fetch countries, continuing without country names:", countriesError);
+      }
+
       const { data: products, error } = await supabase
         .from("products")
         .select(
@@ -215,6 +280,10 @@ export default function ManagementDashboard() {
           Product,
           price,
           Category,
+          "Item Code",
+          Variation,
+          UOM,
+          Country,
           order_items (
             order_id,
             price,
@@ -228,39 +297,136 @@ export default function ManagementDashboard() {
         )
         .order("Category", { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching products:", error);
+        throw error;
+      }
       const { data: priceHistories, error: priceHistoryError } = await supabase
         .from("product_price_history")
         .select("product_id, previous_price, original_price, last_price_update")
+        .is("customer_id", null) // Only fetch global price changes (not customer-specific)
         .order("last_price_update", { ascending: false });
 
       if (priceHistoryError) {
         console.error("Failed to fetch price history:", priceHistoryError);
+      } else {
+        console.log("Successfully fetched price history. Total entries:", priceHistories?.length || 0);
       }
 
       // Group price histories by product_id
-      const priceHistoryMap: { [key: number]: any[] } = {};
+      // Ensure product_id is converted to number for consistent key matching
+      // Store with both number and string keys to handle any type mismatches
+      const priceHistoryMap: { [key: number | string]: any[] } = {};
       (priceHistories || []).forEach((ph: any) => {
-        if (!priceHistoryMap[ph.product_id]) priceHistoryMap[ph.product_id] = [];
-        priceHistoryMap[ph.product_id].push(ph);
+        const productId = Number(ph.product_id);
+        const productIdStr = String(ph.product_id);
+        if (!isNaN(productId)) {
+          // Store with both number and string keys for flexibility (same array reference)
+          if (!priceHistoryMap[productId]) {
+            priceHistoryMap[productId] = [];
+            priceHistoryMap[productIdStr] = priceHistoryMap[productId]; // Same array reference
+          }
+          priceHistoryMap[productId].push(ph);
+        }
       });
+      
+      // Debug: Log price history mapping
+      const uniqueHistoryProductIds = (priceHistories || []).map(ph => ph.product_id).filter((v, i, a) => a.indexOf(v) === i);
+      console.log("=== PRICE HISTORY DEBUG ===");
+      console.log("Price history map:", priceHistoryMap);
+      console.log("Products with price history:", Object.keys(priceHistoryMap).length);
+      console.log("Price history product IDs (unique):", uniqueHistoryProductIds);
+      console.log("Total price history entries:", priceHistories?.length || 0);
 
-      // Fetch variants for each product
+      // Fetch variants for each product (store uniqueHistoryProductIds for later use)
+      const historyProductIds = uniqueHistoryProductIds;
       const productsWithVariants = await Promise.all(
         (products || []).map(async (product: any) => {
-          const { data: variantsData } = await supabase
-            .from('product_variants')
-            .select('*')
-            .eq('product_id', product.id)
-            .order('created_at', { ascending: true });
+          // Fetch variants, but don't fail if table doesn't exist or returns 404
+          let variantsData = [];
+          try {
+            const { data, error } = await supabase
+              .from('product_variants')
+              .select('*')
+              .eq('product_id', product.id)
+              .order('created_at', { ascending: true });
+            
+            if (error && error.code !== 'PGRST116') { // PGRST116 is "relation does not exist"
+              console.warn(`Error fetching variants for product ${product.id}:`, error);
+            } else {
+              variantsData = data || [];
+            }
+          } catch (err) {
+            // Silently handle 404 or other errors for variants
+            console.warn(`Failed to fetch variants for product ${product.id}:`, err);
+            variantsData = [];
+          }
+
+          // Resolve country name from the mapping
+          const countryId = product.Country != null ? String(product.Country) : null;
+          const countryInfo = countryId ? countryMapping[countryId] : null;
+          const countryName = countryInfo?.name || null;
+          
+          // Debug logging for country resolution
+          if (product.Country && !countryName) {
+            console.warn(`Country ID ${product.Country} not found in countryMap for product ${product.id} (${product.Product})`);
+          }
+
+          // Ensure product.id is a number when accessing priceHistoryMap
+          // Try both string and number keys to handle any type mismatches
+          const productId = Number(product.id);
+          const productIdStr = String(product.id);
+          
+          // Try multiple ways to match
+          let history = priceHistoryMap[productId] || 
+                       priceHistoryMap[productIdStr] || 
+                       priceHistoryMap[String(productId)] ||
+                       priceHistoryMap[Number(productIdStr)] ||
+                       [];
+          
+          // Additional debug: Log first few products' matching attempts
+          if (product.id === (products || [])[0]?.id || product.id === (products || [])[1]?.id) {
+            console.log(`[Price History Debug] Product ID: ${product.id} (type: ${typeof product.id}), Number: ${productId}, String: ${productIdStr}`);
+            console.log(`[Price History Debug] Trying keys:`, [productId, productIdStr, String(productId), Number(productIdStr)]);
+            console.log(`[Price History Debug] Available keys in map:`, Object.keys(priceHistoryMap).slice(0, 10));
+            console.log(`[Price History Debug] Direct lookup [${productId}]:`, priceHistoryMap[productId]);
+            console.log(`[Price History Debug] Direct lookup ["${productIdStr}"]:`, priceHistoryMap[productIdStr]);
+            console.log(`[Price History Debug] History found:`, history.length > 0 ? `${history.length} entries` : 'NONE');
+          }
+          
+          // Debug: Log if product has no price history (only for first few to avoid spam)
+          if (history.length === 0 && productId && product.id <= 5) {
+            console.log(`No price history found for product ${product.id} (${product.Product}). Available product IDs in history:`, Object.keys(priceHistoryMap).map(Number));
+          }
 
           return {
             ...product,
+            countryName: countryName, // Add resolved country name
             variants: variantsData || [],
-            priceHistory: (priceHistoryMap[product.id] || []).slice(0, 3),
+            priceHistory: history.slice(0, 3),
           };
         })
       );
+
+      // Debug: Log product IDs being displayed
+      const displayedProductIds = (productsWithVariants || []).map(p => p.id);
+      console.log("=== PRODUCTS DEBUG ===");
+      console.log("Product IDs being displayed:", displayedProductIds);
+      console.log("Total products:", displayedProductIds.length);
+      
+      // Check for matches
+      const matchingIds = displayedProductIds.filter(id => historyProductIds.includes(Number(id)) || historyProductIds.includes(String(id)));
+      console.log("Matching product IDs (have history):", matchingIds);
+      console.log("Non-matching product IDs (no history):", displayedProductIds.filter(id => !matchingIds.includes(id)));
+      
+      console.log("Sample product with history check:", productsWithVariants[0] ? {
+        id: productsWithVariants[0].id,
+        name: productsWithVariants[0].Product,
+        hasHistory: (productsWithVariants[0].priceHistory || []).length > 0,
+        historyCount: (productsWithVariants[0].priceHistory || []).length,
+        priceHistory: productsWithVariants[0].priceHistory
+      } : 'No products');
+      console.log("=== END DEBUG ===");
 
       // Group products by category
       const categoryGroups: { [key: string]: Product[] } = {};
@@ -737,7 +903,7 @@ export default function ManagementDashboard() {
     // },
     {
       id: "users",
-      title: "Users",
+      title: "Admin",
       description: "",
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1042,7 +1208,7 @@ export default function ManagementDashboard() {
           <h2 className="text-2xl font-semibold">User Management</h2>
           <button
             className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-            onClick={fetchUsers}
+            onClick={() => fetchUsers(currentUserPage)}
           >
             Refresh
           </button>
@@ -1058,6 +1224,9 @@ export default function ManagementDashboard() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Name
+                    </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Email
                     </th>
@@ -1079,9 +1248,12 @@ export default function ManagementDashboard() {
                         <div className="flex items-center">
                           <img alt="" className="h-8 w-8 rounded-full" src={user.avatar_url} />
                           <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">{user.email}</div>
+                            <div className="text-sm font-medium text-gray-900">{user.name || "N/A"}</div>
                           </div>
                         </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{user.email}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
@@ -1124,6 +1296,106 @@ export default function ManagementDashboard() {
           </div>
         )}
 
+        {/* Pagination for Users */}
+        {!isLoading && users.length > 0 && (
+          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+            <div className="flex-1 flex justify-between sm:hidden">
+              <button
+                onClick={() => setCurrentUserPage(prev => Math.max(1, prev - 1))}
+                disabled={currentUserPage === 1}
+                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setCurrentUserPage(prev => Math.min(Math.ceil(totalUsers / usersPerPage), prev + 1))}
+                disabled={currentUserPage >= Math.ceil(totalUsers / usersPerPage)}
+                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  Showing{' '}
+                  <span className="font-medium">
+                    {(currentUserPage - 1) * usersPerPage + 1}
+                  </span>{' '}
+                  to{' '}
+                  <span className="font-medium">
+                    {Math.min(currentUserPage * usersPerPage, totalUsers)}
+                  </span>{' '}
+                  of{' '}
+                  <span className="font-medium">{totalUsers}</span> results
+                </p>
+              </div>
+              <div>
+                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                  <button
+                    onClick={() => setCurrentUserPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentUserPage === 1}
+                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="sr-only">Previous</span>
+                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                  {Array.from({ length: Math.ceil(totalUsers / usersPerPage) }, (_, i) => i + 1)
+                    .filter(page => {
+                      const totalPages = Math.ceil(totalUsers / usersPerPage);
+                      if (totalPages <= 7) return true;
+                      if (page === 1 || page === totalPages) return true;
+                      if (page >= currentUserPage - 1 && page <= currentUserPage + 1) return true;
+                      return false;
+                    })
+                    .map((page, index, array) => {
+                      const totalPages = Math.ceil(totalUsers / usersPerPage);
+                      const showEllipsisBefore = index > 0 && array[index - 1] !== page - 1;
+                      const showEllipsisAfter = index < array.length - 1 && array[index + 1] !== page + 1;
+                      
+                      return (
+                        <div key={page} className="flex items-center">
+                          {showEllipsisBefore && (
+                            <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                              ...
+                            </span>
+                          )}
+                          <button
+                            onClick={() => setCurrentUserPage(page)}
+                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                              currentUserPage === page
+                                ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                                : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                          {showEllipsisAfter && (
+                            <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                              ...
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  <button
+                    onClick={() => setCurrentUserPage(prev => Math.min(Math.ceil(totalUsers / usersPerPage), prev + 1))}
+                    disabled={currentUserPage >= Math.ceil(totalUsers / usersPerPage)}
+                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="sr-only">Next</span>
+                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </nav>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Add the EditUserModal */}
         <EditUserModal
           isOpen={isEditModalOpen}
@@ -1133,7 +1405,7 @@ export default function ManagementDashboard() {
             setSelectedUser(null);
           }}
           onUpdate={() => {
-            fetchUsers();
+            fetchUsers(currentUserPage);
           }}
         />
       </motion.div>
@@ -1223,21 +1495,76 @@ export default function ManagementDashboard() {
                             <tbody className="bg-white divide-y divide-gray-100">
                               {category.products
                                 .sort((a, b) => a.Product.localeCompare(b.Product))
-                                .map((product) => (
-                                  <React.Fragment key={product.id}>
+                                .map((product) => {
+                                  // Debug: Log first product's price history in render
+                                  if (product.id === category.products[0]?.id) {
+                                    console.log(`[Render Debug] Product ${product.id} (${product.Product}):`, {
+                                      hasPriceHistory: !!product.priceHistory,
+                                      priceHistoryLength: product.priceHistory?.length || 0,
+                                      priceHistory: product.priceHistory
+                                    });
+                                  }
+                                  return (
+                                    <React.Fragment key={product.id}>
                                     <tr>
                                       <td className="px-4 py-2">
                                         <div className="flex items-center space-x-2">
                                           <button
-                                            className="text-blue-600 hover:text-blue-800"
+                                            className="text-blue-600 hover:text-blue-800 text-left"
                                             onClick={() =>
                                               setSelectedProduct(
                                                 selectedProduct === product.id ? null : product.id
                                               )
                                             }
                                           >
-                                            {selectedProduct === product.id ? "▼" : "▶"}{" "}
-                                            {product.Product}
+                                            <div className="flex flex-col">
+                                              <div className="flex items-center">
+                                                <span>{selectedProduct === product.id ? "▼" : "▶"}</span>
+                                                <span className="ml-1 font-medium">{product.Product}</span>
+                                              </div>
+                                              {(product["Item Code"] || product.Variation || product.UOM || product.Country) && (
+                                                <div className="ml-5 mt-1 space-y-1">
+                                                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                                                    {product.Variation && (
+                                                      <span className="inline-flex items-center px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-medium">
+                                                        <span className="mr-1">📦</span>
+                                                        {product.Variation}
+                                                      </span>
+                                                    )}
+                                                    {(() => {
+                                                      // Use the resolved countryName if available, otherwise try to look it up from state
+                                                      const countryName = product.countryName || 
+                                                        (product.Country && countryMap[String(product.Country)]?.name);
+                                                      
+                                                      // Only show if we have a valid country name
+                                                      if (countryName) {
+                                                        return (
+                                                          <span className="inline-flex items-center px-2 py-0.5 rounded bg-green-50 text-green-700 font-medium">
+                                                            <span className="mr-1">🌍</span>
+                                                            {countryName}
+                                                          </span>
+                                                        );
+                                                      }
+                                                      
+                                                      // Don't show anything if country name not found
+                                                      return null;
+                                                    })()}
+                                                    {product["Item Code"] && (
+                                                      <span className="inline-flex items-center px-2 py-0.5 rounded bg-gray-100 text-gray-600">
+                                                        <span className="mr-1">#</span>
+                                                        {product["Item Code"]}
+                                                      </span>
+                                                    )}
+                                                    {product.UOM && (
+                                                      <span className="inline-flex items-center px-2 py-0.5 rounded bg-purple-50 text-purple-700">
+                                                        <span className="mr-1">⚖️</span>
+                                                        {product.UOM}
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              )}
+                                            </div>
                                           </button>
                                         </div>
                                       </td>
@@ -1301,19 +1628,25 @@ export default function ManagementDashboard() {
                                                   ),
                                                 ];
 
-                                                if (uniqueCustomerIds.length === 0) {
-                                                  await supabase
-                                                    .from("product_price_history")
-                                                    .insert([
-                                                      {
-                                                        product_id: product.id,
-                                                        previous_price: product.price,
-                                                        original_price: editingPrice,
-                                                        last_price_update: new Date().toISOString(),
-                                                        customer_id: null,
-                                                      },
-                                                    ]);
-                                                } else {
+                                                // Always create a global price history entry
+                                                const { error: globalHistoryError } = await supabase
+                                                  .from("product_price_history")
+                                                  .insert([
+                                                    {
+                                                      product_id: product.id,
+                                                      previous_price: product.price,
+                                                      original_price: editingPrice,
+                                                      last_price_update: new Date().toISOString(),
+                                                      customer_id: null,
+                                                    },
+                                                  ]);
+
+                                                if (globalHistoryError) {
+                                                  console.error("Failed to insert global price history:", globalHistoryError);
+                                                }
+
+                                                // Also create customer-specific entries if there are customers
+                                                if (uniqueCustomerIds.length > 0) {
                                                   for (const customerId of uniqueCustomerIds) {
                                                     const { error: insertError } = await supabase
                                                       .from("product_price_history")
@@ -1328,8 +1661,8 @@ export default function ManagementDashboard() {
                                                         },
                                                       ]);
                                                     if (insertError) {
-                                                      alert(
-                                                        "Failed to insert price history: " +
+                                                      console.error(
+                                                        "Failed to insert customer price history: " +
                                                           insertError.message
                                                       );
                                                     }
@@ -1454,26 +1787,43 @@ export default function ManagementDashboard() {
                                         )}
                                       </td>
                                       <td className="px-4 py-2">
-                                        {product.priceHistory && product.priceHistory.length > 0 ? (
-                                          <div className="flex flex-col space-y-1">
-                                            {product.priceHistory.map((ph, idx) => (
-                                              <span key={idx} className="text-xs text-gray-500">
-                                                ${ph.previous_price?.toFixed(2)}{" "}
-                                                <span className="text-gray-400">
-                                                  (
-                                                  {ph.last_price_update
-                                                    ? new Date(
-                                                        ph.last_price_update
-                                                      ).toLocaleDateString()
-                                                    : "No date"}
-                                                  )
-                                                </span>
-                                              </span>
-                                            ))}
-                                          </div>
-                                        ) : (
-                                          <span className="text-xs text-gray-400">No history</span>
-                                        )}
+                                        {(() => {
+                                          // Debug: Log price history for first product
+                                          if (product.id === category.products[0]?.id) {
+                                            console.log(`[Price History Check] Product ${product.id}:`, {
+                                              priceHistory: product.priceHistory,
+                                              length: product.priceHistory?.length,
+                                              type: typeof product.priceHistory
+                                            });
+                                          }
+                                          
+                                          if (product.priceHistory && product.priceHistory.length > 0) {
+                                            return (
+                                              <div className="flex flex-col space-y-1">
+                                                {product.priceHistory.map((ph, idx) => (
+                                                  <span key={idx} className="text-xs text-gray-500">
+                                                    ${ph.previous_price?.toFixed(2)}{" "}
+                                                    <span className="text-gray-400">
+                                                      (
+                                                      {ph.last_price_update
+                                                        ? new Date(
+                                                            ph.last_price_update
+                                                          ).toLocaleDateString()
+                                                        : "No date"}
+                                                      )
+                                                    </span>
+                                                  </span>
+                                                ))}
+                                              </div>
+                                            );
+                                          } else {
+                                            // Debug: Show why no history
+                                            if (product.id === category.products[0]?.id) {
+                                              console.log(`[No History] Product ${product.id} - priceHistory:`, product.priceHistory);
+                                            }
+                                            return <span className="text-xs text-gray-400">No history</span>;
+                                          }
+                                        })()}
                                       </td>
                                     </tr>
                                     {selectedProduct === product.id && (
@@ -1797,8 +2147,9 @@ export default function ManagementDashboard() {
                                         </td>
                                       </tr>
                                     )}
-                                  </React.Fragment>
-                                ))}
+                                    </React.Fragment>
+                                  );
+                                })}
                             </tbody>
                           </table>
                         </div>
@@ -1899,25 +2250,105 @@ export default function ManagementDashboard() {
               </div>
             )}
 
-            <div className="flex justify-between items-center mt-4">
-              <button
-                className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              >
-                Previous
-              </button>
-              <span>
-                Page {currentPage} of {Math.ceil(totalOrders / pageSize)}
-              </span>
-              <button
-                className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
-                disabled={currentPage * pageSize >= totalOrders}
-                onClick={() => setCurrentPage((p) => p + 1)}
-              >
-                Next
-              </button>
-            </div>
+            {/* Pagination for History */}
+            {!isLoading && orderDetails.length > 0 && (
+              <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                <div className="flex-1 flex justify-between sm:hidden">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(Math.ceil(totalOrders / pageSize), prev + 1))}
+                    disabled={currentPage >= Math.ceil(totalOrders / pageSize)}
+                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm text-gray-700">
+                      Showing{' '}
+                      <span className="font-medium">
+                        {(currentPage - 1) * pageSize + 1}
+                      </span>{' '}
+                      to{' '}
+                      <span className="font-medium">
+                        {Math.min(currentPage * pageSize, totalOrders)}
+                      </span>{' '}
+                      of{' '}
+                      <span className="font-medium">{totalOrders}</span> results
+                    </p>
+                  </div>
+                  <div>
+                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <span className="sr-only">Previous</span>
+                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                          <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                      {Array.from({ length: Math.ceil(totalOrders / pageSize) }, (_, i) => i + 1)
+                        .filter(page => {
+                          const totalPages = Math.ceil(totalOrders / pageSize);
+                          if (totalPages <= 7) return true;
+                          if (page === 1 || page === totalPages) return true;
+                          if (page >= currentPage - 1 && page <= currentPage + 1) return true;
+                          return false;
+                        })
+                        .map((page, index, array) => {
+                          const totalPages = Math.ceil(totalOrders / pageSize);
+                          const showEllipsisBefore = index > 0 && array[index - 1] !== page - 1;
+                          const showEllipsisAfter = index < array.length - 1 && array[index + 1] !== page + 1;
+                          
+                          return (
+                            <div key={page} className="flex items-center">
+                              {showEllipsisBefore && (
+                                <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                                  ...
+                                </span>
+                              )}
+                              <button
+                                onClick={() => setCurrentPage(page)}
+                                className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                  currentPage === page
+                                    ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                                    : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                                }`}
+                              >
+                                {page}
+                              </button>
+                              {showEllipsisAfter && (
+                                <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                                  ...
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.min(Math.ceil(totalOrders / pageSize), prev + 1))}
+                        disabled={currentPage >= Math.ceil(totalOrders / pageSize)}
+                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <span className="sr-only">Next</span>
+                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                          <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    </nav>
+                  </div>
+                </div>
+              </div>
+            )}
           </motion.div>
         );
       case "customers":

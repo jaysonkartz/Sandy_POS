@@ -37,4 +37,5 @@ export const STORAGE_KEYS = {
 export const USER_ROLES = {
   ADMIN: "ADMIN",
   CUSTOMER: "CUSTOMER",
+  USER: "USER",
 } as const;

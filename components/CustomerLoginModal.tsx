@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 import { useSignInLogging } from "@/app/hooks/useSignInLogging";
+import { USER_ROLES } from "@/app/constants/app-constants";
 
 interface CustomerLoginModalProps {
   isOpen: boolean;
@@ -34,6 +35,8 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
     role: "USER",
     address: "",
     phone: "",
+    customer_code: "",
+    whatsapp_notifications: true, // Default to opt-in
   });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -78,16 +81,24 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      // 1. First check if user exists
-      const { data: existingUser } = await supabase
-        .from("users")
-        .select()
-        .eq("email", formData.email)
-        .single();
+    setError("");
+    setIsLoading(true);
 
-      if (existingUser) {
-        throw new Error("User already exists");
+    try {
+      // 1. Check if customer already exists
+      const { data: existingCustomer, error: customerCheckError } = await supabase
+        .from("customers")
+        .select("email")
+        .eq("email", formData.email)
+        .maybeSingle();
+
+      // If there's an error and it's not a "no rows" error, throw it
+      if (customerCheckError && customerCheckError.code !== 'PGRST116') {
+        throw customerCheckError;
+      }
+
+      if (existingCustomer) {
+        throw new Error("An account with this email already exists");
       }
 
       // 2. Sign up the user in auth
@@ -96,27 +107,55 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
         password: formData.password,
       });
 
-      if (signUpError) throw signUpError;
+      if (signUpError) {
+        // Handle specific Supabase auth errors
+        if (signUpError.message.includes("already registered")) {
+          throw new Error("An account with this email already exists");
+        }
+        throw signUpError;
+      }
 
-      // 3. Create customer record
+      if (!authData.user) {
+        throw new Error("Failed to create user account");
+      }
+
+      // 3. Create user record in users table
+      const userData = {
+        id: authData.user.id,
+        email: formData.email,
+        role: USER_ROLES.USER,
+        created_at: new Date().toISOString(),
+      };
+
+      const { error: userError } = await supabase.from("users").insert([userData]);
+
+      if (userError) throw userError;
+
+      // 4. Create customer record
       const customerData = {
         name: formData.name,
         email: formData.email,
-        user_id: authData.user!.id,
+        user_id: authData.user.id,
         status: true,
         created_at: new Date().toISOString(),
         address: formData.address,
         phone: formData.phone,
+        customer_code: formData.customer_code || null,
+        whatsapp_notifications: formData.whatsapp_notifications,
       };
 
       const { error: customerError } = await supabase.from("customers").insert([customerData]);
 
       if (customerError) throw customerError;
 
-      // Success handling here
+      // Success handling
+      alert("Account created successfully! Please check your email to verify your account.");
       onClose();
     } catch (error) {
       console.error("Error:", error);
+      setError(error instanceof Error ? error.message : "An error occurred");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -184,6 +223,20 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
                 </div>
 
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="customer_code">
+                    Customer Code (Optional)
+                  </label>
+                  <input
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    id="customer_code"
+                    placeholder="Enter customer code"
+                    type="text"
+                    value={formData.customer_code}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, customer_code: e.target.value }))}
+                  />
+                </div>
+
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="address">
                     Address
                   </label>
@@ -229,6 +282,21 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
                 onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
               />
             </div>
+
+            {isRegistering && (
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="whatsapp_notifications"
+                  checked={formData.whatsapp_notifications}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, whatsapp_notifications: e.target.checked }))}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="whatsapp_notifications" className="ml-2 block text-sm text-gray-700">
+                  I want to receive WhatsApp notifications about my orders and updates
+                </label>
+              </div>
+            )}
 
             <button
               className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors disabled:bg-blue-400"

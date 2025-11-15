@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import SignupModal from "@/components/SignupModal";
 import ProductPhotoEditor from "@/components/ProductPhotoEditor";
 
@@ -143,6 +144,91 @@ export default function Home() {
       setIsLoggingIn(false);
     }
   }, [forceRefreshSession]);
+
+  // Check for order query parameter to auto-open order panel
+  const searchParams = useSearchParams();
+  
+  // Load reorder data from localStorage if reorder parameter is present
+  useEffect(() => {
+    const reorderParam = searchParams.get("reorder");
+    if (reorderParam === "true" && typeof window !== "undefined") {
+      try {
+        // Load customer info from localStorage
+        const reorderCustomerName = localStorage.getItem("reorder_customer_name");
+        const reorderCustomerPhone = localStorage.getItem("reorder_customer_phone");
+        const reorderCustomerAddress = localStorage.getItem("reorder_customer_address");
+        const reorderItemsStr = localStorage.getItem("reorder_items");
+        
+        if (reorderItemsStr) {
+          const reorderItems = JSON.parse(reorderItemsStr);
+          
+          // Clear current order first
+          clearOrder();
+          
+          // Set customer info
+          if (reorderCustomerName) setCustomerName(reorderCustomerName);
+          if (reorderCustomerPhone) setCustomerPhone(reorderCustomerPhone);
+          if (reorderCustomerAddress) setCustomerAddress(reorderCustomerAddress);
+          
+          // Add all items with correct quantities
+          reorderItems.forEach((item: { product: any; quantity: number }) => {
+            // First add the product (this will add it with quantity 1)
+            addToOrder(item.product);
+            // Then immediately update the quantity
+            if (item.quantity > 1) {
+              setTimeout(() => {
+                updateOrderQuantity(item.product.id, item.quantity);
+              }, 10);
+            }
+          });
+          
+          console.log("Reordered items loaded from localStorage:", reorderItems.length);
+          
+          // Clean up localStorage
+          localStorage.removeItem("reorder_customer_name");
+          localStorage.removeItem("reorder_customer_phone");
+          localStorage.removeItem("reorder_customer_address");
+          localStorage.removeItem("reorder_items");
+          
+          // Open the order panel
+          setTimeout(() => {
+            setIsOrderPanelOpen(true);
+          }, 100);
+          
+          // Clean up URL parameters
+          if (typeof window !== "undefined") {
+            const url = new URL(window.location.href);
+            url.searchParams.delete("order");
+            url.searchParams.delete("reorder");
+            window.history.replaceState({}, "", url.toString());
+          }
+        }
+      } catch (error) {
+        console.error("Error loading reorder data:", error);
+        // Clean up URL parameters even on error
+        if (typeof window !== "undefined") {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("order");
+          url.searchParams.delete("reorder");
+          window.history.replaceState({}, "", url.toString());
+        }
+      }
+    }
+  }, [searchParams, clearOrder, setCustomerName, setCustomerPhone, setCustomerAddress, addToOrder, updateOrderQuantity]);
+  
+  // Auto-open order panel if order query parameter is present and items are already loaded
+  useEffect(() => {
+    const orderParam = searchParams.get("order");
+    if (orderParam === "true" && selectedProducts.length > 0 && searchParams.get("reorder") !== "true") {
+      setIsOrderPanelOpen(true);
+      // Remove the query parameter from URL to avoid reopening on refresh
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("order");
+        window.history.replaceState({}, "", url.toString());
+      }
+    }
+  }, [searchParams, selectedProducts.length]);
 
   // Loading state - simplified logic to prevent infinite loading
   const [isInitialLoad, setIsInitialLoad] = useState(true);

@@ -44,32 +44,61 @@ export default function OrderHistory() {
   const [loadingMore, setLoadingMore] = useState(false);
   const ordersPerPage = 5;
   const router = useRouter();
-  const { addToOrder, setCustomerName, setCustomerPhone, setCustomerAddress } = useOrder();
+  const { addToOrder, updateQuantity, setCustomerName, setCustomerPhone, setCustomerAddress } = useOrder();
 
   const handleReorder = async (orderId: string) => {
     try {
       setReorderingId(orderId);
-      const items = orderItems[orderId];
+      console.log("Starting reorder for order ID:", orderId);
+      console.log("ItemsData available:", itemsData.length);
+      
+      // Convert orderId to both string and number for comparison (order_id might be stored as either)
+      const orderIdStr = String(orderId);
+      const orderIdNum = Number(orderId);
+      
+      // Get items for this specific order from itemsData
+      const items = itemsData.filter((item: any) => {
+        const itemOrderId = String(item.order_id);
+        return itemOrderId === orderIdStr || item.order_id === orderIdNum;
+      });
+      
+      console.log("Filtered items:", items);
+      
+      if (!items || items.length === 0) {
+        console.error("No items found for order", orderId, "Available order_ids:", itemsData.map((i: any) => i.order_id));
+        alert("No items found for this order. Please try refreshing the page.");
+        setReorderingId(null);
+        return;
+      }
 
       // Get the order details
-      const { data: orderData } = await supabase
+      const { data: orderData, error: orderError } = await supabase
         .from("orders")
         .select("customer_name, customer_phone, customer_address")
         .eq("id", orderId)
         .single();
+        
+      if (orderError) {
+        console.error("Error fetching order data:", orderError);
+      }
 
+      console.log("Order data:", orderData);
       console.log("Reordering items:", items);
 
-      // Add each item to the order first
+      // First, add all items to the order (with quantity 1 initially)
       for (const item of items) {
         console.log("Processing item:", item);
 
         // Get the actual product details from the database
-        const { data: productData } = await supabase
+        const { data: productData, error: productError } = await supabase
           .from("products")
           .select("*")
           .eq("id", item.product_id)
           .single();
+
+        if (productError) {
+          console.error("Error fetching product:", productError, "for product_id:", item.product_id);
+        }
 
         console.log("Product data from DB:", productData);
 
@@ -94,28 +123,58 @@ export default function OrderHistory() {
           };
 
           console.log("Adding to order:", orderItem);
-          await addToOrder(orderItem);
+          addToOrder(orderItem);
         } else {
-          console.log("Product not found in DB, using original item data");
+          console.warn("Product not found in DB, using original item data. Product ID:", item.product_id);
           // Fallback to original item data if product not found
-          await addToOrder({
+          addToOrder({
             id: item.product_id,
             "Item Code": "",
-            Product: item.product_name,
+            Product: item.product_name || "Unknown Product",
             Category: "",
             weight: "",
             UOM: "",
             Country: "",
-            price: item.price,
+            price: item.price || 0,
             uom: "",
             stock_quantity: 0,
             image_url: item.image_url || "/product-placeholder.svg",
           });
         }
       }
+      
+      console.log("All items added to order");
+
+      // Set customer info if available
+      if (orderData) {
+        setCustomerName(orderData.customer_name || "");
+        setCustomerPhone(orderData.customer_phone || "");
+        setCustomerAddress(orderData.customer_address || "");
+        console.log("Customer info set:", {
+          name: orderData.customer_name,
+          phone: orderData.customer_phone,
+          address: orderData.customer_address
+        });
+      }
+
+      // Wait a brief moment for state updates, then update quantities
+      console.log("Waiting for state updates...");
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Now update quantities to match the original order
+      console.log("Updating quantities for", items.length, "items");
+      for (const item of items) {
+        if (item.quantity && item.quantity > 0) {
+          console.log(`Updating quantity for product ${item.product_id} to ${item.quantity}`);
+          updateQuantity(item.product_id, item.quantity);
+        }
+      }
+
+      // Wait a bit more for quantity updates
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       // Prepare items for localStorage
-      const itemsToStore = items.map((item: { product_id: number; product_name: string; price: number; quantity: number; image_url?: string }) => ({
+      const itemsToStore = items.map((item: any) => ({
         product: {
           id: item.product_id,
           "Item Code": "",
@@ -142,6 +201,7 @@ export default function OrderHistory() {
       // Store order items in localStorage
       localStorage.setItem("reorder_items", JSON.stringify(itemsToStore));
 
+      console.log("Redirecting to main page with order panel");
       // Redirect to main page with order panel and customer info
       router.push("/?order=true&reorder=true");
     } catch (error) {

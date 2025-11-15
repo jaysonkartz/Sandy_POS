@@ -109,25 +109,50 @@ export const OrderPanel = memo<OrderPanelProps>(({
 
   // Load addresses from addresses table
   const loadAddresses = useCallback(async (session: any) => {
-    if (!session?.user?.email) {
+    if (!session?.user?.email && !session?.user?.id) {
       return;
     }
 
     try {
-      // Get customer ID first
-      const { data: allCustomers, error: allError } = await supabase
-        .from("customers")
-        .select("id, email, user_id")
-        .eq("email", session.user.email);
+      console.log("Loading addresses for email:", session.user.email, "user_id:", session.user.id);
+      
+      let customerData = null;
+      
+      // Try to get customer ID by user_id first (more reliable)
+      if (session.user.id) {
+        const { data: customerByUserId, error: userIdError } = await supabase
+          .from("customers")
+          .select("id, email, user_id")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+          
+        if (!userIdError && customerByUserId) {
+          customerData = customerByUserId;
+          console.log("Customer found by user_id:", customerData.id);
+        }
+      }
+      
+      // Fallback to email lookup if user_id didn't work
+      if (!customerData && session.user.email) {
+        const { data: allCustomers, error: allError } = await supabase
+          .from("customers")
+          .select("id, email, user_id")
+          .eq("email", session.user.email);
 
-      if (allError || !allCustomers || allCustomers.length === 0) {
-        console.log("No customer found for email:", session.user.email);
+        if (!allError && allCustomers && allCustomers.length > 0) {
+          // If multiple customers with same email, prefer one matching user_id
+          customerData = allCustomers.find(c => c.user_id === session.user.id) || allCustomers[0];
+          console.log("Customer found by email:", customerData.id, "Total matches:", allCustomers.length);
+        }
+      }
+
+      if (!customerData) {
+        console.log("No customer found for email:", session.user.email, "user_id:", session.user.id);
+        setAddresses([]);
         return;
       }
 
-      const customerData = allCustomers[0];
-
-      // Load addresses for this customer
+      // Load ALL addresses for this customer (no limit)
       const { data: addressesData, error: addressesError } = await supabase
         .from("addresses")
         .select("*")
@@ -137,8 +162,11 @@ export const OrderPanel = memo<OrderPanelProps>(({
 
       if (addressesError) {
         console.error("Error loading addresses:", addressesError);
+        setAddresses([]);
         return;
       }
+
+      console.log("Addresses loaded from database:", addressesData?.length || 0, addressesData);
 
       if (addressesData && addressesData.length > 0) {
         const formattedAddresses: Address[] = addressesData.map(addr => ({
@@ -148,6 +176,7 @@ export const OrderPanel = memo<OrderPanelProps>(({
           isDefault: addr.is_default
         }));
 
+        console.log("Formatted addresses to display:", formattedAddresses.length, formattedAddresses);
         setAddresses(formattedAddresses);
 
         // Auto-select default address if available
@@ -155,10 +184,18 @@ export const OrderPanel = memo<OrderPanelProps>(({
         if (defaultAddress) {
           setSelectedAddressId(defaultAddress.id);
           onCustomerAddressChange(defaultAddress.address);
+        } else if (formattedAddresses.length > 0) {
+          // If no default, select the first one
+          setSelectedAddressId(formattedAddresses[0].id);
+          onCustomerAddressChange(formattedAddresses[0].address);
         }
+      } else {
+        console.log("No addresses found in database for customer_id:", customerData.id);
+        setAddresses([]);
       }
     } catch (error) {
       console.error("Error loading addresses:", error);
+      setAddresses([]);
     }
   }, [onCustomerAddressChange]);
 
@@ -257,10 +294,15 @@ export const OrderPanel = memo<OrderPanelProps>(({
     }
   }, [isOpen, session, customerDataLoaded]);
 
-  // Load addresses when panel opens
+  // Load addresses when panel opens - reset state on close
   useEffect(() => {
-    if (isOpen && session?.user?.email) {
+    if (isOpen && session?.user) {
+      console.log("OrderPanel opened, loading addresses...");
       loadAddresses(session);
+    } else if (!isOpen) {
+      // Reset addresses when panel closes to avoid stale data
+      setAddresses([]);
+      setSelectedAddressId("");
     }
   }, [isOpen, session, loadAddresses]);
 
