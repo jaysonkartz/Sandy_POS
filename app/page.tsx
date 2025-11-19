@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import SignupModal from "@/components/SignupModal";
 import ProductPhotoEditor from "@/components/ProductPhotoEditor";
@@ -30,124 +30,63 @@ import { useWhatsApp } from "@/app/hooks/useWhatsApp";
 // Types
 import { Product, SelectedOptions } from "@/app/types/product";
 
-export default function Home() {
-  // State
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [isEnglish, setIsEnglish] = useState(true);
-  const [isOrderPanelOpen, setIsOrderPanelOpen] = useState(false);
-  const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [selectedOptions, setSelectedOptions] = useState<SelectedOptions>({});
-  const [reviewData, setReviewData] = useState<{
-    remarks: string;
-    purchaseOrder: string;
-    uploadedFiles: File[];
-  } | null>(null);
-
-  // Hooks
-  const {
-    session,
-    userRole,
-    isLoading: sessionLoading,
-    isSessionValid,
-    forceRefreshSession,
-  } = useSession();
-  const {
-    products,
-    loading,
-    error,
-    productGroups,
-    setProducts,
-    searchTerm,
-    handleSearchChange,
-    handleClearSearch,
-  } = useProducts(selectedCategory, isEnglish, session);
-  const { countryMap } = useCountries();
-  const { showScrollTop, scrollToTop } = useScroll();
-  const { handleCustomerService, sendWhatsAppNotification } = useWhatsApp();
-  const {
-    isPhotoEditorOpen,
-    selectedProductForPhoto,
-    openPhotoEditor,
-    closePhotoEditor,
-    handleImageUpdate,
-  } = usePhotoEditor();
-  const {
-    selectedProducts,
-    customerName,
-    customerPhone,
-    customerAddress,
-    isSubmitting,
-    setCustomerName,
-    setCustomerPhone,
-    setCustomerAddress,
-    addToOrder,
-    updateQuantity: updateOrderQuantity,
-    clearOrder,
-    fillCustomerInfo,
-    loadCustomerAddresses,
-    saveCustomerAddress,
-    submitOrder,
-  } = useOrder();
-
-  // Callbacks
-
-  const handleOptionChange = useCallback(
-    (title: string, type: "variation" | "countryId" | "weight", value: string) => {
-      setSelectedOptions((prev) => ({
-        ...prev,
-        [title]: {
-          ...prev[title],
-          [type]: value,
-        },
-      }));
-    },
-    []
-  );
-
-  const handleSubmitOrder = useCallback(
-    async (reviewData?: { remarks: string; purchaseOrder: string; uploadedFiles: File[] }) => {
-      const success = await submitOrder(session, isEnglish, sendWhatsAppNotification, reviewData);
-      if (success) {
-        setIsOrderPanelOpen(false);
-        setReviewData(null); // Clear review data after successful submission
-      }
-    },
-    [submitOrder, session, isEnglish, sendWhatsAppNotification]
-  );
-
-  const handleImageUpdateCallback = useCallback(
-    (imageUrl: string) => {
-      handleImageUpdate(imageUrl, setProducts);
-    },
-    [handleImageUpdate, setProducts]
-  );
-
-  // Note: Auto-fill functionality is now handled directly in OrderPanel component
-
-  const handleLoginSuccess = useCallback(async () => {
-    try {
-      console.log("Login success callback triggered");
-      setIsLoggingIn(true);
-      setIsSignupModalOpen(false);
-      
-      // Give a small delay to ensure the session is properly set
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Force refresh the session
-      await forceRefreshSession();
-      
-      console.log("Login success callback completed");
-    } catch (error) {
-      console.error("Error in login success callback:", error);
-    } finally {
-      setIsLoggingIn(false);
-    }
-  }, [forceRefreshSession]);
-
-  // Check for order query parameter to auto-open order panel
+// Component that handles search params (needs to be wrapped in Suspense)
+function HomeContent({
+  selectedCategory,
+  setSelectedCategory,
+  isEnglish,
+  setIsEnglish,
+  isOrderPanelOpen,
+  setIsOrderPanelOpen,
+  isSignupModalOpen,
+  setIsSignupModalOpen,
+  isLoggingIn,
+  setIsLoggingIn,
+  selectedOptions,
+  setSelectedOptions,
+  reviewData,
+  setReviewData,
+  session,
+  userRole,
+  sessionLoading,
+  isSessionValid,
+  forceRefreshSession,
+  products,
+  loading,
+  error,
+  productGroups,
+  setProducts,
+  searchTerm,
+  handleSearchChange,
+  handleClearSearch,
+  countryMap,
+  showScrollTop,
+  scrollToTop,
+  handleCustomerService,
+  sendWhatsAppNotification,
+  isPhotoEditorOpen,
+  selectedProductForPhoto,
+  openPhotoEditor,
+  closePhotoEditor,
+  handleImageUpdate,
+  selectedProducts,
+  customerName,
+  customerPhone,
+  customerAddress,
+  isSubmitting,
+  setCustomerName,
+  setCustomerPhone,
+  setCustomerAddress,
+  addToOrder,
+  updateOrderQuantity,
+  clearOrder,
+  fillCustomerInfo,
+  loadCustomerAddresses,
+  saveCustomerAddress,
+  submitOrder,
+}: any) {
   const searchParams = useSearchParams();
-  
+
   // Load reorder data from localStorage if reorder parameter is present
   useEffect(() => {
     const reorderParam = searchParams.get("reorder");
@@ -158,18 +97,18 @@ export default function Home() {
         const reorderCustomerPhone = localStorage.getItem("reorder_customer_phone");
         const reorderCustomerAddress = localStorage.getItem("reorder_customer_address");
         const reorderItemsStr = localStorage.getItem("reorder_items");
-        
+
         if (reorderItemsStr) {
           const reorderItems = JSON.parse(reorderItemsStr);
-          
+
           // Clear current order first
           clearOrder();
-          
+
           // Set customer info
           if (reorderCustomerName) setCustomerName(reorderCustomerName);
           if (reorderCustomerPhone) setCustomerPhone(reorderCustomerPhone);
           if (reorderCustomerAddress) setCustomerAddress(reorderCustomerAddress);
-          
+
           // Add all items with correct quantities
           reorderItems.forEach((item: { product: any; quantity: number }) => {
             // First add the product (this will add it with quantity 1)
@@ -181,20 +120,20 @@ export default function Home() {
               }, 10);
             }
           });
-          
+
           console.log("Reordered items loaded from localStorage:", reorderItems.length);
-          
+
           // Clean up localStorage
           localStorage.removeItem("reorder_customer_name");
           localStorage.removeItem("reorder_customer_phone");
           localStorage.removeItem("reorder_customer_address");
           localStorage.removeItem("reorder_items");
-          
+
           // Open the order panel
           setTimeout(() => {
             setIsOrderPanelOpen(true);
           }, 100);
-          
+
           // Clean up URL parameters
           if (typeof window !== "undefined") {
             const url = new URL(window.location.href);
@@ -214,12 +153,24 @@ export default function Home() {
         }
       }
     }
-  }, [searchParams, clearOrder, setCustomerName, setCustomerPhone, setCustomerAddress, addToOrder, updateOrderQuantity]);
-  
+  }, [
+    searchParams,
+    clearOrder,
+    setCustomerName,
+    setCustomerPhone,
+    setCustomerAddress,
+    addToOrder,
+    updateOrderQuantity,
+  ]);
+
   // Auto-open order panel if order query parameter is present and items are already loaded
   useEffect(() => {
     const orderParam = searchParams.get("order");
-    if (orderParam === "true" && selectedProducts.length > 0 && searchParams.get("reorder") !== "true") {
+    if (
+      orderParam === "true" &&
+      selectedProducts.length > 0 &&
+      searchParams.get("reorder") !== "true"
+    ) {
       setIsOrderPanelOpen(true);
       // Remove the query parameter from URL to avoid reopening on refresh
       if (typeof window !== "undefined") {
@@ -228,7 +179,59 @@ export default function Home() {
         window.history.replaceState({}, "", url.toString());
       }
     }
-  }, [searchParams, selectedProducts.length]);
+  }, [searchParams, selectedProducts.length, setIsOrderPanelOpen]);
+
+  // Callbacks
+  const handleOptionChange = useCallback(
+    (title: string, type: "variation" | "countryId" | "weight", value: string) => {
+      setSelectedOptions((prev: SelectedOptions) => ({
+        ...prev,
+        [title]: {
+          ...prev[title],
+          [type]: value,
+        },
+      }));
+    },
+    [setSelectedOptions]
+  );
+
+  const handleSubmitOrder = useCallback(
+    async (reviewData?: { remarks: string; purchaseOrder: string; uploadedFiles: File[] }) => {
+      const success = await submitOrder(session, isEnglish, sendWhatsAppNotification, reviewData);
+      if (success) {
+        setIsOrderPanelOpen(false);
+        setReviewData(null); // Clear review data after successful submission
+      }
+    },
+    [submitOrder, session, isEnglish, sendWhatsAppNotification, setIsOrderPanelOpen, setReviewData]
+  );
+
+  const handleImageUpdateCallback = useCallback(
+    (imageUrl: string) => {
+      handleImageUpdate(imageUrl, setProducts);
+    },
+    [handleImageUpdate, setProducts]
+  );
+
+  const handleLoginSuccess = useCallback(async () => {
+    try {
+      console.log("Login success callback triggered");
+      setIsLoggingIn(true);
+      setIsSignupModalOpen(false);
+
+      // Give a small delay to ensure the session is properly set
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Force refresh the session
+      await forceRefreshSession();
+
+      console.log("Login success callback completed");
+    } catch (error) {
+      console.error("Error in login success callback:", error);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  }, [forceRefreshSession, setIsLoggingIn, setIsSignupModalOpen]);
 
   // Loading state - simplified logic to prevent infinite loading
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -388,5 +391,125 @@ export default function Home() {
         />
       )}
     </div>
+  );
+}
+
+export default function Home() {
+  // State
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [isEnglish, setIsEnglish] = useState(true);
+  const [isOrderPanelOpen, setIsOrderPanelOpen] = useState(false);
+  const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [selectedOptions, setSelectedOptions] = useState<SelectedOptions>({});
+  const [reviewData, setReviewData] = useState<{
+    remarks: string;
+    purchaseOrder: string;
+    uploadedFiles: File[];
+  } | null>(null);
+
+  // Hooks
+  const {
+    session,
+    userRole,
+    isLoading: sessionLoading,
+    isSessionValid,
+    forceRefreshSession,
+  } = useSession();
+  const {
+    products,
+    loading,
+    error,
+    productGroups,
+    setProducts,
+    searchTerm,
+    handleSearchChange,
+    handleClearSearch,
+  } = useProducts(selectedCategory, isEnglish, session);
+  const { countryMap } = useCountries();
+  const { showScrollTop, scrollToTop } = useScroll();
+  const { handleCustomerService, sendWhatsAppNotification } = useWhatsApp();
+  const {
+    isPhotoEditorOpen,
+    selectedProductForPhoto,
+    openPhotoEditor,
+    closePhotoEditor,
+    handleImageUpdate,
+  } = usePhotoEditor();
+  const {
+    selectedProducts,
+    customerName,
+    customerPhone,
+    customerAddress,
+    isSubmitting,
+    setCustomerName,
+    setCustomerPhone,
+    setCustomerAddress,
+    addToOrder,
+    updateQuantity: updateOrderQuantity,
+    clearOrder,
+    fillCustomerInfo,
+    loadCustomerAddresses,
+    saveCustomerAddress,
+    submitOrder,
+  } = useOrder();
+
+  return (
+    <Suspense fallback={<LoadingSkeleton />}>
+      <HomeContent
+        selectedCategory={selectedCategory}
+        setSelectedCategory={setSelectedCategory}
+        isEnglish={isEnglish}
+        setIsEnglish={setIsEnglish}
+        isOrderPanelOpen={isOrderPanelOpen}
+        setIsOrderPanelOpen={setIsOrderPanelOpen}
+        isSignupModalOpen={isSignupModalOpen}
+        setIsSignupModalOpen={setIsSignupModalOpen}
+        isLoggingIn={isLoggingIn}
+        setIsLoggingIn={setIsLoggingIn}
+        selectedOptions={selectedOptions}
+        setSelectedOptions={setSelectedOptions}
+        reviewData={reviewData}
+        setReviewData={setReviewData}
+        session={session}
+        userRole={userRole}
+        sessionLoading={sessionLoading}
+        isSessionValid={isSessionValid}
+        forceRefreshSession={forceRefreshSession}
+        products={products}
+        loading={loading}
+        error={error}
+        productGroups={productGroups}
+        setProducts={setProducts}
+        searchTerm={searchTerm}
+        handleSearchChange={handleSearchChange}
+        handleClearSearch={handleClearSearch}
+        countryMap={countryMap}
+        showScrollTop={showScrollTop}
+        scrollToTop={scrollToTop}
+        handleCustomerService={handleCustomerService}
+        sendWhatsAppNotification={sendWhatsAppNotification}
+        isPhotoEditorOpen={isPhotoEditorOpen}
+        selectedProductForPhoto={selectedProductForPhoto}
+        openPhotoEditor={openPhotoEditor}
+        closePhotoEditor={closePhotoEditor}
+        handleImageUpdate={handleImageUpdate}
+        selectedProducts={selectedProducts}
+        customerName={customerName}
+        customerPhone={customerPhone}
+        customerAddress={customerAddress}
+        isSubmitting={isSubmitting}
+        setCustomerName={setCustomerName}
+        setCustomerPhone={setCustomerPhone}
+        setCustomerAddress={setCustomerAddress}
+        addToOrder={addToOrder}
+        updateOrderQuantity={updateOrderQuantity}
+        clearOrder={clearOrder}
+        fillCustomerInfo={fillCustomerInfo}
+        loadCustomerAddresses={loadCustomerAddresses}
+        saveCustomerAddress={saveCustomerAddress}
+        submitOrder={submitOrder}
+      />
+    </Suspense>
   );
 }

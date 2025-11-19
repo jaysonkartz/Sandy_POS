@@ -5,6 +5,35 @@ import { usePathname } from "next/navigation";
 import TopBarLogin from "./TopBarLogin";
 import { supabase } from "@/app/lib/supabaseClient";
 
+// Helper function to check if an error is a refresh token error
+const isRefreshTokenError = (error: any): boolean => {
+  if (!error) return false;
+
+  const errorMessage = error?.message || "";
+  const errorCode = error?.code || "";
+
+  return (
+    errorMessage.includes("Invalid Refresh Token") ||
+    errorMessage.includes("Refresh Token Not Found") ||
+    errorMessage.includes("refresh_token_not_found") ||
+    errorCode === "refresh_token_not_found" ||
+    errorMessage.includes("session_not_found") ||
+    errorCode === "session_not_found"
+  );
+};
+
+// Helper function to clear invalid session data
+const clearInvalidSession = () => {
+  try {
+    const keys = Object.keys(localStorage);
+    const supabaseKeys = keys.filter((key) => key.includes("supabase") || key.includes("sb-"));
+    supabaseKeys.forEach((key) => localStorage.removeItem(key));
+    localStorage.removeItem("sandy_pos_session");
+  } catch (error) {
+    // Silently fail if localStorage is not available
+  }
+};
+
 export default function Header() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -78,6 +107,14 @@ export default function Header() {
           error: refreshError,
         } = await supabase.auth.refreshSession();
 
+        if (isRefreshTokenError(refreshError)) {
+          // Invalid refresh token, clear session data
+          clearInvalidSession();
+          setSession(null);
+          setUserRole("");
+          return;
+        }
+
         if (!refreshError && refreshedSession?.user) {
           setSession(refreshedSession);
 
@@ -99,6 +136,13 @@ export default function Header() {
         setSession(null);
         setUserRole("");
       } catch (error) {
+        if (isRefreshTokenError(error)) {
+          // Invalid refresh token, clear session data
+          clearInvalidSession();
+          setSession(null);
+          setUserRole("");
+          return;
+        }
         console.error("Header: Error in session recovery:", error);
         setSession(null);
         setUserRole("");
@@ -157,11 +201,14 @@ export default function Header() {
   const handleLoginSuccess = async () => {
     try {
       // Force refresh the session after successful login
-      const { data: { session: newSession }, error } = await supabase.auth.getSession();
-      
+      const {
+        data: { session: newSession },
+        error,
+      } = await supabase.auth.getSession();
+
       if (newSession?.user && !error) {
         setSession(newSession);
-        
+
         // Fetch user role
         const { data: userData } = await supabase
           .from("users")
@@ -192,7 +239,11 @@ export default function Header() {
               rel="noopener noreferrer"
               target="_blank"
             ></a>
-            <TopBarLogin session={session} userRole={userRole} onLoginSuccess={handleLoginSuccess} />
+            <TopBarLogin
+              session={session}
+              userRole={userRole}
+              onLoginSuccess={handleLoginSuccess}
+            />
           </>
         )}
       </header>

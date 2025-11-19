@@ -11,6 +11,37 @@ import {
   STORAGE_KEYS,
 } from "@/app/constants/app-constants";
 
+// Helper function to check if an error is a refresh token error
+const isRefreshTokenError = (error: any): boolean => {
+  if (!error) return false;
+
+  const errorMessage = error?.message || "";
+  const errorCode = error?.code || "";
+
+  return (
+    errorMessage.includes("Invalid Refresh Token") ||
+    errorMessage.includes("Refresh Token Not Found") ||
+    errorMessage.includes("refresh_token_not_found") ||
+    errorCode === "refresh_token_not_found" ||
+    errorMessage.includes("session_not_found") ||
+    errorCode === "session_not_found"
+  );
+};
+
+// Helper function to clear invalid session data
+const clearInvalidSession = () => {
+  try {
+    const keys = Object.keys(localStorage);
+    const supabaseKeys = keys.filter(
+      (key) => key.includes("supabase") || key.includes(STORAGE_KEYS.SUPABASE_PREFIX)
+    );
+    supabaseKeys.forEach((key) => localStorage.removeItem(key));
+    localStorage.removeItem(STORAGE_KEYS.SESSION);
+  } catch (error) {
+    // Silently fail if localStorage is not available
+  }
+};
+
 interface UseSessionReturn {
   session: Session | null;
   userRole: string;
@@ -89,16 +120,9 @@ export const useSession = (): UseSessionReturn => {
         error,
       } = await supabase.auth.refreshSession();
 
-      if (error?.message?.includes("session_not_found") || error?.code === "session_not_found") {
+      if (isRefreshTokenError(error)) {
         // Clear all invalid session data
-        const keys = Object.keys(localStorage);
-        const supabaseKeys = keys.filter(
-          (key) => key.includes("supabase") || key.includes(STORAGE_KEYS.SUPABASE_PREFIX)
-        );
-
-        supabaseKeys.forEach((key) => localStorage.removeItem(key));
-        localStorage.removeItem(STORAGE_KEYS.SESSION);
-
+        clearInvalidSession();
         setSession(null);
         setUserRole("");
         return false;
@@ -112,7 +136,14 @@ export const useSession = (): UseSessionReturn => {
         return true;
       }
     } catch (error) {
-      // Session refresh failed
+      // Check if it's a refresh token error
+      if (isRefreshTokenError(error)) {
+        clearInvalidSession();
+        setSession(null);
+        setUserRole("");
+        return false;
+      }
+      // Session refresh failed for other reasons
     }
 
     // Method 2: Check localStorage for stored session
@@ -138,10 +169,7 @@ export const useSession = (): UseSessionReturn => {
                     refresh_token: parsed.refresh_token || "",
                   });
 
-                  if (
-                    error?.message?.includes("session_not_found") ||
-                    error?.code === "session_not_found"
-                  ) {
+                  if (isRefreshTokenError(error)) {
                     localStorage.removeItem(key);
                     return false;
                   }
@@ -182,9 +210,12 @@ export const useSession = (): UseSessionReturn => {
   const forceRefreshSession = useCallback(async () => {
     try {
       console.log("Force refreshing session");
-      
+
       // Get current session
-      const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+      const {
+        data: { session: currentSession },
+        error,
+      } = await supabase.auth.getSession();
 
       if (error) {
         console.error("Error getting session:", error);
@@ -205,7 +236,18 @@ export const useSession = (): UseSessionReturn => {
       // No session found, try to refresh
       console.log("No session found, attempting refresh");
       try {
-        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+        const {
+          data: { session: refreshedSession },
+          error: refreshError,
+        } = await supabase.auth.refreshSession();
+
+        if (isRefreshTokenError(refreshError)) {
+          // Invalid refresh token, clear session data
+          clearInvalidSession();
+          setSession(null);
+          setUserRole("");
+          return;
+        }
 
         if (!refreshError && refreshedSession?.user) {
           console.log("Session refreshed successfully");
@@ -216,6 +258,13 @@ export const useSession = (): UseSessionReturn => {
           return;
         }
       } catch (refreshError) {
+        if (isRefreshTokenError(refreshError)) {
+          // Invalid refresh token, clear session data
+          clearInvalidSession();
+          setSession(null);
+          setUserRole("");
+          return;
+        }
         console.log("Session refresh failed:", refreshError);
       }
 
@@ -235,7 +284,7 @@ export const useSession = (): UseSessionReturn => {
     const initializeSession = async () => {
       try {
         console.log("Starting session initialization");
-        
+
         // Set a maximum timeout for session initialization
         const timeoutPromise = new Promise<void>((resolve) => {
           setTimeout(() => {
@@ -247,7 +296,10 @@ export const useSession = (): UseSessionReturn => {
 
         const sessionPromise = (async () => {
           // Try to get current session first (most reliable)
-          const { data: { session }, error } = await supabase.auth.getSession();
+          const {
+            data: { session },
+            error,
+          } = await supabase.auth.getSession();
 
           if (error) {
             console.error("Error getting initial session:", error);
@@ -279,6 +331,15 @@ export const useSession = (): UseSessionReturn => {
                   access_token: parsed.access_token,
                   refresh_token: parsed.refresh_token || "",
                 });
+
+                if (isRefreshTokenError(restoreError)) {
+                  // Invalid refresh token, clear session data
+                  clearInvalidSession();
+                  setSession(null);
+                  setUserRole("");
+                  setIsLoading(false);
+                  return;
+                }
 
                 if (!restoreError && restoredSession?.user) {
                   console.log("Stored session restored successfully");
@@ -367,7 +428,16 @@ export const useSession = (): UseSessionReturn => {
           error,
         } = await supabase.auth.refreshSession();
 
+        if (isRefreshTokenError(error)) {
+          // Invalid refresh token, clear session data and stop refreshing
+          clearInvalidSession();
+          setSession(null);
+          setUserRole("");
+          return;
+        }
+
         if (error) {
+          // Only log non-refresh-token errors
           console.error("Error refreshing session:", error);
           return;
         }
@@ -376,6 +446,13 @@ export const useSession = (): UseSessionReturn => {
           setSession(refreshedSession);
         }
       } catch (error) {
+        if (isRefreshTokenError(error)) {
+          // Invalid refresh token, clear session data
+          clearInvalidSession();
+          setSession(null);
+          setUserRole("");
+          return;
+        }
         console.error("Exception refreshing session:", error);
       }
     }, SESSION_REFRESH_INTERVAL);
@@ -406,11 +483,27 @@ export const useSession = (): UseSessionReturn => {
                 data: { session: refreshedSession },
                 error: refreshError,
               } = await supabase.auth.refreshSession();
+
+              if (isRefreshTokenError(refreshError)) {
+                // Invalid refresh token, clear session data
+                clearInvalidSession();
+                setSession(null);
+                setUserRole("");
+                return;
+              }
+
               if (!refreshError && refreshedSession) {
                 setSession(refreshedSession);
               }
             } catch (refreshError) {
-              // Proactive refresh failed
+              if (isRefreshTokenError(refreshError)) {
+                // Invalid refresh token, clear session data
+                clearInvalidSession();
+                setSession(null);
+                setUserRole("");
+                return;
+              }
+              // Proactive refresh failed for other reasons
             }
           }
         } else {
@@ -466,11 +559,27 @@ export const useSession = (): UseSessionReturn => {
               data: { session: refreshedSession },
               error,
             } = await supabase.auth.refreshSession();
+
+            if (isRefreshTokenError(error)) {
+              // Invalid refresh token, clear session data
+              clearInvalidSession();
+              setSession(null);
+              setUserRole("");
+              return;
+            }
+
             if (!error && refreshedSession) {
               setSession(refreshedSession);
             }
           } catch (error) {
-            // Failed to refresh session on user activity
+            if (isRefreshTokenError(error)) {
+              // Invalid refresh token, clear session data
+              clearInvalidSession();
+              setSession(null);
+              setUserRole("");
+              return;
+            }
+            // Failed to refresh session on user activity for other reasons
           }
         }
       }, USER_ACTIVITY_TIMEOUT);
@@ -535,4 +644,3 @@ export const useSession = (): UseSessionReturn => {
     signOut, // Add signOut to the returned object
   };
 };
-

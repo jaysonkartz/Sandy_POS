@@ -44,7 +44,8 @@ export default function EditUserModal({ user, isOpen, onClose, onUpdate }: EditU
 
     try {
       // Validate role value
-      if (![USER_ROLES.ADMIN, USER_ROLES.CUSTOMER].includes(role)) {
+      const validRoles: string[] = [USER_ROLES.ADMIN, USER_ROLES.CUSTOMER];
+      if (!validRoles.includes(role)) {
         throw new Error("Invalid role value");
       }
 
@@ -98,9 +99,7 @@ export default function EditUserModal({ user, isOpen, onClose, onUpdate }: EditU
               <option value={USER_ROLES.CUSTOMER}>Customer</option>
               <option value={USER_ROLES.ADMIN}>Admin</option>
             </select>
-            <p className="text-xs text-gray-500 mt-1">
-              Select a role: Customer or Admin
-            </p>
+            <p className="text-xs text-gray-500 mt-1">Select a role: Customer or Admin</p>
           </div>
 
           {error && (
@@ -108,7 +107,7 @@ export default function EditUserModal({ user, isOpen, onClose, onUpdate }: EditU
               {error}
             </div>
           )}
-          
+
           {success && (
             <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded text-sm">
               User role updated successfully!
