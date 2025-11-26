@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-//import PricingManagement from "@/components/PricingManagement";
 import { Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -20,7 +19,6 @@ import { supabase } from "@/app/lib/supabaseClient";
 import EditUserModal from "@/components/EditUserModal";
 import CustomerManagement from "@/components/CustomerManagement";
 import { CATEGORY_ID_NAME_MAP } from "@/app/(admin)/const/category";
-//import ProductListTable from "@/components/ProductListTable";
 import React from "react";
 import { useRouter } from "next/navigation";
 import QuickSignInCheck from "@/app/components/QuickSignInCheck";
@@ -28,6 +26,7 @@ import SignInStats from "@/app/components/SignInStats";
 import VariantManager from "@/components/VariantManager";
 import VariantExtractor from "@/components/VariantExtractor";
 import { ProductVariant } from "@/app/types/product";
+import toast, { Toaster } from "react-hot-toast";
 
 ChartJS.register(
   CategoryScale,
@@ -203,6 +202,17 @@ export default function ManagementDashboard() {
   const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState<{
     [productId: number]: boolean;
   }>({});
+  const [dashboardStats, setDashboardStats] = useState<{
+    totalProducts: number;
+    totalSales: number;
+    activeCustomers: number;
+    pendingOrders: number;
+  }>({
+    totalProducts: 0,
+    totalSales: 0,
+    activeCustomers: 0,
+    pendingOrders: 0,
+  });
 
   const priceHistoryMap: Record<number, { previous_price: number; last_price_update: string }[]> =
     {};
@@ -216,58 +226,35 @@ export default function ManagementDashboard() {
   const fetchAllCustomers = async () => {
     setIsLoadingCustomers(true);
     try {
-      console.log("Starting to fetch customers...");
-      console.log("Supabase client:", supabase);
-      
-      // Try using select("*") first like CustomerManagement does
       const { data, error } = await supabase
         .from("customers")
         .select("*")
         .order("name", { ascending: true });
 
-      console.log("Customer fetch result:", { 
-        dataLength: data?.length, 
-        error: error ? { message: error.message, code: error.code, details: error.details } : null 
-      });
-
       if (error) {
-        console.error("Error fetching customers:", error);
-        console.error("Error details:", JSON.stringify(error, null, 2));
-        alert("Failed to load customers: " + error.message + (error.details ? ` (${error.details})` : ""));
+        toast.error(`Failed to load customers: ${error.message}${error.details ? ` (${error.details})` : ""}`);
         setIsLoadingCustomers(false);
         return;
       }
 
       if (data && Array.isArray(data)) {
-        console.log(`Loaded ${data.length} customers for selector`);
-        if (data.length > 0) {
-          console.log("Sample customer data:", data[0]);
-        }
-        
         // Convert id to string for consistency and filter out any invalid entries
         const formattedCustomers = data
-          .filter((customer: any) => customer && customer.id && customer.name)
-          .map((customer: any) => ({
+          .filter((customer: { id?: string | number; name?: string }) => customer && customer.id && customer.name)
+          .map((customer: { id: string | number; name: string; phone?: string | null; email?: string | null }) => ({
             id: String(customer.id),
             name: customer.name || "Unnamed Customer",
             phone: customer.phone || null,
             email: customer.email || null,
           }));
         
-        console.log(`Formatted ${formattedCustomers.length} customers`);
         setAllCustomers(formattedCustomers);
-        
-        if (formattedCustomers.length === 0 && data.length > 0) {
-          console.warn("All customers were filtered out. Raw data:", data);
-        }
       } else {
-        console.log("No customers found or data is not an array:", data);
         setAllCustomers([]);
       }
-    } catch (error: any) {
-      console.error("Error fetching customers:", error);
-      console.error("Error stack:", error.stack);
-      alert("Failed to load customers: " + (error.message || "Unknown error"));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Failed to load customers: ${errorMessage}`);
     } finally {
       setIsLoadingCustomers(false);
     }
@@ -288,7 +275,6 @@ export default function ManagementDashboard() {
   // Fetch all customers when component mounts or when products section is active
   useEffect(() => {
     if (activeSection === "products") {
-      console.log("Products section active, fetching all customers...");
       // Small delay to ensure component is ready
       const timer = setTimeout(() => {
         fetchAllCustomers();
@@ -300,7 +286,6 @@ export default function ManagementDashboard() {
   // Also fetch customers when a product is selected (in case they weren't loaded yet)
   useEffect(() => {
     if (selectedProduct && activeSection === "products" && allCustomers.length === 0 && !isLoadingCustomers) {
-      console.log("Product selected but no customers loaded, fetching...");
       fetchAllCustomers();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -345,7 +330,8 @@ export default function ManagementDashboard() {
       setUsers(usersWithNames);
       setTotalUsers(count || 0);
     } catch (error) {
-      console.error("Error fetching users:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to fetch users";
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -368,7 +354,7 @@ export default function ManagementDashboard() {
           .select("id, country, chineseName");
         
         if (countriesData && countriesData.length > 0) {
-          countriesData.forEach((country: any) => {
+          countriesData.forEach((country: { id: number | string; country: string; chineseName?: string }) => {
             // Map country ID to country name (country is the column name in countries table)
             if (country.id != null && country.country) {
               const idKey = String(country.id);
@@ -379,12 +365,9 @@ export default function ManagementDashboard() {
             }
           });
           setCountryMap(countryMapping);
-          console.log("Country mapping created with", Object.keys(countryMapping).length, "countries:", countryMapping);
-        } else {
-          console.warn("No countries data received or empty array");
         }
       } catch (countriesError) {
-        console.warn("Failed to fetch countries, continuing without country names:", countriesError);
+        // Silently continue without country names
       }
 
       const { data: products, error } = await supabase
@@ -413,7 +396,6 @@ export default function ManagementDashboard() {
         .order("Category", { ascending: true });
 
       if (error) {
-        console.error("Error fetching products:", error);
         throw error;
       }
       const { data: priceHistories, error: priceHistoryError } = await supabase
@@ -422,17 +404,18 @@ export default function ManagementDashboard() {
         .is("customer_id", null) // Only fetch global price changes (not customer-specific)
         .order("last_price_update", { ascending: false });
 
-      if (priceHistoryError) {
-        console.error("Failed to fetch price history:", priceHistoryError);
-      } else {
-        console.log("Successfully fetched price history. Total entries:", priceHistories?.length || 0);
-      }
-
       // Group price histories by product_id
       // Ensure product_id is converted to number for consistent key matching
       // Store with both number and string keys to handle any type mismatches
-      const priceHistoryMap: { [key: number | string]: any[] } = {};
-      (priceHistories || []).forEach((ph: any) => {
+      interface PriceHistoryEntry {
+        product_id: number;
+        previous_price: number;
+        original_price: number;
+        last_price_update: string;
+      }
+      
+      const priceHistoryMap: { [key: number | string]: PriceHistoryEntry[] } = {};
+      (priceHistories || []).forEach((ph: PriceHistoryEntry) => {
         const productId = Number(ph.product_id);
         const productIdStr = String(ph.product_id);
         if (!isNaN(productId)) {
@@ -445,20 +428,16 @@ export default function ManagementDashboard() {
         }
       });
       
-      // Debug: Log price history mapping
-      const uniqueHistoryProductIds = (priceHistories || []).map((ph: any) => ph.product_id).filter((v: any, i: number, a: any[]) => a.indexOf(v) === i);
-      console.log("=== PRICE HISTORY DEBUG ===");
-      console.log("Price history map:", priceHistoryMap);
-      console.log("Products with price history:", Object.keys(priceHistoryMap).length);
-      console.log("Price history product IDs (unique):", uniqueHistoryProductIds);
-      console.log("Total price history entries:", priceHistories?.length || 0);
+      const uniqueHistoryProductIds = (priceHistories || [])
+        .map((ph: PriceHistoryEntry) => ph.product_id)
+        .filter((v: number, i: number, a: number[]) => a.indexOf(v) === i);
 
       // Fetch variants for each product (store uniqueHistoryProductIds for later use)
       const historyProductIds = uniqueHistoryProductIds;
       const productsWithVariants = await Promise.all(
         (products || []).map(async (product: any) => {
           // Fetch variants, but don't fail if table doesn't exist or returns 404
-          let variantsData = [];
+          let variantsData: ProductVariant[] = [];
           try {
             const { data, error } = await supabase
               .from('product_variants')
@@ -467,13 +446,12 @@ export default function ManagementDashboard() {
               .order('created_at', { ascending: true });
             
             if (error && error.code !== 'PGRST116') { // PGRST116 is "relation does not exist"
-              console.warn(`Error fetching variants for product ${product.id}:`, error);
+              // Silently continue without variants
             } else {
-              variantsData = data || [];
+              variantsData = (data || []) as ProductVariant[];
             }
           } catch (err) {
             // Silently handle 404 or other errors for variants
-            console.warn(`Failed to fetch variants for product ${product.id}:`, err);
             variantsData = [];
           }
 
@@ -482,11 +460,6 @@ export default function ManagementDashboard() {
           const countryInfo = countryId ? countryMapping[countryId] : null;
           const countryName = countryInfo?.name || null;
           
-          // Debug logging for country resolution
-          if (product.Country && !countryName) {
-            console.warn(`Country ID ${product.Country} not found in countryMap for product ${product.id} (${product.Product})`);
-          }
-
           // Ensure product.id is a number when accessing priceHistoryMap
           // Try both string and number keys to handle any type mismatches
           const productId = Number(product.id);
@@ -498,21 +471,6 @@ export default function ManagementDashboard() {
                        priceHistoryMap[String(productId)] ||
                        priceHistoryMap[Number(productIdStr)] ||
                        [];
-          
-          // Additional debug: Log first few products' matching attempts
-          if (product.id === (products || [])[0]?.id || product.id === (products || [])[1]?.id) {
-            console.log(`[Price History Debug] Product ID: ${product.id} (type: ${typeof product.id}), Number: ${productId}, String: ${productIdStr}`);
-            console.log(`[Price History Debug] Trying keys:`, [productId, productIdStr, String(productId), Number(productIdStr)]);
-            console.log(`[Price History Debug] Available keys in map:`, Object.keys(priceHistoryMap).slice(0, 10));
-            console.log(`[Price History Debug] Direct lookup [${productId}]:`, priceHistoryMap[productId]);
-            console.log(`[Price History Debug] Direct lookup ["${productIdStr}"]:`, priceHistoryMap[productIdStr]);
-            console.log(`[Price History Debug] History found:`, history.length > 0 ? `${history.length} entries` : 'NONE');
-          }
-          
-          // Debug: Log if product has no price history (only for first few to avoid spam)
-          if (history.length === 0 && productId && product.id <= 5) {
-            console.log(`No price history found for product ${product.id} (${product.Product}). Available product IDs in history:`, Object.keys(priceHistoryMap).map(Number));
-          }
 
           return {
             ...product,
@@ -523,29 +481,9 @@ export default function ManagementDashboard() {
         })
       );
 
-      // Debug: Log product IDs being displayed
-      const displayedProductIds = (productsWithVariants || []).map((p: any) => p.id);
-      console.log("=== PRODUCTS DEBUG ===");
-      console.log("Product IDs being displayed:", displayedProductIds);
-      console.log("Total products:", displayedProductIds.length);
-      
-      // Check for matches
-      const matchingIds = displayedProductIds.filter((id: any) => historyProductIds.includes(Number(id)) || historyProductIds.includes(String(id)));
-      console.log("Matching product IDs (have history):", matchingIds);
-      console.log("Non-matching product IDs (no history):", displayedProductIds.filter((id: any) => !matchingIds.includes(id)));
-      
-      console.log("Sample product with history check:", productsWithVariants[0] ? {
-        id: productsWithVariants[0].id,
-        name: productsWithVariants[0].Product,
-        hasHistory: (productsWithVariants[0].priceHistory || []).length > 0,
-        historyCount: (productsWithVariants[0].priceHistory || []).length,
-        priceHistory: productsWithVariants[0].priceHistory
-      } : 'No products');
-      console.log("=== END DEBUG ===");
-
       // Group products by category
       const categoryGroups: { [key: string]: Product[] } = {};
-      productsWithVariants.forEach((product: any) => {
+      productsWithVariants.forEach((product: Product) => {
         // Get category name from ID, fallback to ID if not found
         const categoryId = product.Category;
         const categoryName = CATEGORY_ID_NAME_MAP[categoryId] || categoryId || "Uncategorized";
@@ -581,13 +519,13 @@ export default function ManagementDashboard() {
         .limit(10);
 
       if (error) {
-        console.error("Error fetching recent orders:", error);
         throw error;
       }
       
       setRecentOrders(data || []);
     } catch (error) {
-      console.error("Error fetching recent orders:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to fetch recent orders";
+      toast.error(errorMessage);
       setRecentOrders([]);
     } finally {
       setIsLoadingRecentOrders(false);
@@ -600,34 +538,15 @@ export default function ManagementDashboard() {
     fetchTopSellingProducts(undefined, "price");
     fetchRecentOrders();
     fetchSalesChartData();
+    fetchDashboardStats();
   }, []);
-
-  const checkDatabaseTables = async () => {
-    console.log("Checking database tables...");
-
-    // Check orders table
-    const { data: orders, error: ordersError } = await supabase.from("orders").select("*");
-    console.log("Orders table:", { orders, ordersError });
-
-    // Check order_items table
-    const { data: items, error: itemsError } = await supabase.from("order_items").select("*");
-    console.log("Order items table:", { items, itemsError });
-  };
 
   const fetchTopSellingProducts = async (month?: string, type?: string) => {
     setIsLoadingTopProducts(true);
-    // Check tables first
-    await checkDatabaseTables();
     try {
-      console.log("fetchTopSellingProducts called with month:", month);
-
       // First, get all available months from orders (include all statuses for month detection)
       // Try to get any orders without filters first
       const { data: allOrders, error: monthsError } = await supabase.from("orders").select("*");
-
-      console.log("Checking raw orders:", allOrders);
-
-      console.log("All orders fetched:", { allOrders, monthsError });
 
       if (monthsError) throw monthsError;
 
@@ -684,20 +603,6 @@ export default function ManagementDashboard() {
       const startDate = new Date(targetYear, monthNumber - 1, 1).toISOString();
       const endDate = new Date(targetYear, monthNumber, 0, 23, 59, 59).toISOString();
 
-      console.log("Month detection debug:", {
-        allOrdersCount: allOrders?.length,
-        monthYearMap: Object.fromEntries(monthYearMap),
-        monthsArray,
-        targetMonth,
-        monthName,
-        targetYear,
-        monthNumber,
-        startDate,
-        endDate,
-      });
-
-      console.log("Fetching data for date range:", { startDate, endDate });
-
       // Try the filtered query first
       let { data: orderItems, error } = await supabase.from("order_items").select(
         `
@@ -715,7 +620,6 @@ export default function ManagementDashboard() {
 
       // If no results or error, try without date filtering to see if there's data
       if (!orderItems || orderItems.length === 0 || error) {
-        console.log("No filtered results, trying without date filter...");
         const { data: allOrderItems, error: allError } = await supabase.from("order_items").select(
           `
             id,
@@ -731,9 +635,9 @@ export default function ManagementDashboard() {
         );
         
         if (!error && allOrderItems) {
-          console.log("Found data without date filter, filtering manually...");
           // Filter manually by date
-          orderItems = allOrderItems.filter((item: any) => {
+          orderItems = allOrderItems.filter((item: { created_at?: string }) => {
+            if (!item.created_at) return false;
             const itemDate = new Date(item.created_at);
             return itemDate >= new Date(startDate) && itemDate <= new Date(endDate);
           });
@@ -744,20 +648,9 @@ export default function ManagementDashboard() {
         }
       }
 
-      console.log("Raw order items:", orderItems);
-      console.log("Query error:", error);
-
       if (error) {
-        console.error("Database query error:", error);
         throw error;
       }
-
-      console.log("Order items fetched:", {
-        orderItemsCount: orderItems?.length,
-        orderItems: orderItems?.slice(0, 3), // Show first 3 items for debugging
-        startDate,
-        endDate,
-      });
 
       // Process data to get top selling products by quantity
       const productQuantityMap = new Map<
@@ -779,15 +672,11 @@ export default function ManagementDashboard() {
         }
       >();
 
-      console.log("Processing order items:", orderItems);
-
-      orderItems?.forEach((item: any) => {
-        const productName = item.product_name;
+      orderItems?.forEach((item: { product_name?: string; product_code?: string; quantity?: number; total_price?: number; category?: string }) => {
+        const productName = item.product_name || "Unknown Product";
         const productCode = item.product_code || "N/A";
         const quantity = item.quantity || 0;
         const totalPrice = item.total_price || 0;
-
-        console.log("Processing item:", { productName, productCode, quantity, totalPrice });
 
         // Determine category from product name
         let category = "Other";
@@ -833,15 +722,6 @@ export default function ManagementDashboard() {
         .sort((a, b) => b.value - a.value)
         .slice(0, 3);
 
-      console.log("Processed data:", {
-        topByQuantity,
-        topByValue,
-        productQuantityMap: Object.fromEntries(productQuantityMap),
-        productValueMap: Object.fromEntries(productValueMap),
-      });
-
-      console.log("Setting top selling products:", { topByQuantity, topByValue });
-      
       // Update the appropriate state based on the type
       if (type === "quantity") {
         setTopSellingProductsByQuantity(topByQuantity);
@@ -853,7 +733,8 @@ export default function ManagementDashboard() {
         setTopSellingProductsByPrice(topByValue);
       }
     } catch (error) {
-      console.error("Error fetching top selling products:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to fetch top selling products";
+      toast.error(errorMessage);
       // Set empty data on error
       if (type === "quantity") {
         setTopSellingProductsByQuantity([]);
@@ -869,6 +750,72 @@ export default function ManagementDashboard() {
     }
   };
 
+  const fetchDashboardStats = async () => {
+    try {
+      // Fetch total products count
+      const { count: productsCount, error: productsError } = await supabase
+        .from("products")
+        .select("*", { count: "exact", head: true });
+
+      if (productsError) {
+        console.error("Error fetching products count:", productsError);
+      }
+
+      // Fetch total sales (sum of total_amount from completed orders)
+      const { data: completedOrders, error: salesError } = await supabase
+        .from("orders")
+        .select("total_amount")
+        .eq("status", "completed");
+
+      if (salesError) {
+        console.error("Error fetching sales:", salesError);
+      }
+
+      const totalSales = completedOrders?.reduce((sum: number, order: { total_amount?: string | number | null }) => {
+        const amount = typeof order.total_amount === 'string' 
+          ? parseFloat(order.total_amount) 
+          : order.total_amount || 0;
+        return sum + amount;
+      }, 0) || 0;
+
+      // Fetch active customers (unique customers from orders)
+      const { data: ordersData, error: customersError } = await supabase
+        .from("orders")
+        .select("customer_phone, customer_name");
+
+      if (customersError) {
+        console.error("Error fetching customers:", customersError);
+      }
+
+      // Count unique customers by phone number
+      const uniqueCustomers = new Set(
+        ordersData?.map((order: { customer_phone?: string | null }) => order.customer_phone).filter(Boolean) || []
+      );
+      const activeCustomers = uniqueCustomers.size;
+
+      // Fetch pending orders count
+      const { count: pendingCount, error: pendingError } = await supabase
+        .from("orders")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "pending");
+
+      if (pendingError) {
+        console.error("Error fetching pending orders:", pendingError);
+      }
+
+      setDashboardStats({
+        totalProducts: productsCount || 0,
+        totalSales: totalSales,
+        activeCustomers: activeCustomers,
+        pendingOrders: pendingCount || 0,
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to fetch dashboard stats";
+      console.error(errorMessage);
+      toast.error(errorMessage);
+    }
+  };
+
   const fetchSalesChartData = async () => {
     setIsLoadingSalesChart(true);
     try {
@@ -878,7 +825,7 @@ export default function ManagementDashboard() {
         .select("quantity, created_at");
 
       if (error) {
-        console.error("Error fetching sales chart data:", error);
+        toast.error(`Failed to fetch sales chart data: ${error.message}`);
         setSalesChartData({ labels: [], quantities: [] });
         return;
       }
@@ -891,7 +838,7 @@ export default function ManagementDashboard() {
       // Aggregate quantities by month
       const monthQuantityMap = new Map<string, number>();
 
-      orderItems.forEach((item: any) => {
+      orderItems.forEach((item: { created_at?: string; quantity?: number }) => {
         if (!item.created_at) return;
         
         const date = new Date(item.created_at);
@@ -931,7 +878,8 @@ export default function ManagementDashboard() {
 
       setSalesChartData({ labels, quantities });
     } catch (error) {
-      console.error("Error fetching sales chart data:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to fetch sales chart data";
+      toast.error(errorMessage);
       setSalesChartData({ labels: [], quantities: [] });
     } finally {
       setIsLoadingSalesChart(false);
@@ -959,17 +907,17 @@ export default function ManagementDashboard() {
 
       // Fetch order items for these orders
       if (data && data.length > 0) {
-        const orderIds = data.map((order: any) => parseInt(order.id));
+        const orderIds = data.map((order: { id: string | number }) => parseInt(String(order.id)));
         const { data: itemsData, error: itemsError } = await supabase
           .from("order_items")
           .select("*")
           .in("order_id", orderIds);
 
         if (itemsError) {
-          console.error("Error fetching order items:", itemsError);
+          toast.error(`Failed to fetch order items: ${itemsError.message}`);
         } else {
           // Group items by order_id
-          const itemsByOrder: Record<string, Array<{
+          interface OrderItem {
             id: number;
             order_id: number;
             product_id: number;
@@ -978,8 +926,19 @@ export default function ManagementDashboard() {
             total_price: number;
             product_name: string;
             product_code: string;
-          }>> = {};
-          (itemsData || []).forEach((item: any) => {
+          }
+          
+          const itemsByOrder: Record<string, OrderItem[]> = {};
+          (itemsData || []).forEach((item: {
+            id: number;
+            order_id: number;
+            product_id: number;
+            quantity: number;
+            price: string | number;
+            total_price: string | number;
+            product_name: string;
+            product_code?: string;
+          }) => {
             const orderId = String(item.order_id);
             if (!itemsByOrder[orderId]) {
               itemsByOrder[orderId] = [];
@@ -989,8 +948,8 @@ export default function ManagementDashboard() {
               order_id: item.order_id,
               product_id: item.product_id,
               quantity: item.quantity,
-              price: parseFloat(item.price),
-              total_price: parseFloat(item.total_price),
+              price: typeof item.price === 'string' ? parseFloat(item.price) : item.price || 0,
+              total_price: typeof item.total_price === 'string' ? parseFloat(item.total_price) : item.total_price || 0,
               product_name: item.product_name,
               product_code: item.product_code || "",
             });
@@ -1001,7 +960,8 @@ export default function ManagementDashboard() {
         setOrderItems({});
       }
     } catch (error) {
-      console.error("Error fetching order details:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to fetch order details";
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -1012,6 +972,12 @@ export default function ManagementDashboard() {
       fetchOrderDetails(currentPage);
     }
   }, [activeSection, currentPage]);
+
+  useEffect(() => {
+    if (activeSection === "overview") {
+      fetchDashboardStats();
+    }
+  }, [activeSection]);
 
   const sections: DashboardSection[] = [
     {
@@ -1060,26 +1026,6 @@ export default function ManagementDashboard() {
       ),
     },
 
-    // {
-    //   id: "inventory",
-    //   title: "Inventory",
-    //   description: "Manage your stock",
-    //   icon: (
-    //     <svg
-    //       className="w-6 h-6"
-    //       fill="none"
-    //       stroke="currentColor"
-    //       viewBox="0 0 24 24"
-    //     >
-    //       <path
-    //         strokeLinecap="round"
-    //         strokeLinejoin="round"
-    //         strokeWidth={2}
-    //         d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-    //       />
-    //     </svg>
-    //   ),
-    // },
     {
       id: "history",
       title: "History",
@@ -1172,28 +1118,29 @@ export default function ManagementDashboard() {
         initial={{ opacity: 0, y: 20 }}
       >
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[
-            { title: "Total Products", value: "150", change: "+12%" },
-            { title: "Total Sales", value: "$15,234", change: "+23%" },
-            { title: "Active Customers", value: "1,234", change: "+5%" },
-            { title: "Suppliers", value: "45", change: "0%" },
-            { title: "Pending Orders", value: "23", change: "-2%" },
+            { title: "Total Products", value: dashboardStats.totalProducts.toLocaleString(), change: "" },
+            { title: "Total Sales", value: `$${dashboardStats.totalSales.toLocaleString()}`, change: "" },
+            { title: "Active Customers", value: dashboardStats.activeCustomers.toLocaleString(), change: "" },
+            { title: "Pending Orders", value: dashboardStats.pendingOrders.toLocaleString(), change: "" },
           ].map((stat, index) => (
             <div key={index} className="bg-white p-4 rounded-lg shadow-sm">
               <h3 className="text-gray-500 text-sm">{stat.title}</h3>
               <p className="text-2xl font-bold">{stat.value}</p>
-              <span
-                className={`text-sm ${
-                  stat.change.startsWith("+")
-                    ? "text-green-500"
-                    : stat.change.startsWith("-")
-                      ? "text-red-500"
-                      : "text-gray-500"
-                }`}
-              >
-                {stat.change} from last month
-              </span>
+              {stat.change && (
+                <span
+                  className={`text-sm ${
+                    stat.change.startsWith("+")
+                      ? "text-green-500"
+                      : stat.change.startsWith("-")
+                        ? "text-red-500"
+                        : "text-gray-500"
+                  }`}
+                >
+                  {stat.change} from last month
+                </span>
+              )}
             </div>
           ))}
         </div>
@@ -1223,8 +1170,9 @@ export default function ManagementDashboard() {
                     },
                     tooltip: {
                       callbacks: {
-                        label: function(context: any) {
-                          return `Quantity: ${context.parsed.y.toLocaleString()}`;
+                        label: function(context: { parsed: { y: number | null } }) {
+                          const value = context.parsed.y;
+                          return `Quantity: ${value !== null ? value.toLocaleString() : '0'}`;
                         }
                       }
                     }
@@ -1233,8 +1181,8 @@ export default function ManagementDashboard() {
                     y: {
                       beginAtZero: true,
                       ticks: {
-                        callback: function(value: any) {
-                          return value.toLocaleString();
+                        callback: function(value: number | string) {
+                          return typeof value === 'number' ? value.toLocaleString() : value;
                         }
                       },
                       title: {
@@ -1707,7 +1655,7 @@ export default function ManagementDashboard() {
                   Product Variants:
                 </h4>
                 <div className="flex items-center gap-2">
-                  <label className="hidden flex items-center text-sm">
+                  <label className="hidden items-center text-sm">
                     <input
                       type="checkbox"
                       className="mr-2"
@@ -1768,18 +1716,10 @@ export default function ManagementDashboard() {
                 if (!selectedProductForVariants) return null;
                 
                 const selectedProductData = categories
-                  .flatMap((c: any) => c.products)
+                  .flatMap((c: Category) => c.products)
                   .find(p => p.id === selectedProductForVariants);
                 
                 if (!selectedProductData) return null;
-                
-                // Debug: Log variants data
-                console.log('Selected product data:', {
-                  productId: selectedProductForVariants,
-                  productName: selectedProductData.Product,
-                  variants: selectedProductData.variants,
-                  variantsCount: selectedProductData.variants?.length || 0
-                });
                 
                 return (
                   <>
@@ -1790,7 +1730,7 @@ export default function ManagementDashboard() {
                           Current variants ({selectedProductData.variants.length}):
                         </div>
                         <div className="space-y-1">
-                          {selectedProductData.variants.map((variant: any) => (
+                          {selectedProductData.variants.map((variant: ProductVariant) => (
                             <div key={variant.id} className="flex items-center justify-between bg-white p-2 rounded border">
                               <div className="flex items-center space-x-3">
                                 {variant.image_url && (
@@ -1824,41 +1764,31 @@ export default function ManagementDashboard() {
                     {showVariantManager === selectedProductForVariants && (
                       <div className="mt-4">
                         {useNewVariantSystem ? (
-                          (() => {
-                            const variantsToPass = Array.isArray(selectedProductData.variants) 
+                          <VariantManager
+                            productId={selectedProductForVariants}
+                            variants={Array.isArray(selectedProductData.variants) 
                               ? selectedProductData.variants 
-                              : [];
-                            console.log('Passing variants to VariantManager:', {
-                              productId: selectedProductForVariants,
-                              variantsCount: variantsToPass.length,
-                              variants: variantsToPass
-                            });
-                            return (
-                              <VariantManager
-                                productId={selectedProductForVariants}
-                                variants={variantsToPass}
-                                onVariantsChange={(newVariants) => {
-                                  // Update the product in the categories state
-                                  setCategories(prevCategories => 
-                                    prevCategories.map(category => ({
-                                      ...category,
-                                      products: category.products.map(p => 
-                                        p.id === selectedProductForVariants 
-                                          ? { ...p, variants: newVariants }
-                                          : p
-                                      )
-                                    }))
-                                  );
-                                }}
-                              />
-                            );
-                          })()
+                              : []}
+                            onVariantsChange={(newVariants) => {
+                              // Update the product in the categories state
+                              setCategories(prevCategories => 
+                                prevCategories.map(category => ({
+                                  ...category,
+                                  products: category.products.map(p => 
+                                    p.id === selectedProductForVariants 
+                                      ? { ...p, variants: newVariants }
+                                      : p
+                                  )
+                                }))
+                              );
+                            }}
+                          />
                         ) : (
                           <VariantExtractor
                             productId={selectedProductForVariants}
                             productName={selectedProductData.Product}
-                            onVariantsChange={(variants) => {
-                              console.log('Variants updated:', variants);
+                            onVariantsChange={() => {
+                              // Variants updated
                             }}
                           />
                         )}
@@ -1939,14 +1869,6 @@ export default function ManagementDashboard() {
                               {category.products
                                 .sort((a, b) => a.Product.localeCompare(b.Product))
                                 .map((product) => {
-                                  // Debug: Log first product's price history in render
-                                  if (product.id === category.products[0]?.id) {
-                                    console.log(`[Render Debug] Product ${product.id} (${product.Product}):`, {
-                                      hasPriceHistory: !!product.priceHistory,
-                                      priceHistoryLength: product.priceHistory?.length || 0,
-                                      priceHistory: product.priceHistory
-                                    });
-                                  }
                                   return (
                                     <React.Fragment key={product.id}>
                                     <tr>
@@ -2033,7 +1955,7 @@ export default function ManagementDashboard() {
                                               title="Save"
                                               onClick={async () => {
                                                 if (editingPrice === null || isNaN(editingPrice)) {
-                                                  alert("Please enter a valid price.");
+                                                  toast.error("Please enter a valid price.");
                                                   return;
                                                 }
                                                 setIsLoading(true);
@@ -2045,10 +1967,7 @@ export default function ManagementDashboard() {
                                                     .eq("product_id", product.id);
 
                                                 if (orderItemsError) {
-                                                  alert(
-                                                    "Failed to fetch order items: " +
-                                                      orderItemsError.message
-                                                  );
+                                                  toast.error(`Failed to fetch order items: ${orderItemsError.message}`);
                                                   setIsLoading(false);
                                                   return;
                                                 }
@@ -2085,7 +2004,7 @@ export default function ManagementDashboard() {
                                                   ]);
 
                                                 if (globalHistoryError) {
-                                                  console.error("Failed to insert global price history:", globalHistoryError);
+                                                  toast.error(`Failed to insert global price history: ${globalHistoryError.message}`);
                                                 }
 
                                                 // Also create customer-specific entries if there are customers
@@ -2104,10 +2023,7 @@ export default function ManagementDashboard() {
                                                         },
                                                       ]);
                                                     if (insertError) {
-                                                      console.error(
-                                                        "Failed to insert customer price history: " +
-                                                          insertError.message
-                                                      );
+                                                      toast.error(`Failed to insert customer price history: ${insertError.message}`);
                                                     }
                                                   }
                                                 }
@@ -2119,10 +2035,7 @@ export default function ManagementDashboard() {
                                                   .eq("id", product.id);
 
                                                 if (updateError) {
-                                                  alert(
-                                                    "Failed to update product price: " +
-                                                      updateError.message
-                                                  );
+                                                  toast.error(`Failed to update product price: ${updateError.message}`);
                                                   setIsLoading(false);
                                                   return;
                                                 }
@@ -2231,15 +2144,6 @@ export default function ManagementDashboard() {
                                       </td>
                                       <td className="px-4 py-2">
                                         {(() => {
-                                          // Debug: Log price history for first product
-                                          if (product.id === category.products[0]?.id) {
-                                            console.log(`[Price History Check] Product ${product.id}:`, {
-                                              priceHistory: product.priceHistory,
-                                              length: product.priceHistory?.length,
-                                              type: typeof product.priceHistory
-                                            });
-                                          }
-                                          
                                           if (product.priceHistory && product.priceHistory.length > 0) {
                                             return (
                                               <div className="flex flex-col space-y-1">
@@ -2260,10 +2164,6 @@ export default function ManagementDashboard() {
                                               </div>
                                             );
                                           } else {
-                                            // Debug: Show why no history
-                                            if (product.id === category.products[0]?.id) {
-                                              console.log(`[No History] Product ${product.id} - priceHistory:`, product.priceHistory);
-                                            }
                                             return <span className="text-xs text-gray-400">No history</span>;
                                           }
                                         })()}
@@ -2512,13 +2412,13 @@ export default function ManagementDashboard() {
                                                         onClick={async () => {
                                                           const customerId = selectedCustomerForOffer[product.id];
                                                           if (!customerId) {
-                                                            alert("Please select a customer");
+                                                            toast.error("Please select a customer");
                                                             return;
                                                           }
                                                           const key = `custom-${product.id}-${customerId}`;
                                                           const price = customPriceForSelectedCustomer[key];
                                                           if (!price || price <= 0) {
-                                                            alert("Please enter a valid price");
+                                                            toast.error("Please enter a valid price");
                                                             return;
                                                           }
                                                           try {
@@ -2535,7 +2435,7 @@ export default function ManagementDashboard() {
                                                               ]);
 
                                                             if (error) {
-                                                              alert("Failed to send offer: " + error.message);
+                                                              toast.error(`Failed to send offer: ${error.message}`);
                                                               return;
                                                             }
 
@@ -2551,11 +2451,9 @@ export default function ManagementDashboard() {
                                                             });
 
                                                             const customer = allCustomers.find((c) => String(c.id) === String(customerId));
-                                                            alert(
-                                                              `Offer sent successfully to ${customer?.name || "customer"} for $${price.toFixed(2)}`
-                                                            );
+                                                            toast.success(`Offer sent successfully to ${customer?.name || "customer"} for $${price.toFixed(2)}`);
                                                           } catch (err) {
-                                                            alert("Failed to send offer. Please try again.");
+                                                            toast.error("Failed to send offer. Please try again.");
                                                           }
                                                         }}
                                                       >
@@ -2738,14 +2636,14 @@ export default function ManagementDashboard() {
                                                         disabled={!offerPrices[`${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`]}
                                                         onClick={async () => {
                                                           if (!order.customer_id) {
-                                                            alert("Customer ID not found!");
+                                                            toast.error("Customer ID not found!");
                                                             return;
                                                           }
                                                           const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
                                                           const currentOfferPrice =
                                                             offerPrices[key];
                                                           if (!currentOfferPrice) {
-                                                            alert("Please enter an offer price");
+                                                            toast.error("Please enter an offer price");
                                                             return;
                                                           }
                                                           try {
@@ -2763,10 +2661,7 @@ export default function ManagementDashboard() {
                                                               ]);
 
                                                             if (error) {
-                                                              alert(
-                                                                "Failed to send offer: " +
-                                                                  error.message
-                                                              );
+                                                              toast.error(`Failed to send offer: ${error.message}`);
                                                               return;
                                                             }
 
@@ -2777,13 +2672,9 @@ export default function ManagementDashboard() {
                                                               return newState;
                                                             });
 
-                                                            alert(
-                                                              `Offer sent successfully to ${order.customer_name} for $${currentOfferPrice.toFixed(2)}`
-                                                            );
+                                                            toast.success(`Offer sent successfully to ${order.customer_name} for $${currentOfferPrice.toFixed(2)}`);
                                                           } catch (err) {
-                                                            alert(
-                                                              "Failed to send offer. Please try again."
-                                                            );
+                                                            toast.error("Failed to send offer. Please try again.");
                                                           }
                                                         }}
                                                       >
@@ -3218,9 +3109,9 @@ export default function ManagementDashboard() {
       );
 
       // Show success message
-      alert(`Order status updated to ${newStatus}`);
+      toast.success(`Order status updated to ${newStatus}`);
     } catch (error) {
-      alert("Failed to update order status. Please try again.");
+      toast.error("Failed to update order status. Please try again.");
 
       // Refresh the order details to ensure UI is in sync with database
       fetchOrderDetails(currentPage);
@@ -3231,6 +3122,7 @@ export default function ManagementDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Toaster position="top-right" />
       <div className="p-2 sm:p-4">
         <button
           className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition mb-4"
