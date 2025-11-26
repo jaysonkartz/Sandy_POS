@@ -214,9 +214,6 @@ export default function ManagementDashboard() {
     pendingOrders: 0,
   });
 
-  const priceHistoryMap: Record<number, { previous_price: number; last_price_update: string }[]> =
-    {};
-
   // Clear all offer prices
   const clearOfferPrices = () => {
     setOfferPrices({});
@@ -758,7 +755,7 @@ export default function ManagementDashboard() {
         .select("*", { count: "exact", head: true });
 
       if (productsError) {
-        console.error("Error fetching products count:", productsError);
+        // Error fetching products count - continue with default value
       }
 
       // Fetch total sales (sum of total_amount from completed orders)
@@ -768,7 +765,7 @@ export default function ManagementDashboard() {
         .eq("status", "completed");
 
       if (salesError) {
-        console.error("Error fetching sales:", salesError);
+        // Error fetching sales - continue with default value
       }
 
       const totalSales = completedOrders?.reduce((sum: number, order: { total_amount?: string | number | null }) => {
@@ -784,7 +781,7 @@ export default function ManagementDashboard() {
         .select("customer_phone, customer_name");
 
       if (customersError) {
-        console.error("Error fetching customers:", customersError);
+        // Error fetching customers - continue with default value
       }
 
       // Count unique customers by phone number
@@ -800,7 +797,7 @@ export default function ManagementDashboard() {
         .eq("status", "pending");
 
       if (pendingError) {
-        console.error("Error fetching pending orders:", pendingError);
+        // Error fetching pending orders - continue with default value
       }
 
       setDashboardStats({
@@ -811,7 +808,6 @@ export default function ManagementDashboard() {
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to fetch dashboard stats";
-      console.error(errorMessage);
       toast.error(errorMessage);
     }
   };

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect, Suspense } from "react";
+import { useState, useCallback, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import SignupModal from "@/components/SignupModal";
 import ProductPhotoEditor from "@/components/ProductPhotoEditor";
@@ -121,8 +121,6 @@ function HomeContent({
             }
           });
 
-          console.log("Reordered items loaded from localStorage:", reorderItems.length);
-
           // Clean up localStorage
           localStorage.removeItem("reorder_customer_name");
           localStorage.removeItem("reorder_customer_phone");
@@ -143,7 +141,6 @@ function HomeContent({
           }
         }
       } catch (error) {
-        console.error("Error loading reorder data:", error);
         // Clean up URL parameters even on error
         if (typeof window !== "undefined") {
           const url = new URL(window.location.href);
@@ -161,6 +158,7 @@ function HomeContent({
     setCustomerAddress,
     addToOrder,
     updateOrderQuantity,
+    setIsOrderPanelOpen,
   ]);
 
   // Auto-open order panel if order query parameter is present and items are already loaded
@@ -179,7 +177,7 @@ function HomeContent({
         window.history.replaceState({}, "", url.toString());
       }
     }
-  }, [searchParams, selectedProducts.length, setIsOrderPanelOpen]);
+  }, [searchParams, selectedProducts.length]);
 
   // Callbacks
   const handleOptionChange = useCallback(
@@ -215,7 +213,6 @@ function HomeContent({
 
   const handleLoginSuccess = useCallback(async () => {
     try {
-      console.log("Login success callback triggered");
       setIsLoggingIn(true);
       setIsSignupModalOpen(false);
 
@@ -224,10 +221,8 @@ function HomeContent({
 
       // Force refresh the session
       await forceRefreshSession();
-
-      console.log("Login success callback completed");
     } catch (error) {
-      console.error("Error in login success callback:", error);
+      // Error handled silently - user will see session state update
     } finally {
       setIsLoggingIn(false);
     }
@@ -237,19 +232,9 @@ function HomeContent({
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const isLoading = loading || sessionLoading;
 
-  // Debug logging
-  console.log("Loading states:", {
-    loading,
-    sessionLoading,
-    isLoading,
-    productsCount: products.length,
-    sessionExists: !!session,
-  });
-
   // Timeout to prevent infinite loading - reduced to 5 seconds
   useEffect(() => {
     const timeout = setTimeout(() => {
-      console.log("Force loading reset after timeout");
       setIsInitialLoad(false);
     }, 5000); // 5 second maximum loading time
 
@@ -293,7 +278,7 @@ function HomeContent({
             rel="noopener noreferrer"
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium whitespace-nowrap"
           >
-            {isEnglish ? "Visit Main Website" : "访问主网站"}
+            {isEnglish ? "Visit Hong Guan Website" : "访问主网站"}
           </a>
         </div>
         <CategoryFilter

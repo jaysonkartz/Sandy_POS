@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { SignInLogger } from '@/app/lib/signin-logger';
 import { Database } from '@/types/supabase';
 
@@ -16,31 +16,31 @@ export default function QuickSignInCheck({ limit = 10, showFailedOnly = false }:
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchRecords();
-  }, [limit, showFailedOnly]);
-
-  const fetchRecords = async () => {
+  const fetchRecords = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('🔍 Fetching sign-in records...');
-      const allRecords = await SignInLogger.getRecentSignIns(limit * 2);
-      console.log('📋 Raw records from database:', allRecords);
+      setError(null);
+      
+      // Fetch more records if filtering to ensure we have enough after filtering
+      const fetchLimit = showFailedOnly ? limit * 3 : limit;
+      const allRecords = await SignInLogger.getRecentSignIns(fetchLimit);
       
       let filteredRecords = allRecords;
       if (showFailedOnly) {
         filteredRecords = allRecords.filter(record => !record.success);
       }
       
-      console.log('🔍 Filtered records:', filteredRecords);
       setRecords(filteredRecords.slice(0, limit));
     } catch (err) {
-      console.error('❌ Error fetching records:', err);
       setError('Failed to fetch records');
     } finally {
       setLoading(false);
     }
-  };
+  }, [limit, showFailedOnly]);
+
+  useEffect(() => {
+    fetchRecords();
+  }, [fetchRecords]);
 
   if (loading) {
     return (
@@ -109,9 +109,9 @@ export default function QuickSignInCheck({ limit = 10, showFailedOnly = false }:
                   </span>
                 </div>
               </div>
-              {record.device_info && (
+              {record.device_info && typeof record.device_info === 'object' && 'browser' in record.device_info && 'os' in record.device_info && (
                 <div className="mt-1 text-xs text-gray-500">
-                  {(record.device_info as any)?.browser} on {(record.device_info as any)?.os}
+                  {String(record.device_info.browser)} on {String(record.device_info.os)}
                 </div>
               )}
             </div>
@@ -121,7 +121,7 @@ export default function QuickSignInCheck({ limit = 10, showFailedOnly = false }:
       
       {records.length > 0 && (
         <div className="px-4 py-2 bg-gray-50 text-xs text-gray-500 text-center">
-          Showing {records.length} of {limit} records
+          Showing {records.length} {records.length === 1 ? 'record' : 'records'}
         </div>
       )}
     </div>
