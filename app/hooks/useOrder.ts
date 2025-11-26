@@ -1,5 +1,7 @@
 import { useState, useCallback } from "react";
+import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/app/lib/supabaseClient";
+import { OrderDetails, OrderReviewData, isAuthenticatedSession } from "@/app/types/common";
 
 interface Product {
   id: number;
@@ -39,18 +41,11 @@ interface UseOrderReturn {
   addToOrder: (product: Product) => void;
   updateQuantity: (productId: number, newQuantity: number) => void;
   clearOrder: () => void;
-  fillCustomerInfo: (session: any) => Promise<void>;
-  loadCustomerAddresses: (session: any) => Promise<Address[]>;
-  saveCustomerAddress: (session: any, address: Omit<Address, 'id'>) => Promise<boolean>;
   submitOrder: (
-    session: any,
+    session: Session | null,
     isEnglish: boolean,
-    sendWhatsAppNotification: (orderDetails: any) => void,
-    reviewData?: {
-      remarks: string;
-      purchaseOrder: string;
-      uploadedFiles: File[];
-    }
+    sendWhatsAppNotification: (orderDetails: OrderDetails) => void,
+    reviewData?: OrderReviewData
   ) => Promise<boolean>;
 }
 
@@ -93,152 +88,14 @@ export const useOrder = (): UseOrderReturn => {
     setCustomerAddress("");
   }, []);
 
-  const fillCustomerInfo = useCallback(async (session: any) => {
-    if (!session?.user?.id) {
-      console.warn("No session or user ID available for auto-fill");
-      return;
-    }
-
-    console.log("Attempting to auto-fill customer info for user:", session.user.id);
-
-    try {
-      // Try to fetch customer data by user_id first
-      const { data: customerData, error: customerError } = await supabase
-        .from("customers")
-        .select("name, email, phone, address, delivery_address")
-        .eq("id", session.user.id)
-        .single();
-
-        console.log("Customer data:", customerData);
-
-      if (customerData && !customerError) {
-        console.log("Found customer data by user_id:", customerData);
-        // Use customer data if available
-        setCustomerName(customerData.name || "");
-        setCustomerPhone(customerData.phone || "");
-        setCustomerAddress(customerData.delivery_address || customerData.address || "");
-        return;
-      }
-
-      console.log("No customer data found by user_id, trying email lookup");
-
-      // If no customer data found, try to fetch by email
-      const { data: customerByEmail, error: emailError } = await supabase
-        .from("customers")
-        .select("name, email, phone, address, delivery_address")
-        .eq("email", session.user.email)
-        .single();
-
-      if (customerByEmail && !emailError) {
-        console.log("Found customer data by email:", customerByEmail);
-        setCustomerName(customerByEmail.name || "");
-        setCustomerPhone(customerByEmail.phone || "");
-        setCustomerAddress(customerByEmail.delivery_address || customerByEmail.address || "");
-        return;
-      }
-
-      console.log("No customer data found, using basic user info");
-      // If no customer data found at all, use basic user info
-      setCustomerName(session.user.email?.split("@")[0] || "");
-      setCustomerPhone("");
-      setCustomerAddress("");
-
-    } catch (error) {
-      console.error("Error fetching customer info:", error);
-      // Fallback to basic user info
-      setCustomerName(session.user.email?.split("@")[0] || "");
-      setCustomerPhone("");
-      setCustomerAddress("");
-    }
-  }, []);
-
-  const loadCustomerAddresses = useCallback(async (session: any): Promise<Address[]> => {
-    if (!session?.user?.email) {
-      return [];
-    }
-
-    try {
-      // Get customer ID first
-      const { data: allCustomers, error: allError } = await supabase
-        .from("customers")
-        .select("id, email, user_id")
-        .eq("email", session.user.email);
-
-      if (allError || !allCustomers || allCustomers.length === 0) {
-        console.log("No customer found for email:", session.user.email);
-        return [];
-      }
-
-      const customerData = allCustomers[0];
-
-      // Load addresses for this customer from addresses table
-      const { data: addressesData, error: addressesError } = await supabase
-        .from("addresses")
-        .select("*")
-        .eq("customer_id", customerData.id)
-        .order("is_default", { ascending: false })
-        .order("created_at", { ascending: true });
-
-      if (addressesError) {
-        console.error("Error loading addresses:", addressesError);
-        return [];
-      }
-
-      if (addressesData && addressesData.length > 0) {
-        return addressesData.map(addr => ({
-          id: addr.id.toString(),
-          name: addr.name,
-          address: addr.address,
-          isDefault: addr.is_default
-        }));
-      }
-
-      return [];
-    } catch (error) {
-      console.error("Error loading customer addresses:", error);
-      return [];
-    }
-  }, []);
-
-  const saveCustomerAddress = useCallback(async (session: any, address: Omit<Address, 'id'>): Promise<boolean> => {
-    if (!session?.user?.id) {
-      return false;
-    }
-
-    try {
-      // Update the customer's delivery_address in the customers table
-      const { error } = await supabase
-        .from("customers")
-        .update({ 
-          delivery_address: address.address,
-          address: address.isDefault ? address.address : undefined
-        })
-        .eq("user_id", session.user.id);
-
-      if (error) {
-        console.error("Error saving customer address:", error);
-        return false;
-      }
-
-      return true;
-    } catch (error) {
-      console.error("Error saving customer address:", error);
-      return false;
-    }
-  }, []);
-
   const submitOrder = useCallback(async (
-    session: any,
+    session: Session | null,
     isEnglish: boolean,
-    sendWhatsAppNotification: (orderDetails: any) => void,
-    reviewData?: {
-      remarks: string;
-      purchaseOrder: string;
-      uploadedFiles: File[];
-    }
+    sendWhatsAppNotification: (orderDetails: OrderDetails) => void,
+    reviewData?: OrderReviewData
   ): Promise<boolean> => {
     // Check if user is authenticated
-    if (!session) {
+    if (!isAuthenticatedSession(session)) {
       alert(isEnglish ? "Please log in to submit an order" : "请登录以提交订单");
       return false;
     }
@@ -279,7 +136,6 @@ export const useOrder = (): UseOrderReturn => {
             .upload(filePath, file);
           
           if (uploadError) {
-            console.error('Error uploading file:', uploadError);
             return null;
           }
           
@@ -291,7 +147,7 @@ export const useOrder = (): UseOrderReturn => {
         });
         
         const uploadResults = await Promise.all(uploadPromises);
-        uploadedFileUrls = uploadResults.filter(url => url !== null) as string[];
+        uploadedFileUrls = uploadResults.filter((url: string | null) => url !== null) as string[];
       }
 
       // Create order with user_id and review data
@@ -314,7 +170,6 @@ export const useOrder = (): UseOrderReturn => {
         .single();
 
       if (orderError) {
-        console.error("Error creating order:", orderError);
         throw orderError;
       }
 
@@ -333,7 +188,6 @@ export const useOrder = (): UseOrderReturn => {
       const { error: itemsError } = await supabase.from("order_items").insert(orderItems);
 
       if (itemsError) {
-        console.error("Error creating order items:", itemsError);
         throw itemsError;
       }
 
@@ -358,7 +212,6 @@ export const useOrder = (): UseOrderReturn => {
       alert(isEnglish ? "Order submitted successfully!" : "订单提交成功！");
       return true;
     } catch (error) {
-      console.error("Error submitting order:", error);
       alert(isEnglish ? "Error submitting order. Please try again." : "提交订单时出错，请重试。");
       return false;
     } finally {
@@ -378,9 +231,6 @@ export const useOrder = (): UseOrderReturn => {
     addToOrder,
     updateQuantity,
     clearOrder,
-    fillCustomerInfo,
-    loadCustomerAddresses,
-    saveCustomerAddress,
     submitOrder,
   };
 };

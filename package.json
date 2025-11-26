@@ -4,7 +4,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint . --ext .ts,.tsx --fix"
+    "lint": "eslint . --ext .ts,.tsx --fix",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",
@@ -32,12 +35,18 @@
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@next/eslint-plugin-next": "^15.5.6",
+    "@testing-library/jest-dom": "^6.1.5",
+    "@testing-library/react": "^14.1.2",
+    "@testing-library/user-event": "^14.5.1",
     "@types/bcrypt": "^5.0.2",
     "@types/node": "20.14.8",
     "@types/react": "18.3.3",
     "@types/react-dom": "18.3.0",
     "@typescript-eslint/eslint-plugin": "^8.48.0",
     "@typescript-eslint/parser": "^8.48.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "@vitest/coverage-v8": "^1.0.4",
+    "@vitest/ui": "^1.0.4",
     "autoprefixer": "10.4.19",
     "eslint": "^9.39.1",
     "eslint-config-next": "15.1.7",
@@ -50,11 +59,13 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-unused-imports": "^4.3.0",
     "globals": "^16.5.0",
+    "jsdom": "^23.0.1",
     "postcss": "8.4.38",
     "prettier": "^3.6.2",
     "tailwind-variants": "0.1.20",
     "tailwindcss": "3.4.0",
-    "typescript": "5.0.4"
+    "typescript": "5.0.4",
+    "vitest": "^1.0.4"
   },
   "engines": {
     "node": ">=20.12.0"

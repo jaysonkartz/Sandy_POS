@@ -1,6 +1,6 @@
 import React, { memo, useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Plus, MapPin } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { supabase } from "@/app/lib/supabaseClient";
 import OrderReview from "./OrderReview";
 
@@ -74,12 +74,6 @@ export const OrderPanel = memo<OrderPanelProps>(({
   const [newAddress, setNewAddress] = useState({ name: "", address: "" });
   const [isSavingAddress, setIsSavingAddress] = useState(false);
   const [showReview, setShowReview] = useState(false);
-  const [reviewData, setReviewData] = useState<{
-    remarks: string;
-    purchaseOrder: string;
-    uploadedFiles: File[];
-  } | null>(null);
-  const [isLoadingCustomerData, setIsLoadingCustomerData] = useState(false);
   const [customerDataLoaded, setCustomerDataLoaded] = useState(false);
 
   // Local storage key for customer data
@@ -114,8 +108,6 @@ export const OrderPanel = memo<OrderPanelProps>(({
     }
 
     try {
-      console.log("Loading addresses for email:", session.user.email, "user_id:", session.user.id);
-      
       let customerData = null;
       
       // Try to get customer ID by user_id first (more reliable)
@@ -128,7 +120,6 @@ export const OrderPanel = memo<OrderPanelProps>(({
           
         if (!userIdError && customerByUserId) {
           customerData = customerByUserId;
-          console.log("Customer found by user_id:", customerData.id);
         }
       }
       
@@ -141,13 +132,11 @@ export const OrderPanel = memo<OrderPanelProps>(({
 
         if (!allError && allCustomers && allCustomers.length > 0) {
           // If multiple customers with same email, prefer one matching user_id
-          customerData = allCustomers.find(c => c.user_id === session.user.id) || allCustomers[0];
-          console.log("Customer found by email:", customerData.id, "Total matches:", allCustomers.length);
+          customerData = allCustomers.find((c: any) => c.user_id === session.user.id) || allCustomers[0];
         }
       }
 
       if (!customerData) {
-        console.log("No customer found for email:", session.user.email, "user_id:", session.user.id);
         setAddresses([]);
         return;
       }
@@ -161,22 +150,18 @@ export const OrderPanel = memo<OrderPanelProps>(({
         .order("created_at", { ascending: true });
 
       if (addressesError) {
-        console.error("Error loading addresses:", addressesError);
         setAddresses([]);
         return;
       }
 
-      console.log("Addresses loaded from database:", addressesData?.length || 0, addressesData);
-
       if (addressesData && addressesData.length > 0) {
-        const formattedAddresses: Address[] = addressesData.map(addr => ({
+        const formattedAddresses: Address[] = addressesData.map((addr: any) => ({
           id: addr.id.toString(),
           name: addr.name,
           address: addr.address,
           isDefault: addr.is_default
         }));
 
-        console.log("Formatted addresses to display:", formattedAddresses.length, formattedAddresses);
         setAddresses(formattedAddresses);
 
         // Auto-select default address if available
@@ -190,11 +175,9 @@ export const OrderPanel = memo<OrderPanelProps>(({
           onCustomerAddressChange(formattedAddresses[0].address);
         }
       } else {
-        console.log("No addresses found in database for customer_id:", customerData.id);
         setAddresses([]);
       }
     } catch (error) {
-      console.error("Error loading addresses:", error);
       setAddresses([]);
     }
   }, [onCustomerAddressChange]);
@@ -232,8 +215,6 @@ export const OrderPanel = memo<OrderPanelProps>(({
       }
       
       // If no cache, try database
-      setIsLoadingCustomerData(true);
-      
       const trySimpleQuery = async () => {
         try {
           // Add timeout to prevent hanging
@@ -279,13 +260,11 @@ export const OrderPanel = memo<OrderPanelProps>(({
             onCustomerNameChange(session.user.email.split("@")[0] || "Customer");
           }
         } catch (err) {
-          console.log("Customer data query failed or timed out:", err);
           // Fallback to session data
           if (!customerName) {
             onCustomerNameChange(session.user.email.split("@")[0] || "Customer");
           }
         } finally {
-          setIsLoadingCustomerData(false);
           setCustomerDataLoaded(true);
         }
       };
@@ -297,7 +276,6 @@ export const OrderPanel = memo<OrderPanelProps>(({
   // Load addresses when panel opens - reset state on close
   useEffect(() => {
     if (isOpen && session?.user) {
-      console.log("OrderPanel opened, loading addresses...");
       loadAddresses(session);
     } else if (!isOpen) {
       // Reset addresses when panel closes to avoid stale data
@@ -824,7 +802,6 @@ export const OrderPanel = memo<OrderPanelProps>(({
               isSubmitting={isSubmitting}
               onClose={() => setShowReview(false)}
               onConfirmOrder={(data) => {
-                setReviewData(data);
                 setShowReview(false);
                 // Pass review data to the parent component
                 if (typeof onSubmitOrder === 'function') {

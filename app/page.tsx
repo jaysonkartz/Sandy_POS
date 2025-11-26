@@ -28,7 +28,8 @@ import { useScroll } from "@/app/hooks/useScroll";
 import { useWhatsApp } from "@/app/hooks/useWhatsApp";
 
 // Types
-import { Product, SelectedOptions } from "@/app/types/product";
+import { SelectedOptions } from "@/app/types/product";
+import { OrderReviewData } from "@/app/types/common";
 
 // Component that handles search params (needs to be wrapped in Suspense)
 function HomeContent({
@@ -80,9 +81,6 @@ function HomeContent({
   addToOrder,
   updateOrderQuantity,
   clearOrder,
-  fillCustomerInfo,
-  loadCustomerAddresses,
-  saveCustomerAddress,
   submitOrder,
 }: any) {
   const searchParams = useSearchParams();
@@ -194,7 +192,7 @@ function HomeContent({
   );
 
   const handleSubmitOrder = useCallback(
-    async (reviewData?: { remarks: string; purchaseOrder: string; uploadedFiles: File[] }) => {
+    async (reviewData?: OrderReviewData) => {
       const success = await submitOrder(session, isEnglish, sendWhatsAppNotification, reviewData);
       if (success) {
         setIsOrderPanelOpen(false);
@@ -441,9 +439,6 @@ export default function Home() {
     addToOrder,
     updateQuantity: updateOrderQuantity,
     clearOrder,
-    fillCustomerInfo,
-    loadCustomerAddresses,
-    saveCustomerAddress,
     submitOrder,
   } = useOrder();
 
@@ -498,9 +493,6 @@ export default function Home() {
         addToOrder={addToOrder}
         updateOrderQuantity={updateOrderQuantity}
         clearOrder={clearOrder}
-        fillCustomerInfo={fillCustomerInfo}
-        loadCustomerAddresses={loadCustomerAddresses}
-        saveCustomerAddress={saveCustomerAddress}
         submitOrder={submitOrder}
       />
     </Suspense>

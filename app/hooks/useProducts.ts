@@ -40,10 +40,12 @@ interface UseProductsReturn {
   refetchProducts: () => Promise<void>;
 }
 
+import { Session } from "@supabase/supabase-js";
+
 export const useProducts = (
   selectedCategory: string,
   isEnglish: boolean,
-  session: any
+  session: Session | null
 ): UseProductsReturn => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,13 +84,6 @@ export const useProducts = (
 
     // Filter by category first
     if (selectedCategory && selectedCategory !== "all") {
-      console.log("🔍 Filtering by category:", selectedCategory);
-      console.log("📊 Total products before filtering:", products.length);
-      
-      // Show all unique category values in the database
-      const uniqueCategories = [...new Set(products.map(p => p.Category))];
-      console.log("🗂️ Unique categories in database:", uniqueCategories);
-      
       filtered = filtered.filter((product) => {
         // Handle both category ID (number/string) and category name (string)
         const productCategory = product.Category;
@@ -96,58 +91,39 @@ export const useProducts = (
         
         // Skip if product category is null/undefined
         if (!productCategory) {
-          console.log(`⚠️ Product ${product.Product} has null/undefined category`);
           return false;
         }
-        
-        // Debug logging
-        console.log(`Product: ${product.Product}, Category: "${productCategory}" (${typeof productCategory}), Selected: "${selectedCategoryId}" (${typeof selectedCategoryId})`);
         
         // Check if it matches the category ID directly
         if (productCategory === selectedCategoryId || 
             String(productCategory) === selectedCategoryId ||
             Number(productCategory) === Number(selectedCategoryId)) {
-          console.log("✅ Match found by ID");
           return true;
         }
         
         // Check if it matches the category name
         const categoryName = getCategoryName(selectedCategoryId);
-        console.log(`Checking category name: "${categoryName}"`);
         if (productCategory === categoryName) {
-          console.log("✅ Match found by name");
           return true;
         }
         
-        // Additional debug: show what we're comparing
-        console.log(`❌ No match: "${productCategory}" !== "${selectedCategoryId}" and "${productCategory}" !== "${categoryName}"`);
-        
         return false;
       });
-      
-      console.log("📊 Products after filtering:", filtered.length);
     }
 
     // Then filter by search term
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase();
-      console.log("🔍 Searching for:", searchLower);
       filtered = filtered.filter(
         (product) => {
-          const matches = 
+          return (
             (product.Product && String(product.Product).toLowerCase().includes(searchLower)) ||
             (product.Product_CH && String(product.Product_CH).toLowerCase().includes(searchLower)) ||
             (product["Item Code"] && String(product["Item Code"]).toLowerCase().includes(searchLower)) ||
-            (product.Category && String(product.Category).toLowerCase().includes(searchLower));
-          
-          if (matches) {
-            console.log(`✅ Search match found in product: ${product.Product}`);
-          }
-          
-          return matches;
+            (product.Category && String(product.Category).toLowerCase().includes(searchLower))
+          );
         }
       );
-      console.log("📊 Products after search filtering:", filtered.length);
     }
 
     return filtered;
@@ -202,25 +178,16 @@ export const useProducts = (
   const fetchProducts = useCallback(async () => {
     try {
       setError(null);
-      console.log("=== FETCH PRODUCTS START ===");
-      console.log("Fetching products with selectedCategory:", selectedCategory);
 
       // Check if Supabase environment variables are configured
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
       
       if (!supabaseUrl || !supabaseKey) {
-        console.log("❌ Supabase environment variables not configured");
-        console.log("NEXT_PUBLIC_SUPABASE_URL:", supabaseUrl ? "✅ Set" : "❌ Missing");
-        console.log("NEXT_PUBLIC_SUPABASE_ANON_KEY:", supabaseKey ? "✅ Set" : "❌ Missing");
-        console.log("Please set up your Supabase environment variables in .env.local");
         setError("Supabase environment variables not configured. Please set up .env.local file.");
         setLoading(false);
         return;
       }
-
-      console.log("✅ Supabase environment variables configured");
-      console.log("🔄 Fetching products from Supabase...");
 
       let query = supabase.from("products").select("*");
 
@@ -231,15 +198,11 @@ export const useProducts = (
       const { data: productsData, error: productsError } = await query;
 
       if (productsError) {
-        console.error("❌ Error fetching products:", productsError);
         throw productsError;
       }
 
-      console.log("✅ Products fetched from Supabase:", productsData?.length || 0);
       setProducts(productsData || []);
     } catch (error) {
-      console.error("Error fetching products:", error);
-      console.log("Using mock data as fallback due to error...");
       
       // Use mock data when database fails
       const mockProducts = [
@@ -863,7 +826,6 @@ export const useProducts = (
       ];
       
       setProducts(mockProducts);
-      console.log("✅ Mock products loaded (skipping database queries):", mockProducts.length);
       return;
     } finally {
       setLoading(false);
@@ -879,10 +841,8 @@ export const useProducts = (
     // Always fetch products, regardless of session state
     const loadProducts = async () => {
       try {
-        console.log("Starting products load with session:", !!session);
         await fetchProducts();
       } catch (error) {
-        console.error("Error loading products:", error);
       setLoading(false);
       }
     };
