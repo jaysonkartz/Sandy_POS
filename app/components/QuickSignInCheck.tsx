@@ -74,12 +74,6 @@ export default function QuickSignInCheck({ limit = 10, showFailedOnly = false }:
           <h3 className="text-sm font-medium text-gray-900">
             {showFailedOnly ? 'Recent Failed Sign-ins' : 'Recent Sign-ins'}
           </h3>
-          <button
-            onClick={fetchRecords}
-            className="text-xs text-blue-600 hover:text-blue-800"
-          >
-            Refresh
-          </button>
         </div>
       </div>
       

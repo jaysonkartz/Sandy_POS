@@ -144,6 +144,11 @@ export default function ManagementDashboard() {
     value: number;
   }>>([]);
   const [isLoadingTopProducts, setIsLoadingTopProducts] = useState(true);
+  const [salesChartData, setSalesChartData] = useState<{
+    labels: string[];
+    quantities: number[];
+  }>({ labels: [], quantities: [] });
+  const [isLoadingSalesChart, setIsLoadingSalesChart] = useState(false);
   const [selectedMonthQuantity, setSelectedMonthQuantity] = useState<string>(() => {
     const currentMonth = new Date().toLocaleString("default", { month: "long" });
     const currentYear = new Date().getFullYear();
@@ -170,6 +175,34 @@ export default function ManagementDashboard() {
   const [isLoadingRecentOrders, setIsLoadingRecentOrders] = useState(true);
   const [showVariantManager, setShowVariantManager] = useState<number | null>(null);
   const [useNewVariantSystem, setUseNewVariantSystem] = useState(false);
+  const [selectedProductForVariants, setSelectedProductForVariants] = useState<number | null>(null);
+  const [orderItems, setOrderItems] = useState<Record<string, Array<{
+    id: number;
+    order_id: number;
+    product_id: number;
+    quantity: number;
+    price: number;
+    total_price: number;
+    product_name: string;
+    product_code: string;
+  }>>>({});
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [allCustomers, setAllCustomers] = useState<Array<{
+    id: string | number;
+    name: string;
+    phone?: string | null;
+    email?: string | null;
+  }>>([]);
+  const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
+  const [selectedCustomerForOffer, setSelectedCustomerForOffer] = useState<{
+    [productId: number]: string | null;
+  }>({});
+  const [customPriceForSelectedCustomer, setCustomPriceForSelectedCustomer] = useState<{
+    [key: string]: number | null;
+  }>({});
+  const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState<{
+    [productId: number]: boolean;
+  }>({});
 
   const priceHistoryMap: Record<number, { previous_price: number; last_price_update: string }[]> =
     {};
@@ -177,6 +210,67 @@ export default function ManagementDashboard() {
   // Clear all offer prices
   const clearOfferPrices = () => {
     setOfferPrices({});
+  };
+
+  // Fetch all customers for the customer selector
+  const fetchAllCustomers = async () => {
+    setIsLoadingCustomers(true);
+    try {
+      console.log("Starting to fetch customers...");
+      console.log("Supabase client:", supabase);
+      
+      // Try using select("*") first like CustomerManagement does
+      const { data, error } = await supabase
+        .from("customers")
+        .select("*")
+        .order("name", { ascending: true });
+
+      console.log("Customer fetch result:", { 
+        dataLength: data?.length, 
+        error: error ? { message: error.message, code: error.code, details: error.details } : null 
+      });
+
+      if (error) {
+        console.error("Error fetching customers:", error);
+        console.error("Error details:", JSON.stringify(error, null, 2));
+        alert("Failed to load customers: " + error.message + (error.details ? ` (${error.details})` : ""));
+        setIsLoadingCustomers(false);
+        return;
+      }
+
+      if (data && Array.isArray(data)) {
+        console.log(`Loaded ${data.length} customers for selector`);
+        if (data.length > 0) {
+          console.log("Sample customer data:", data[0]);
+        }
+        
+        // Convert id to string for consistency and filter out any invalid entries
+        const formattedCustomers = data
+          .filter((customer: any) => customer && customer.id && customer.name)
+          .map((customer: any) => ({
+            id: String(customer.id),
+            name: customer.name || "Unnamed Customer",
+            phone: customer.phone || null,
+            email: customer.email || null,
+          }));
+        
+        console.log(`Formatted ${formattedCustomers.length} customers`);
+        setAllCustomers(formattedCustomers);
+        
+        if (formattedCustomers.length === 0 && data.length > 0) {
+          console.warn("All customers were filtered out. Raw data:", data);
+        }
+      } else {
+        console.log("No customers found or data is not an array:", data);
+        setAllCustomers([]);
+      }
+    } catch (error: any) {
+      console.error("Error fetching customers:", error);
+      console.error("Error stack:", error.stack);
+      alert("Failed to load customers: " + (error.message || "Unknown error"));
+    } finally {
+      setIsLoadingCustomers(false);
+    }
   };
 
   useEffect(() => {
@@ -190,6 +284,27 @@ export default function ManagementDashboard() {
   useEffect(() => {
     clearOfferPrices();
   }, [selectedProduct]);
+
+  // Fetch all customers when component mounts or when products section is active
+  useEffect(() => {
+    if (activeSection === "products") {
+      console.log("Products section active, fetching all customers...");
+      // Small delay to ensure component is ready
+      const timer = setTimeout(() => {
+        fetchAllCustomers();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [activeSection]);
+
+  // Also fetch customers when a product is selected (in case they weren't loaded yet)
+  useEffect(() => {
+    if (selectedProduct && activeSection === "products" && allCustomers.length === 0 && !isLoadingCustomers) {
+      console.log("Product selected but no customers loaded, fetching...");
+      fetchAllCustomers();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProduct, activeSection]);
 
   const fetchUsers = async (page = 1) => {
     setIsLoading(true);
@@ -331,7 +446,7 @@ export default function ManagementDashboard() {
       });
       
       // Debug: Log price history mapping
-      const uniqueHistoryProductIds = (priceHistories || []).map(ph => ph.product_id).filter((v, i, a) => a.indexOf(v) === i);
+      const uniqueHistoryProductIds = (priceHistories || []).map((ph: any) => ph.product_id).filter((v: any, i: number, a: any[]) => a.indexOf(v) === i);
       console.log("=== PRICE HISTORY DEBUG ===");
       console.log("Price history map:", priceHistoryMap);
       console.log("Products with price history:", Object.keys(priceHistoryMap).length);
@@ -409,15 +524,15 @@ export default function ManagementDashboard() {
       );
 
       // Debug: Log product IDs being displayed
-      const displayedProductIds = (productsWithVariants || []).map(p => p.id);
+      const displayedProductIds = (productsWithVariants || []).map((p: any) => p.id);
       console.log("=== PRODUCTS DEBUG ===");
       console.log("Product IDs being displayed:", displayedProductIds);
       console.log("Total products:", displayedProductIds.length);
       
       // Check for matches
-      const matchingIds = displayedProductIds.filter(id => historyProductIds.includes(Number(id)) || historyProductIds.includes(String(id)));
+      const matchingIds = displayedProductIds.filter((id: any) => historyProductIds.includes(Number(id)) || historyProductIds.includes(String(id)));
       console.log("Matching product IDs (have history):", matchingIds);
-      console.log("Non-matching product IDs (no history):", displayedProductIds.filter(id => !matchingIds.includes(id)));
+      console.log("Non-matching product IDs (no history):", displayedProductIds.filter((id: any) => !matchingIds.includes(id)));
       
       console.log("Sample product with history check:", productsWithVariants[0] ? {
         id: productsWithVariants[0].id,
@@ -484,6 +599,7 @@ export default function ManagementDashboard() {
     fetchTopSellingProducts(undefined, "quantity");
     fetchTopSellingProducts(undefined, "price");
     fetchRecentOrders();
+    fetchSalesChartData();
   }, []);
 
   const checkDatabaseTables = async () => {
@@ -753,6 +869,75 @@ export default function ManagementDashboard() {
     }
   };
 
+  const fetchSalesChartData = async () => {
+    setIsLoadingSalesChart(true);
+    try {
+      // Fetch all order items with created_at to group by month
+      const { data: orderItems, error } = await supabase
+        .from("order_items")
+        .select("quantity, created_at");
+
+      if (error) {
+        console.error("Error fetching sales chart data:", error);
+        setSalesChartData({ labels: [], quantities: [] });
+        return;
+      }
+
+      if (!orderItems || orderItems.length === 0) {
+        setSalesChartData({ labels: [], quantities: [] });
+        return;
+      }
+
+      // Aggregate quantities by month
+      const monthQuantityMap = new Map<string, number>();
+
+      orderItems.forEach((item: any) => {
+        if (!item.created_at) return;
+        
+        const date = new Date(item.created_at);
+        const monthName = date.toLocaleString("default", { month: "long" });
+        const year = date.getFullYear();
+        const monthKey = `${monthName} ${year}`;
+        const quantity = item.quantity || 0;
+
+        if (monthQuantityMap.has(monthKey)) {
+          monthQuantityMap.set(
+            monthKey,
+            monthQuantityMap.get(monthKey)! + quantity
+          );
+        } else {
+          monthQuantityMap.set(monthKey, quantity);
+        }
+      });
+
+      // Convert map to arrays and sort chronologically (oldest to newest)
+      const sortedMonths = Array.from(monthQuantityMap.entries())
+        .sort((a, b) => {
+          // Parse month strings (format: "Month Year") to dates for proper chronological sorting
+          const parseMonthYear = (monthYear: string): Date => {
+            const parts = monthYear.split(" ");
+            const monthName = parts[0];
+            const year = parseInt(parts[1]);
+            return new Date(`${monthName} 1, ${year}`);
+          };
+          
+          const dateA = parseMonthYear(a[0]);
+          const dateB = parseMonthYear(b[0]);
+          return dateA.getTime() - dateB.getTime();
+        });
+
+      const labels = sortedMonths.map(([monthKey]) => monthKey);
+      const quantities = sortedMonths.map(([, quantity]) => quantity);
+
+      setSalesChartData({ labels, quantities });
+    } catch (error) {
+      console.error("Error fetching sales chart data:", error);
+      setSalesChartData({ labels: [], quantities: [] });
+    } finally {
+      setIsLoadingSalesChart(false);
+    }
+  };
+
   const fetchOrderDetails = async (page = 1) => {
     setIsLoading(true);
     try {
@@ -771,6 +956,50 @@ export default function ManagementDashboard() {
       if (error) throw error;
       setOrderDetails(data || []);
       setTotalOrders(count || 0);
+
+      // Fetch order items for these orders
+      if (data && data.length > 0) {
+        const orderIds = data.map((order: any) => parseInt(order.id));
+        const { data: itemsData, error: itemsError } = await supabase
+          .from("order_items")
+          .select("*")
+          .in("order_id", orderIds);
+
+        if (itemsError) {
+          console.error("Error fetching order items:", itemsError);
+        } else {
+          // Group items by order_id
+          const itemsByOrder: Record<string, Array<{
+            id: number;
+            order_id: number;
+            product_id: number;
+            quantity: number;
+            price: number;
+            total_price: number;
+            product_name: string;
+            product_code: string;
+          }>> = {};
+          (itemsData || []).forEach((item: any) => {
+            const orderId = String(item.order_id);
+            if (!itemsByOrder[orderId]) {
+              itemsByOrder[orderId] = [];
+            }
+            itemsByOrder[orderId].push({
+              id: item.id,
+              order_id: item.order_id,
+              product_id: item.product_id,
+              quantity: item.quantity,
+              price: parseFloat(item.price),
+              total_price: parseFloat(item.total_price),
+              product_name: item.product_name,
+              product_code: item.product_code || "",
+            });
+          });
+          setOrderItems(itemsByOrder);
+        }
+      } else {
+        setOrderItems({});
+      }
     } catch (error) {
       console.error("Error fetching order details:", error);
     } finally {
@@ -920,11 +1149,15 @@ export default function ManagementDashboard() {
 
   const renderOverview = () => {
     const salesData = {
-      labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+      labels: salesChartData.labels.length > 0 
+        ? salesChartData.labels 
+        : ["No data available"],
       datasets: [
         {
-          label: "Monthly Sales",
-          data: [12, 19, 3, 5, 2, 3],
+          label: "Total Quantity Sold",
+          data: salesChartData.quantities.length > 0 
+            ? salesChartData.quantities 
+            : [0],
           backgroundColor: "rgba(54, 162, 235, 0.5)",
           borderColor: "rgba(54, 162, 235, 1)",
           borderWidth: 1,
@@ -968,8 +1201,61 @@ export default function ManagementDashboard() {
         {/* Charts */}
         <div className="grid grid-cols-1 gap-6">
           <div className="bg-white p-4 rounded-lg shadow-sm">
-            <h3 className="text-lg font-semibold mb-4">Sales Overview</h3>
-            <Bar data={salesData} options={{ responsive: true }} />
+            <h3 className="text-lg font-semibold mb-4">Sales Overview - Total Quantity Sold by Month</h3>
+            {isLoadingSalesChart ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="text-gray-500">Loading sales data...</div>
+              </div>
+            ) : salesChartData.labels.length === 0 ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="text-gray-500">No sales data available</div>
+              </div>
+            ) : (
+              <Bar 
+                data={salesData} 
+                options={{ 
+                  responsive: true,
+                  maintainAspectRatio: true,
+                  plugins: {
+                    legend: {
+                      display: true,
+                      position: 'top' as const,
+                    },
+                    tooltip: {
+                      callbacks: {
+                        label: function(context: any) {
+                          return `Quantity: ${context.parsed.y.toLocaleString()}`;
+                        }
+                      }
+                    }
+                  },
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                      ticks: {
+                        callback: function(value: any) {
+                          return value.toLocaleString();
+                        }
+                      },
+                      title: {
+                        display: true,
+                        text: 'Total Quantity Sold'
+                      }
+                    },
+                    x: {
+                      ticks: {
+                        maxRotation: 45,
+                        minRotation: 45
+                      },
+                      title: {
+                        display: true,
+                        text: 'Month'
+                      }
+                    }
+                  }
+                }} 
+              />
+            )}
           </div>
         </div>
 
@@ -1120,13 +1406,6 @@ export default function ManagementDashboard() {
         <div className="bg-white p-4 rounded-lg shadow-sm">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold">Recent Activity</h3>
-            <button
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-              onClick={fetchRecentOrders}
-              disabled={isLoadingRecentOrders}
-            >
-              {isLoadingRecentOrders ? "Loading..." : "Refresh"}
-            </button>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -1206,12 +1485,6 @@ export default function ManagementDashboard() {
       >
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-semibold">User Management</h2>
-          <button
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-            onClick={() => fetchUsers(currentUserPage)}
-          >
-            Refresh
-          </button>
         </div>
 
         {isLoading ? (
@@ -1425,12 +1698,182 @@ export default function ManagementDashboard() {
           >
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-900">Product List</h2>
-              <button
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                onClick={() => fetchCategories()}
-              >
-                Refresh
-              </button>
+            </div>
+
+            {/* Product Variants Management Section */}
+            <div className="bg-white rounded-lg shadow p-6 mb-6">
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="font-medium text-gray-700 text-lg">
+                  Product Variants:
+                </h4>
+                <div className="flex items-center gap-2">
+                  <label className="hidden flex items-center text-sm">
+                    <input
+                      type="checkbox"
+                      className="mr-2"
+                      checked={useNewVariantSystem}
+                      onChange={(e) => setUseNewVariantSystem(e.target.checked)}
+                    />
+                    Use New Variant System
+                  </label>
+                  <button
+                    className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                    onClick={() => {
+                      // If no product selected for variants, use the first product or null
+                      const productIdForVariants = selectedProductForVariants || (categories.length > 0 && categories[0].products.length > 0 ? categories[0].products[0].id : null);
+                      if (productIdForVariants) {
+                        setShowVariantManager(
+                          showVariantManager === productIdForVariants ? null : productIdForVariants
+                        );
+                        if (!selectedProductForVariants) {
+                          setSelectedProductForVariants(productIdForVariants);
+                        }
+                      }
+                    }}
+                  >
+                    {showVariantManager === selectedProductForVariants ? 'Hide Variants' : 'Manage Variants'}
+                  </button>
+                </div>
+              </div>
+              
+              {/* Product Selector Dropdown */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Product to Manage Variants:
+                </label>
+                <select
+                  className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={selectedProductForVariants || ''}
+                  onChange={(e) => {
+                    const newProductId = Number(e.target.value);
+                    setSelectedProductForVariants(newProductId);
+                    // If variant manager is open, update it to show the new product
+                    if (showVariantManager !== null) {
+                      setShowVariantManager(newProductId);
+                    }
+                  }}
+                >
+                  <option value="">-- Select a Product --</option>
+                  {categories.flatMap(category => 
+                    category.products.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.Product} {category.name ? `(${category.name})` : ''}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+              
+              {(() => {
+                if (!selectedProductForVariants) return null;
+                
+                const selectedProductData = categories
+                  .flatMap((c: any) => c.products)
+                  .find(p => p.id === selectedProductForVariants);
+                
+                if (!selectedProductData) return null;
+                
+                // Debug: Log variants data
+                console.log('Selected product data:', {
+                  productId: selectedProductForVariants,
+                  productName: selectedProductData.Product,
+                  variants: selectedProductData.variants,
+                  variantsCount: selectedProductData.variants?.length || 0
+                });
+                
+                return (
+                  <>
+                    {/* Show current variants list when manager is NOT open */}
+                    {selectedProductData.variants && selectedProductData.variants.length > 0 && showVariantManager !== selectedProductForVariants && (
+                      <div className="mt-2">
+                        <div className="text-sm text-gray-600 mb-2">
+                          Current variants ({selectedProductData.variants.length}):
+                        </div>
+                        <div className="space-y-1">
+                          {selectedProductData.variants.map((variant: any) => (
+                            <div key={variant.id} className="flex items-center justify-between bg-white p-2 rounded border">
+                              <div className="flex items-center space-x-3">
+                                {variant.image_url && (
+                                  <img 
+                                    src={variant.image_url} 
+                                    alt={variant.variation_name}
+                                    className="w-8 h-8 object-cover rounded"
+                                  />
+                                )}
+                                <div>
+                                  <span className="font-medium">{variant.variation_name}</span>
+                                  {variant.variation_name_ch && (
+                                    <span className="text-gray-500 ml-2">({variant.variation_name_ch})</span>
+                                  )}
+                                  {variant.is_default && (
+                                    <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">Default</span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-sm text-gray-600">
+                                ${variant.price.toFixed(2)} | Stock: {variant.stock_quantity}
+                                {variant.weight && ` | ${variant.weight}`}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Show variant manager when opened */}
+                    {showVariantManager === selectedProductForVariants && (
+                      <div className="mt-4">
+                        {useNewVariantSystem ? (
+                          (() => {
+                            const variantsToPass = Array.isArray(selectedProductData.variants) 
+                              ? selectedProductData.variants 
+                              : [];
+                            console.log('Passing variants to VariantManager:', {
+                              productId: selectedProductForVariants,
+                              variantsCount: variantsToPass.length,
+                              variants: variantsToPass
+                            });
+                            return (
+                              <VariantManager
+                                productId={selectedProductForVariants}
+                                variants={variantsToPass}
+                                onVariantsChange={(newVariants) => {
+                                  // Update the product in the categories state
+                                  setCategories(prevCategories => 
+                                    prevCategories.map(category => ({
+                                      ...category,
+                                      products: category.products.map(p => 
+                                        p.id === selectedProductForVariants 
+                                          ? { ...p, variants: newVariants }
+                                          : p
+                                      )
+                                    }))
+                                  );
+                                }}
+                              />
+                            );
+                          })()
+                        ) : (
+                          <VariantExtractor
+                            productId={selectedProductForVariants}
+                            productName={selectedProductData.Product}
+                            onVariantsChange={(variants) => {
+                              console.log('Variants updated:', variants);
+                            }}
+                          />
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Show message when no variants and manager is NOT open */}
+                    {(!selectedProductData.variants || selectedProductData.variants.length === 0) && showVariantManager !== selectedProductForVariants && (
+                      <div className="text-gray-500 text-sm">
+                        No variants configured. Click "Manage Variants" to add product variations.
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
 
             <div>
@@ -1830,15 +2273,26 @@ export default function ManagementDashboard() {
                                       <tr>
                                         <td className="px-4 py-2 bg-gray-50" colSpan={3}>
                                           <div className="pl-8">
-                                            <div className="flex justify-between items-center mb-2">
-                                              <h4 className="font-medium text-gray-700">
-                                                Customers:
-                                              </h4>
+                                            {/* Previous Customers Section */}
+                                            <div className="flex justify-between items-center mb-4">
+                                              <div className="flex items-center space-x-2">
+                                                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                                </svg>
+                                                <h4 className="text-base font-semibold text-gray-800">
+                                                  Previous Customers
+                                                </h4>
+                                                {product.order_items && product.order_items.length > 0 && (
+                                                  <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-full">
+                                                    {product.order_items.length} customer{product.order_items.length !== 1 ? 's' : ''}
+                                                  </span>
+                                                )}
+                                              </div>
                                               {Object.keys(offerPrices).some((key) =>
                                                 key.startsWith(`${product.id}-`)
                                               ) && (
                                                 <button
-                                                  className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800 border border-gray-300 hover:border-gray-500 rounded"
+                                                  className="px-3 py-1.5 text-xs font-medium text-red-600 bg-white border border-red-300 rounded-lg hover:bg-red-50 hover:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 transition-all"
                                                   title="Clear all offer prices for this product"
                                                   type="button"
                                                   onClick={() => {
@@ -1854,9 +2308,289 @@ export default function ManagementDashboard() {
                                                     setOfferPrices(newOfferPrices);
                                                   }}
                                                 >
+                                                  <svg className="w-3.5 h-3.5 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                  </svg>
                                                   Clear All
                                                 </button>
                                               )}
+                                            </div>
+                                            {/* Customer Selector for Custom Price */}
+                                            <div className="mb-4 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 shadow-sm">
+                                              <div className="flex justify-between items-center mb-3">
+                                                <div className="flex items-center space-x-2">
+                                                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                                  </svg>
+                                                  <h5 className="text-sm font-semibold text-gray-800">
+                                                    Send Custom Price Offer
+                                                  </h5>
+                                                </div>
+                                                {allCustomers.length > 0 && (
+                                                  <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
+                                                    {allCustomers.length} customer{allCustomers.length !== 1 ? 's' : ''} available
+                                                  </span>
+                                                )}
+                                              </div>
+                                              
+                                              <div className="space-y-3">
+                                                {/* Customer Selection Row */}
+                                                <div className="flex items-center gap-2">
+                                                  <div className="flex-1 relative customer-dropdown-container">
+                                                    <button
+                                                      type="button"
+                                                      className="w-full pl-10 pr-10 py-2.5 text-left text-sm border border-gray-300 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all flex items-center justify-between"
+                                                      onClick={() => {
+                                                        setIsCustomerDropdownOpen((prev) => ({
+                                                          ...prev,
+                                                          [product.id]: !prev[product.id],
+                                                        }));
+                                                      }}
+                                                      disabled={isLoadingCustomers}
+                                                    >
+                                                      <div className="flex items-center space-x-2 min-w-0 flex-1">
+                                                        <div className="absolute left-3 flex items-center pointer-events-none">
+                                                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                          </svg>
+                                                        </div>
+                                                        <span className="pl-6 truncate text-gray-700">
+                                                          {isLoadingCustomers 
+                                                            ? "⏳ Loading customers..." 
+                                                            : selectedCustomerForOffer[product.id]
+                                                              ? (() => {
+                                                                  const selected = allCustomers.find(c => String(c.id) === String(selectedCustomerForOffer[product.id]));
+                                                                  return selected 
+                                                                    ? `${selected.name}${selected.phone ? ` (${selected.phone})` : ""}${selected.email ? ` - ${selected.email}` : ""}`
+                                                                    : "Select a customer...";
+                                                                })()
+                                                              : allCustomers.length === 0 
+                                                                ? "⚠️ No customers found - Click refresh" 
+                                                                : "👤 Select a customer..."}
+                                                        </span>
+                                                      </div>
+                                                      <svg 
+                                                        className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${isCustomerDropdownOpen[product.id] ? 'transform rotate-180' : ''}`}
+                                                        fill="none" 
+                                                        stroke="currentColor" 
+                                                        viewBox="0 0 24 24"
+                                                      >
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                      </svg>
+                                                    </button>
+                                                    
+                                                    {/* Custom Dropdown List */}
+                                                    {isCustomerDropdownOpen[product.id] && !isLoadingCustomers && (
+                                                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-80 overflow-auto">
+                                                        {allCustomers.length === 0 ? (
+                                                          <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                                                            No customers found
+                                                          </div>
+                                                        ) : (
+                                                          <div className="py-1">
+                                                            {allCustomers.map((customer) => {
+                                                              const isSelected = String(selectedCustomerForOffer[product.id]) === String(customer.id);
+                                                              return (
+                                                                <button
+                                                                  key={String(customer.id)}
+                                                                  type="button"
+                                                                  className={`w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors ${
+                                                                    isSelected ? 'bg-blue-100 border-l-4 border-blue-500' : ''
+                                                                  }`}
+                                                                  onClick={() => {
+                                                                    setSelectedCustomerForOffer((prev) => ({
+                                                                      ...prev,
+                                                                      [product.id]: String(customer.id),
+                                                                    }));
+                                                                    // Clear custom price when customer changes
+                                                                    const key = `custom-${product.id}-${customer.id}`;
+                                                                    setCustomPriceForSelectedCustomer((prev) => {
+                                                                      const newState = { ...prev };
+                                                                      delete newState[key];
+                                                                      return newState;
+                                                                    });
+                                                                    setIsCustomerDropdownOpen((prev) => ({
+                                                                      ...prev,
+                                                                      [product.id]: false,
+                                                                    }));
+                                                                  }}
+                                                                >
+                                                                  <div className="flex items-center space-x-3">
+                                                                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                                                                      isSelected ? 'bg-blue-500' : 'bg-gray-200'
+                                                                    }`}>
+                                                                      <span className={`text-xs font-semibold ${
+                                                                        isSelected ? 'text-white' : 'text-gray-600'
+                                                                      }`}>
+                                                                        {(customer.name || "U").charAt(0).toUpperCase()}
+                                                                      </span>
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                      <div className={`font-medium truncate ${
+                                                                        isSelected ? 'text-blue-700' : 'text-gray-900'
+                                                                      }`}>
+                                                                        {customer.name || "Unnamed Customer"}
+                                                                      </div>
+                                                                      <div className="text-xs text-gray-500 truncate mt-0.5">
+                                                                        {customer.phone && <span>{customer.phone}</span>}
+                                                                        {customer.phone && customer.email && <span className="mx-1">•</span>}
+                                                                        {customer.email && <span>{customer.email}</span>}
+                                                                      </div>
+                                                                    </div>
+                                                                    {isSelected && (
+                                                                      <svg className="w-5 h-5 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                                      </svg>
+                                                                    )}
+                                                                  </div>
+                                                                </button>
+                                                              );
+                                                            })}
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                  {!isLoadingCustomers && (
+                                                    <button
+                                                      className="px-3 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-all shadow-sm"
+                                                      title="Refresh customer list"
+                                                      onClick={() => fetchAllCustomers()}
+                                                    >
+                                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                      </svg>
+                                                    </button>
+                                                  )}
+                                                </div>
+
+                                                {/* Price Input and Actions Row */}
+                                                {selectedCustomerForOffer[product.id] && (
+                                                  <div className="flex items-center gap-2 p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
+                                                    <div className="flex-1 flex items-center gap-2">
+                                                      <div className="relative flex-1">
+                                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                          <span className="text-gray-500 text-sm font-medium">$</span>
+                                                        </div>
+                                                        <input
+                                                          type="number"
+                                                          min="0"
+                                                          step="0.01"
+                                                          placeholder="0.00"
+                                                          className="w-full pl-7 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
+                                                          value={
+                                                            customPriceForSelectedCustomer[
+                                                              `custom-${product.id}-${selectedCustomerForOffer[product.id]}`
+                                                            ] || ""
+                                                          }
+                                                          onChange={(e) => {
+                                                            const key = `custom-${product.id}-${selectedCustomerForOffer[product.id]}`;
+                                                            const value = e.target.value;
+                                                            if (value === "" || value === null || value === undefined) {
+                                                              setCustomPriceForSelectedCustomer((prev) => {
+                                                                const newState = { ...prev };
+                                                                delete newState[key];
+                                                                return newState;
+                                                              });
+                                                            } else {
+                                                              const numValue = Number(value);
+                                                              if (!isNaN(numValue)) {
+                                                                setCustomPriceForSelectedCustomer((prev) => ({
+                                                                  ...prev,
+                                                                  [key]: numValue,
+                                                                }));
+                                                              }
+                                                            }
+                                                          }}
+                                                          onFocus={(e) => {
+                                                            e.target.select();
+                                                          }}
+                                                        />
+                                                      </div>
+                                                      <button
+                                                        className="px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-green-500 to-green-600 rounded-lg hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+                                                        onClick={async () => {
+                                                          const customerId = selectedCustomerForOffer[product.id];
+                                                          if (!customerId) {
+                                                            alert("Please select a customer");
+                                                            return;
+                                                          }
+                                                          const key = `custom-${product.id}-${customerId}`;
+                                                          const price = customPriceForSelectedCustomer[key];
+                                                          if (!price || price <= 0) {
+                                                            alert("Please enter a valid price");
+                                                            return;
+                                                          }
+                                                          try {
+                                                            const { error } = await supabase
+                                                              .from("price_offers")
+                                                              .insert([
+                                                                {
+                                                                  customer_id: customerId,
+                                                                  product_id: product.id,
+                                                                  offered_price: price,
+                                                                  status: "pending",
+                                                                  created_at: new Date().toISOString(),
+                                                                },
+                                                              ]);
+
+                                                            if (error) {
+                                                              alert("Failed to send offer: " + error.message);
+                                                              return;
+                                                            }
+
+                                                            // Clear the inputs after successful send
+                                                            setSelectedCustomerForOffer((prev) => ({
+                                                              ...prev,
+                                                              [product.id]: null,
+                                                            }));
+                                                            setCustomPriceForSelectedCustomer((prev) => {
+                                                              const newState = { ...prev };
+                                                              delete newState[key];
+                                                              return newState;
+                                                            });
+
+                                                            const customer = allCustomers.find((c) => String(c.id) === String(customerId));
+                                                            alert(
+                                                              `Offer sent successfully to ${customer?.name || "customer"} for $${price.toFixed(2)}`
+                                                            );
+                                                          } catch (err) {
+                                                            alert("Failed to send offer. Please try again.");
+                                                          }
+                                                        }}
+                                                      >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                                        </svg>
+                                                        Send Offer
+                                                      </button>
+                                                      <button
+                                                        className="px-3 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-800 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1 transition-all"
+                                                        title="Clear selection"
+                                                        onClick={() => {
+                                                          const customerId = selectedCustomerForOffer[product.id];
+                                                          if (customerId) {
+                                                            const key = `custom-${product.id}-${customerId}`;
+                                                            setCustomPriceForSelectedCustomer((prev) => {
+                                                              const newState = { ...prev };
+                                                              delete newState[key];
+                                                              return newState;
+                                                            });
+                                                          }
+                                                          setSelectedCustomerForOffer((prev) => ({
+                                                            ...prev,
+                                                            [product.id]: null,
+                                                          }));
+                                                        }}
+                                                      >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                      </button>
+                                                    </div>
+                                                  </div>
+                                                )}
+                                              </div>
                                             </div>
                                             {product.order_items?.map((oiRaw, idx) => {
                                               const oi = oiRaw as {
@@ -1879,83 +2613,110 @@ export default function ManagementDashboard() {
                                                 return (
                                                   <div
                                                     key={`${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`}
-                                                    className="mb-3 p-2 bg-gray-50 rounded"
+                                                    className="mb-3 p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow"
                                                   >
-                                                    <div className="mb-2">
-                                                      <span className="font-medium">
-                                                        {order.customer_name}
-                                                      </span>
-                                                      <span className="text-xs text-gray-400 ml-2">
-                                                        (ID: {order.customer_id || "N/A"})
-                                                      </span>
-                                                      {oi.price !== undefined && (
-                                                        <span className="text-xs text-gray-500 ml-2">
-                                                          Past price: ${oi.price?.toFixed(2)}
+                                                    <div className="flex items-start justify-between mb-3">
+                                                      <div className="flex items-center space-x-3">
+                                                        <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center">
+                                                          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                          </svg>
+                                                        </div>
+                                                        <div>
+                                                          <div className="flex items-center space-x-2">
+                                                            <span className="font-semibold text-gray-800">
+                                                              {order.customer_name}
+                                                            </span>
+                                                            {order.customer_phone && (
+                                                              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                                                                {order.customer_phone}
+                                                              </span>
+                                                            )}
+                                                          </div>
+                                                          {oi.price !== undefined && (
+                                                            <div className="mt-1 flex items-center space-x-2">
+                                                              <span className="text-xs text-gray-500">Previous price:</span>
+                                                              <span className="text-sm font-medium text-gray-700">
+                                                                ${oi.price?.toFixed(2)}
+                                                              </span>
+                                                            </div>
+                                                          )}
+                                                        </div>
+                                                      </div>
+                                                      {order.customer_id && (
+                                                        <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded">
+                                                          ID: {order.customer_id}
                                                         </span>
                                                       )}
                                                     </div>
-                                                    <div className="flex items-center space-x-2">
-                                                      <input
-                                                        min="0"
-                                                        placeholder="Offer new price"
-                                                        step="0.01"
-                                                        type="number"
-                                                        value={
-                                                          offerPrices[
-                                                            `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`
-                                                          ] || ""
-                                                        }
-                                                        onBlur={(e) => {
-                                                          // Validate and clean up on blur
-                                                          const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
-                                                          const value = e.target.value;
-                                                          if (
-                                                            value === "" ||
-                                                            value === "0" ||
-                                                            isNaN(Number(value))
-                                                          ) {
-                                                            setOfferPrices((prev) => {
-                                                              const newState = { ...prev };
-                                                              delete newState[key];
-                                                              return newState;
-                                                            });
+                                                    <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+                                                      <div className="relative flex-1">
+                                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                          <span className="text-gray-500 text-sm font-medium">$</span>
+                                                        </div>
+                                                        <input
+                                                          min="0"
+                                                          placeholder="Enter offer price"
+                                                          step="0.01"
+                                                          type="number"
+                                                          className="w-full pl-7 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
+                                                          value={
+                                                            offerPrices[
+                                                              `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`
+                                                            ] || ""
                                                           }
-                                                        }}
-                                                        onChange={(e) => {
-                                                          const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
-                                                          const value = e.target.value;
-
-                                                          if (
-                                                            value === "" ||
-                                                            value === null ||
-                                                            value === undefined
-                                                          ) {
-                                                            // Clear the value when input is empty
-                                                            setOfferPrices((prev) => {
-                                                              const newState = { ...prev };
-                                                              delete newState[key];
-                                                              return newState;
-                                                            });
-                                                          } else {
-                                                            const numValue = Number(value);
-                                                            if (!isNaN(numValue)) {
-                                                              setOfferPrices((prev) => ({
-                                                                ...prev,
-                                                                [key]: numValue,
-                                                              }));
+                                                          onBlur={(e) => {
+                                                            // Validate and clean up on blur
+                                                            const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
+                                                            const value = e.target.value;
+                                                            if (
+                                                              value === "" ||
+                                                              value === "0" ||
+                                                              isNaN(Number(value))
+                                                            ) {
+                                                              setOfferPrices((prev) => {
+                                                                const newState = { ...prev };
+                                                                delete newState[key];
+                                                                return newState;
+                                                              });
                                                             }
-                                                          }
-                                                        }}
-                                                        onFocus={(e) => {
-                                                          // Select all text when focused
-                                                          e.target.select();
-                                                        }}
-                                                      />
+                                                          }}
+                                                          onChange={(e) => {
+                                                            const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
+                                                            const value = e.target.value;
+
+                                                            if (
+                                                              value === "" ||
+                                                              value === null ||
+                                                              value === undefined
+                                                            ) {
+                                                              // Clear the value when input is empty
+                                                              setOfferPrices((prev) => {
+                                                                const newState = { ...prev };
+                                                                delete newState[key];
+                                                                return newState;
+                                                              });
+                                                            } else {
+                                                              const numValue = Number(value);
+                                                              if (!isNaN(numValue)) {
+                                                                setOfferPrices((prev) => ({
+                                                                  ...prev,
+                                                                  [key]: numValue,
+                                                                }));
+                                                              }
+                                                            }
+                                                          }}
+                                                          onFocus={(e) => {
+                                                            // Select all text when focused
+                                                            e.target.select();
+                                                          }}
+                                                        />
+                                                      </div>
                                                       {offerPrices[
                                                         `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`
                                                       ] && (
                                                         <button
-                                                          className="px-2 py-1 text-xs text-red-600 hover:text-red-800 border border-red-300 hover:border-red-500 rounded"
+                                                          className="px-3 py-2 text-sm font-medium text-red-600 bg-white border border-red-300 rounded-lg hover:bg-red-50 hover:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 transition-all"
                                                           title="Clear offer price"
                                                           type="button"
                                                           onClick={() => {
@@ -1967,10 +2728,14 @@ export default function ManagementDashboard() {
                                                             });
                                                           }}
                                                         >
-                                                          ✕
+                                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                          </svg>
                                                         </button>
                                                       )}
                                                       <button
+                                                        className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-green-500 to-green-600 rounded-lg hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all shadow-md hover:shadow-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        disabled={!offerPrices[`${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`]}
                                                         onClick={async () => {
                                                           if (!order.customer_id) {
                                                             alert("Customer ID not found!");
@@ -2013,7 +2778,7 @@ export default function ManagementDashboard() {
                                                             });
 
                                                             alert(
-                                                              `Offer sent successfully to ${order.customer_name} for $${currentOfferPrice}`
+                                                              `Offer sent successfully to ${order.customer_name} for $${currentOfferPrice.toFixed(2)}`
                                                             );
                                                           } catch (err) {
                                                             alert(
@@ -2022,6 +2787,9 @@ export default function ManagementDashboard() {
                                                           }
                                                         }}
                                                       >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                                        </svg>
                                                         Send Offer
                                                       </button>
                                                     </div>
@@ -2031,116 +2799,16 @@ export default function ManagementDashboard() {
                                             })}
                                             {(!product.order_items ||
                                               product.order_items.length === 0) && (
-                                              <span className="text-gray-500">
-                                                No customers found
-                                              </span>
-                                            )}
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    )}
-                                    {selectedProduct === product.id && (
-                                      <tr>
-                                        <td className="px-4 py-2 bg-gray-50" colSpan={3}>
-                                          <div className="pl-8">
-                                            <div className="flex justify-between items-center mb-4">
-                                              <h4 className="font-medium text-gray-700">
-                                                Product Variants:
-                                              </h4>
-                                              <div className="flex items-center gap-2">
-                                                <label className="flex items-center text-sm">
-                                                  <input
-                                                    type="checkbox"
-                                                    className="mr-2"
-                                                    checked={useNewVariantSystem}
-                                                    onChange={(e) => setUseNewVariantSystem(e.target.checked)}
-                                                  />
-                                                  Use New Variant System
-                                                </label>
-                                                <button
-                                                  className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                                                  onClick={() => 
-                                                    setShowVariantManager(
-                                                      showVariantManager === product.id ? null : product.id
-                                                    )
-                                                  }
-                                                >
-                                                  {showVariantManager === product.id ? 'Hide Variants' : 'Manage Variants'}
-                                                </button>
-                                              </div>
-                                            </div>
-                                            
-                                            {showVariantManager === product.id && (
-                                              <div className="mt-4">
-                                                {useNewVariantSystem ? (
-                                                  <VariantManager
-                                                    productId={product.id}
-                                                    variants={product.variants || []}
-                                                    onVariantsChange={(newVariants) => {
-                                                      // Update the product in the categories state
-                                                      setCategories(prevCategories => 
-                                                        prevCategories.map(category => ({
-                                                          ...category,
-                                                          products: category.products.map(p => 
-                                                            p.id === product.id 
-                                                              ? { ...p, variants: newVariants }
-                                                              : p
-                                                          )
-                                                        }))
-                                                      );
-                                                    }}
-                                                  />
-                                                ) : (
-                                                  <VariantExtractor
-                                                    productId={product.id}
-                                                    productName={product.Product}
-                                                    onVariantsChange={(variants) => {
-                                                      console.log('Variants updated:', variants);
-                                                    }}
-                                                  />
-                                                )}
-                                              </div>
-                                            )}
-                                            
-                                            {product.variants && product.variants.length > 0 && (
-                                              <div className="mt-2">
-                                                <div className="text-sm text-gray-600 mb-2">
-                                                  Current variants ({product.variants.length}):
-                                                </div>
-                                                <div className="space-y-1">
-                                                  {product.variants.map((variant) => (
-                                                    <div key={variant.id} className="flex items-center justify-between bg-white p-2 rounded border">
-                                                      <div className="flex items-center space-x-3">
-                                                        {variant.image_url && (
-                                                          <img 
-                                                            src={variant.image_url} 
-                                                            alt={variant.variation_name}
-                                                            className="w-8 h-8 object-cover rounded"
-                                                          />
-                                                        )}
-                                                        <div>
-                                                          <span className="font-medium">{variant.variation_name}</span>
-                                                          {variant.variation_name_ch && (
-                                                            <span className="text-gray-500 ml-2">({variant.variation_name_ch})</span>
-                                                          )}
-                                                          {variant.is_default && (
-                                                            <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">Default</span>
-                                                          )}
-                                                        </div>
-                                                      </div>
-                                                      <div className="text-sm text-gray-600">
-                                                        ${variant.price.toFixed(2)} | Stock: {variant.stock_quantity}
-                                                        {variant.weight && ` | ${variant.weight}`}
-                                                      </div>
-                                                    </div>
-                                                  ))}
-                                                </div>
-                                              </div>
-                                            )}
-                                            
-                                            {(!product.variants || product.variants.length === 0) && showVariantManager !== product.id && (
-                                              <div className="text-gray-500 text-sm">
-                                                No variants configured. Click "Manage Variants" to add product variations.
+                                              <div className="text-center py-8 px-4 bg-gray-50 rounded-lg border border-gray-200">
+                                                <svg className="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                                </svg>
+                                                <p className="text-sm text-gray-500 font-medium">
+                                                  No previous customers found
+                                                </p>
+                                                <p className="text-xs text-gray-400 mt-1">
+                                                  Use the selector above to send offers to any customer
+                                                </p>
                                               </div>
                                             )}
                                           </div>
@@ -2172,12 +2840,6 @@ export default function ManagementDashboard() {
           >
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-semibold">Transaction History</h2>
-              <button
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                onClick={() => fetchOrderDetails(currentPage)}
-              >
-                Refresh
-              </button>
             </div>
 
             {isLoading ? (
@@ -2190,6 +2852,9 @@ export default function ManagementDashboard() {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                          
+                        </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Order Number
                         </th>
@@ -2208,42 +2873,155 @@ export default function ManagementDashboard() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {orderDetails.map((order) => (
-                        <tr key={order.id}>
-                          <td className="px-6 py-4 whitespace-nowrap">{order.id}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {new Date(order.created_at).toLocaleDateString()}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {order.customer_name}
-                            {order.customer_phone ? ` (${order.customer_phone})` : ""}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            ${order.total_amount?.toFixed(2)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <select
-                              className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                                order.status === "completed"
-                                  ? "bg-green-100 text-green-800"
-                                  : order.status === "pending"
-                                    ? "bg-yellow-100 text-yellow-800"
-                                    : "bg-red-100 text-red-800"
-                              } ${updatingStatus === order.id ? "opacity-50 cursor-not-allowed" : ""}`}
-                              disabled={updatingStatus === order.id}
-                              value={order.status}
-                              onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                            >
-                              <option value="pending">Pending</option>
-                              <option value="completed">Completed</option>
-                              <option value="cancelled">Cancelled</option>
-                            </select>
-                            {updatingStatus === order.id && (
-                              <span className="ml-2 text-xs text-gray-500">Updating...</span>
+                      {orderDetails.map((order) => {
+                        const isExpanded = expandedOrderId === order.id;
+                        const items = orderItems[order.id] || [];
+                        return (
+                          <React.Fragment key={order.id}>
+                            <tr className="hover:bg-gray-50 cursor-pointer" onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <button
+                                  className="text-gray-500 hover:text-gray-700 focus:outline-none"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setExpandedOrderId(isExpanded ? null : order.id);
+                                  }}
+                                >
+                                  <svg
+                                    className={`w-5 h-5 transform transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M19 9l-7 7-7-7"
+                                    />
+                                  </svg>
+                                </button>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">{order.id}</td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                {new Date(order.created_at).toLocaleDateString()}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                {order.customer_name}
+                                {order.customer_phone ? ` (${order.customer_phone})` : ""}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                ${order.total_amount?.toFixed(2)}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                                <select
+                                  className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                    order.status === "completed"
+                                      ? "bg-green-100 text-green-800"
+                                      : order.status === "pending"
+                                        ? "bg-yellow-100 text-yellow-800"
+                                        : "bg-red-100 text-red-800"
+                                  } ${updatingStatus === order.id ? "opacity-50 cursor-not-allowed" : ""}`}
+                                  disabled={updatingStatus === order.id}
+                                  value={order.status}
+                                  onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                                >
+                                  <option value="pending">Pending</option>
+                                  <option value="completed">Completed</option>
+                                  <option value="cancelled">Cancelled</option>
+                                </select>
+                                {updatingStatus === order.id && (
+                                  <span className="ml-2 text-xs text-gray-500">Updating...</span>
+                                )}
+                              </td>
+                            </tr>
+                            {isExpanded && (
+                              <tr>
+                                <td colSpan={6} className="px-6 py-4 bg-gray-50">
+                                  <div className="mt-2">
+                                    <div className="mb-4 pb-3 border-b border-gray-200">
+                                      <div className="flex items-center space-x-4">
+                                        <div>
+                                          <span className="text-xs font-medium text-gray-500 uppercase">Purchase Date:</span>
+                                          <p className="text-sm font-semibold text-gray-900 mt-1">
+                                            {new Date(order.created_at).toLocaleString('en-US', {
+                                              year: 'numeric',
+                                              month: 'long',
+                                              day: 'numeric',
+                                              hour: '2-digit',
+                                              minute: '2-digit',
+                                              hour12: true
+                                            })}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <h4 className="text-sm font-semibold text-gray-700 mb-3">Order Items</h4>
+                                    {items.length > 0 ? (
+                                      <div className="overflow-x-auto">
+                                        <table className="min-w-full divide-y divide-gray-200">
+                                          <thead className="bg-gray-100">
+                                            <tr>
+                                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase">
+                                                Product Name
+                                              </th>
+                                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase">
+                                                Product Code
+                                              </th>
+                                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase">
+                                                Quantity
+                                              </th>
+                                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase">
+                                                Unit Price
+                                              </th>
+                                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase">
+                                                Total Price
+                                              </th>
+                                            </tr>
+                                          </thead>
+                                          <tbody className="bg-white divide-y divide-gray-200">
+                                            {items.map((item) => (
+                                              <tr key={item.id} className="hover:bg-gray-50">
+                                                <td className="px-4 py-2 text-sm text-gray-900">
+                                                  {item.product_name}
+                                                </td>
+                                                <td className="px-4 py-2 text-sm text-gray-600">
+                                                  {item.product_code || "N/A"}
+                                                </td>
+                                                <td className="px-4 py-2 text-sm text-gray-600">
+                                                  {item.quantity}
+                                                </td>
+                                                <td className="px-4 py-2 text-sm text-gray-600">
+                                                  ${item.price.toFixed(2)}
+                                                </td>
+                                                <td className="px-4 py-2 text-sm font-medium text-gray-900">
+                                                  ${item.total_price.toFixed(2)}
+                                                </td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                          <tfoot className="bg-gray-100">
+                                            <tr>
+                                              <td colSpan={4} className="px-4 py-2 text-sm font-semibold text-gray-700 text-right">
+                                                Order Total:
+                                              </td>
+                                              <td className="px-4 py-2 text-sm font-bold text-gray-900">
+                                                ${order.total_amount.toFixed(2)}
+                                              </td>
+                                            </tr>
+                                          </tfoot>
+                                        </table>
+                                      </div>
+                                    ) : (
+                                      <p className="text-sm text-gray-500">No items found for this order.</p>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
                             )}
-                          </td>
-                        </tr>
-                      ))}
+                          </React.Fragment>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
