@@ -271,11 +271,13 @@ export const useSession = (): UseSessionReturn => {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event: any, session: { user: { id: string } | null }) => {
-      setSession(session as Session);
+    } = supabase.auth.onAuthStateChange(async (event: any, session: Session | null) => {
+      setSession(session);
 
       // Persist session to localStorage
-      persistSession(session as Session);
+      if (session) {
+        persistSession(session);
+      }
 
       if (session?.user?.id) {
         await fetchUserRole(session.user.id);
