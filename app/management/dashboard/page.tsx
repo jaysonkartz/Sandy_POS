@@ -145,8 +145,8 @@ export default function ManagementDashboard() {
   const [isLoadingTopProducts, setIsLoadingTopProducts] = useState(true);
   const [salesChartData, setSalesChartData] = useState<{
     labels: string[];
-    quantities: number[];
-  }>({ labels: [], quantities: [] });
+    sales: number[];
+  }>({ labels: [], sales: [] });
   const [isLoadingSalesChart, setIsLoadingSalesChart] = useState(false);
   const [selectedMonthQuantity, setSelectedMonthQuantity] = useState<string>(() => {
     const currentMonth = new Date().toLocaleString("default", { month: "long" });
@@ -815,46 +815,46 @@ export default function ManagementDashboard() {
   const fetchSalesChartData = async () => {
     setIsLoadingSalesChart(true);
     try {
-      // Fetch all order items with created_at to group by month
+      // Fetch all order items with created_at and total_price to group by month
       const { data: orderItems, error } = await supabase
         .from("order_items")
-        .select("quantity, created_at");
+        .select("total_price, created_at");
 
       if (error) {
         toast.error(`Failed to fetch sales chart data: ${error.message}`);
-        setSalesChartData({ labels: [], quantities: [] });
+        setSalesChartData({ labels: [], sales: [] });
         return;
       }
 
       if (!orderItems || orderItems.length === 0) {
-        setSalesChartData({ labels: [], quantities: [] });
+        setSalesChartData({ labels: [], sales: [] });
         return;
       }
 
-      // Aggregate quantities by month
-      const monthQuantityMap = new Map<string, number>();
+      // Aggregate sales by month
+      const monthSalesMap = new Map<string, number>();
 
-      orderItems.forEach((item: { created_at?: string; quantity?: number }) => {
+      orderItems.forEach((item: { created_at?: string; total_price?: number }) => {
         if (!item.created_at) return;
         
         const date = new Date(item.created_at);
         const monthName = date.toLocaleString("default", { month: "long" });
         const year = date.getFullYear();
         const monthKey = `${monthName} ${year}`;
-        const quantity = item.quantity || 0;
+        const sales = parseFloat(item.total_price?.toString() || "0") || 0;
 
-        if (monthQuantityMap.has(monthKey)) {
-          monthQuantityMap.set(
+        if (monthSalesMap.has(monthKey)) {
+          monthSalesMap.set(
             monthKey,
-            monthQuantityMap.get(monthKey)! + quantity
+            monthSalesMap.get(monthKey)! + sales
           );
         } else {
-          monthQuantityMap.set(monthKey, quantity);
+          monthSalesMap.set(monthKey, sales);
         }
       });
 
       // Convert map to arrays and sort chronologically (oldest to newest)
-      const sortedMonths = Array.from(monthQuantityMap.entries())
+      const sortedMonths = Array.from(monthSalesMap.entries())
         .sort((a, b) => {
           // Parse month strings (format: "Month Year") to dates for proper chronological sorting
           const parseMonthYear = (monthYear: string): Date => {
@@ -870,13 +870,13 @@ export default function ManagementDashboard() {
         });
 
       const labels = sortedMonths.map(([monthKey]) => monthKey);
-      const quantities = sortedMonths.map(([, quantity]) => quantity);
+      const sales = sortedMonths.map(([, salesAmount]) => salesAmount);
 
-      setSalesChartData({ labels, quantities });
+      setSalesChartData({ labels, sales });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to fetch sales chart data";
       toast.error(errorMessage);
-      setSalesChartData({ labels: [], quantities: [] });
+      setSalesChartData({ labels: [], sales: [] });
     } finally {
       setIsLoadingSalesChart(false);
     }
@@ -1096,9 +1096,9 @@ export default function ManagementDashboard() {
         : ["No data available"],
       datasets: [
         {
-          label: "Total Quantity Sold",
-          data: salesChartData.quantities.length > 0 
-            ? salesChartData.quantities 
+          label: "Total Sales",
+          data: salesChartData.sales.length > 0 
+            ? salesChartData.sales 
             : [0],
           backgroundColor: "rgba(54, 162, 235, 0.5)",
           borderColor: "rgba(54, 162, 235, 1)",
@@ -1144,7 +1144,7 @@ export default function ManagementDashboard() {
         {/* Charts */}
         <div className="grid grid-cols-1 gap-6">
           <div className="bg-white p-4 rounded-lg shadow-sm">
-            <h3 className="text-lg font-semibold mb-4">Sales Overview - Total Quantity Sold by Month</h3>
+            <h3 className="text-lg font-semibold mb-4">Sales Overview - Total Sales by Month</h3>
             {isLoadingSalesChart ? (
               <div className="flex items-center justify-center h-64">
                 <div className="text-gray-500">Loading sales data...</div>
@@ -1168,7 +1168,7 @@ export default function ManagementDashboard() {
                       callbacks: {
                         label: function(context: { parsed: { y: number | null } }) {
                           const value = context.parsed.y;
-                          return `Quantity: ${value !== null ? value.toLocaleString() : '0'}`;
+                          return `Sales: $${value !== null ? value.toFixed(2) : '0.00'}`;
                         }
                       }
                     }
@@ -1178,12 +1178,15 @@ export default function ManagementDashboard() {
                       beginAtZero: true,
                       ticks: {
                         callback: function(value: number | string) {
-                          return typeof value === 'number' ? value.toLocaleString() : value;
+                          if (typeof value === 'number') {
+                            return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                          }
+                          return value;
                         }
                       },
                       title: {
                         display: true,
-                        text: 'Total Quantity Sold'
+                        text: 'Total Sales ($)'
                       }
                     },
                     x: {
@@ -2221,6 +2224,35 @@ export default function ManagementDashboard() {
                                                   <h5 className="text-sm font-semibold text-gray-800">
                                                     Send Custom Price Offer
                                                   </h5>
+                                                  {allCustomers.length > 0 && (
+                                                    <button
+                                                      type="button"
+                                                      className="ml-2 px-3 py-1 text-xs font-medium text-purple-700 bg-purple-100 border border-purple-300 rounded-lg hover:bg-purple-200 hover:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-1 transition-all"
+                                                      onClick={() => {
+                                                        // Clear customer selection to enable "Select All & Send"
+                                                        setSelectedCustomerForOffer((prev) => ({
+                                                          ...prev,
+                                                          [product.id]: null,
+                                                        }));
+                                                        // Clear any customer-specific price
+                                                        const customerId = selectedCustomerForOffer[product.id];
+                                                        if (customerId) {
+                                                          const key = `custom-${product.id}-${customerId}`;
+                                                          setCustomPriceForSelectedCustomer((prev) => {
+                                                            const newState = { ...prev };
+                                                            delete newState[key];
+                                                            return newState;
+                                                          });
+                                                        }
+                                                      }}
+                                                      title="Select all customers"
+                                                    >
+                                                      <svg className="w-3.5 h-3.5 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                      </svg>
+                                                      Select All
+                                                    </button>
+                                                  )}
                                                 </div>
                                                 {allCustomers.length > 0 && (
                                                   <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
@@ -2284,6 +2316,48 @@ export default function ManagementDashboard() {
                                                           </div>
                                                         ) : (
                                                           <div className="py-1">
+                                                            {/* Select All Option */}
+                                                            <button
+                                                              type="button"
+                                                              className="w-full px-4 py-2.5 text-left hover:bg-purple-50 transition-colors border-b border-gray-200 bg-purple-50"
+                                                              onClick={() => {
+                                                                // Clear customer selection to enable "Select All & Send"
+                                                                setSelectedCustomerForOffer((prev) => ({
+                                                                  ...prev,
+                                                                  [product.id]: null,
+                                                                }));
+                                                                // Clear any customer-specific price
+                                                                const customerId = selectedCustomerForOffer[product.id];
+                                                                if (customerId) {
+                                                                  const key = `custom-${product.id}-${customerId}`;
+                                                                  setCustomPriceForSelectedCustomer((prev) => {
+                                                                    const newState = { ...prev };
+                                                                    delete newState[key];
+                                                                    return newState;
+                                                                  });
+                                                                }
+                                                                setIsCustomerDropdownOpen((prev) => ({
+                                                                  ...prev,
+                                                                  [product.id]: false,
+                                                                }));
+                                                              }}
+                                                            >
+                                                              <div className="flex items-center space-x-3">
+                                                                <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-purple-500">
+                                                                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                  </svg>
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                  <div className="font-semibold text-purple-700">
+                                                                    Select All Customers
+                                                                  </div>
+                                                                  <div className="text-xs text-purple-600 mt-0.5">
+                                                                    Send to all {allCustomers.length} customer{allCustomers.length !== 1 ? 's' : ''}
+                                                                  </div>
+                                                                </div>
+                                                              </div>
+                                                            </button>
                                                             {allCustomers.map((customer) => {
                                                               const isSelected = String(selectedCustomerForOffer[product.id]) === String(customer.id);
                                                               return (
@@ -2361,27 +2435,31 @@ export default function ManagementDashboard() {
                                                 </div>
 
                                                 {/* Price Input and Actions Row */}
-                                                {selectedCustomerForOffer[product.id] && (
-                                                  <div className="flex items-center gap-2 p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
-                                                    <div className="flex-1 flex items-center gap-2">
-                                                      <div className="relative flex-1">
-                                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                          <span className="text-gray-500 text-sm font-medium">$</span>
-                                                        </div>
-                                                        <input
-                                                          type="number"
-                                                          min="0"
-                                                          step="0.01"
-                                                          placeholder="0.00"
-                                                          className="w-full pl-7 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
-                                                          value={
-                                                            customPriceForSelectedCustomer[
-                                                              `custom-${product.id}-${selectedCustomerForOffer[product.id]}`
-                                                            ] || ""
-                                                          }
-                                                          onChange={(e) => {
+                                                <div className="flex items-center gap-2 p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
+                                                  <div className="flex-1 flex items-center gap-2">
+                                                    <div className="relative flex-1">
+                                                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                        <span className="text-gray-500 text-sm font-medium">$</span>
+                                                      </div>
+                                                      <input
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.01"
+                                                        placeholder="0.00"
+                                                        className="w-full pl-7 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
+                                                        value={
+                                                          selectedCustomerForOffer[product.id]
+                                                            ? (customPriceForSelectedCustomer[
+                                                                `custom-${product.id}-${selectedCustomerForOffer[product.id]}`
+                                                              ] || "")
+                                                            : (customPriceForSelectedCustomer[
+                                                                `custom-all-${product.id}`
+                                                              ] || "")
+                                                        }
+                                                        onChange={(e) => {
+                                                          const value = e.target.value;
+                                                          if (selectedCustomerForOffer[product.id]) {
                                                             const key = `custom-${product.id}-${selectedCustomerForOffer[product.id]}`;
-                                                            const value = e.target.value;
                                                             if (value === "" || value === null || value === undefined) {
                                                               setCustomPriceForSelectedCustomer((prev) => {
                                                                 const newState = { ...prev };
@@ -2397,93 +2475,165 @@ export default function ManagementDashboard() {
                                                                 }));
                                                               }
                                                             }
-                                                          }}
-                                                          onFocus={(e) => {
-                                                            e.target.select();
-                                                          }}
-                                                        />
-                                                      </div>
-                                                      <button
-                                                        className="px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-green-500 to-green-600 rounded-lg hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
-                                                        onClick={async () => {
-                                                          const customerId = selectedCustomerForOffer[product.id];
-                                                          if (!customerId) {
-                                                            toast.error("Please select a customer");
-                                                            return;
+                                                          } else {
+                                                            const key = `custom-all-${product.id}`;
+                                                            if (value === "" || value === null || value === undefined) {
+                                                              setCustomPriceForSelectedCustomer((prev) => {
+                                                                const newState = { ...prev };
+                                                                delete newState[key];
+                                                                return newState;
+                                                              });
+                                                            } else {
+                                                              const numValue = Number(value);
+                                                              if (!isNaN(numValue)) {
+                                                                setCustomPriceForSelectedCustomer((prev) => ({
+                                                                  ...prev,
+                                                                  [key]: numValue,
+                                                                }));
+                                                              }
+                                                            }
                                                           }
-                                                          const key = `custom-${product.id}-${customerId}`;
+                                                        }}
+                                                        onFocus={(e) => {
+                                                          e.target.select();
+                                                        }}
+                                                      />
+                                                    </div>
+                                                    {selectedCustomerForOffer[product.id] ? (
+                                                      <>
+                                                        <button
+                                                          className="px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-green-500 to-green-600 rounded-lg hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+                                                          onClick={async () => {
+                                                            const customerId = selectedCustomerForOffer[product.id];
+                                                            if (!customerId) {
+                                                              toast.error("Please select a customer");
+                                                              return;
+                                                            }
+                                                            const key = `custom-${product.id}-${customerId}`;
+                                                            const price = customPriceForSelectedCustomer[key];
+                                                            if (!price || price <= 0) {
+                                                              toast.error("Please enter a valid price");
+                                                              return;
+                                                            }
+                                                            try {
+                                                              const { error } = await supabase
+                                                                .from("price_offers")
+                                                                .insert([
+                                                                  {
+                                                                    customer_id: customerId,
+                                                                    product_id: product.id,
+                                                                    offered_price: price,
+                                                                    status: "pending",
+                                                                    created_at: new Date().toISOString(),
+                                                                  },
+                                                                ]);
+
+                                                              if (error) {
+                                                                toast.error(`Failed to send offer: ${error.message}`);
+                                                                return;
+                                                              }
+
+                                                              // Clear the inputs after successful send
+                                                              setSelectedCustomerForOffer((prev) => ({
+                                                                ...prev,
+                                                                [product.id]: null,
+                                                              }));
+                                                              setCustomPriceForSelectedCustomer((prev) => {
+                                                                const newState = { ...prev };
+                                                                delete newState[key];
+                                                                return newState;
+                                                              });
+
+                                                              const customer = allCustomers.find((c) => String(c.id) === String(customerId));
+                                                              toast.success(`Offer sent successfully to ${customer?.name || "customer"} for $${price.toFixed(2)}`);
+                                                            } catch (err) {
+                                                              toast.error("Failed to send offer. Please try again.");
+                                                            }
+                                                          }}
+                                                        >
+                                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                                          </svg>
+                                                          Send Offer
+                                                        </button>
+                                                        <button
+                                                          className="px-3 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-800 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1 transition-all"
+                                                          title="Clear selection"
+                                                          onClick={() => {
+                                                            const customerId = selectedCustomerForOffer[product.id];
+                                                            if (customerId) {
+                                                              const key = `custom-${product.id}-${customerId}`;
+                                                              setCustomPriceForSelectedCustomer((prev) => {
+                                                                const newState = { ...prev };
+                                                                delete newState[key];
+                                                                return newState;
+                                                              });
+                                                            }
+                                                            setSelectedCustomerForOffer((prev) => ({
+                                                              ...prev,
+                                                              [product.id]: null,
+                                                            }));
+                                                          }}
+                                                        >
+                                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                          </svg>
+                                                        </button>
+                                                      </>
+                                                    ) : (
+                                                      <button
+                                                        className="px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg hover:from-purple-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+                                                        onClick={async () => {
+                                                          const key = `custom-all-${product.id}`;
                                                           const price = customPriceForSelectedCustomer[key];
                                                           if (!price || price <= 0) {
                                                             toast.error("Please enter a valid price");
                                                             return;
                                                           }
+                                                          if (allCustomers.length === 0) {
+                                                            toast.error("No customers available");
+                                                            return;
+                                                          }
                                                           try {
+                                                            const offers = allCustomers.map((customer) => ({
+                                                              customer_id: String(customer.id),
+                                                              product_id: product.id,
+                                                              offered_price: price,
+                                                              status: "pending",
+                                                              created_at: new Date().toISOString(),
+                                                            }));
+
                                                             const { error } = await supabase
                                                               .from("price_offers")
-                                                              .insert([
-                                                                {
-                                                                  customer_id: customerId,
-                                                                  product_id: product.id,
-                                                                  offered_price: price,
-                                                                  status: "pending",
-                                                                  created_at: new Date().toISOString(),
-                                                                },
-                                                              ]);
+                                                              .insert(offers);
 
                                                             if (error) {
-                                                              toast.error(`Failed to send offer: ${error.message}`);
+                                                              toast.error(`Failed to send offers: ${error.message}`);
                                                               return;
                                                             }
 
-                                                            // Clear the inputs after successful send
-                                                            setSelectedCustomerForOffer((prev) => ({
-                                                              ...prev,
-                                                              [product.id]: null,
-                                                            }));
+                                                            // Clear the price input after successful send
                                                             setCustomPriceForSelectedCustomer((prev) => {
                                                               const newState = { ...prev };
                                                               delete newState[key];
                                                               return newState;
                                                             });
 
-                                                            const customer = allCustomers.find((c) => String(c.id) === String(customerId));
-                                                            toast.success(`Offer sent successfully to ${customer?.name || "customer"} for $${price.toFixed(2)}`);
+                                                            toast.success(`Offer sent successfully to all ${allCustomers.length} customer${allCustomers.length !== 1 ? 's' : ''} for $${price.toFixed(2)}`);
                                                           } catch (err) {
-                                                            toast.error("Failed to send offer. Please try again.");
+                                                            toast.error("Failed to send offers. Please try again.");
                                                           }
                                                         }}
+                                                        disabled={allCustomers.length === 0}
                                                       >
                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                         </svg>
-                                                        Send Offer
+                                                        Select All & Send
                                                       </button>
-                                                      <button
-                                                        className="px-3 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-800 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1 transition-all"
-                                                        title="Clear selection"
-                                                        onClick={() => {
-                                                          const customerId = selectedCustomerForOffer[product.id];
-                                                          if (customerId) {
-                                                            const key = `custom-${product.id}-${customerId}`;
-                                                            setCustomPriceForSelectedCustomer((prev) => {
-                                                              const newState = { ...prev };
-                                                              delete newState[key];
-                                                              return newState;
-                                                            });
-                                                          }
-                                                          setSelectedCustomerForOffer((prev) => ({
-                                                            ...prev,
-                                                            [product.id]: null,
-                                                          }));
-                                                        }}
-                                                      >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                        </svg>
-                                                      </button>
-                                                    </div>
+                                                    )}
                                                   </div>
-                                                )}
+                                                </div>
                                               </div>
                                             </div>
                                             {product.order_items?.map((oiRaw, idx) => {

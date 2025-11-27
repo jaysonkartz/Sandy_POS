@@ -124,6 +124,20 @@ The test setup includes mocks for:
 4. **Mock external dependencies** - Mock API calls, localStorage, etc.
 5. **Test edge cases** - Include tests for error states, empty states, etc.
 
+## Stress Testing
+
+For load and stress testing, see the comprehensive stress test documentation:
+
+- **[STRESS_TEST_PLAN.md](./STRESS_TEST_PLAN.md)** - Complete stress test plan with scenarios, metrics, and success criteria
+- **[STRESS_TEST_STEPS.md](./STRESS_TEST_STEPS.md)** - Step-by-step guide to execute stress tests
+- **[STRESS_TEST_CHECKLIST.md](./STRESS_TEST_CHECKLIST.md)** - Quick reference checklist
+
+### Quick Start
+
+1. Install k6: `choco install k6` (Windows) or `brew install k6` (macOS)
+2. Run baseline test: `k6 run --vus 1 --duration 30s stress-tests/k6/product-catalog.js`
+3. Follow the step-by-step guide in `STRESS_TEST_STEPS.md`
+
 ## Continuous Integration
 
 Tests should pass before merging code. Consider adding a pre-commit hook to run tests automatically.
