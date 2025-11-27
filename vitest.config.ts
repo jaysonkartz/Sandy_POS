@@ -19,7 +19,14 @@ export default defineConfig({
         '**/types/**',
         '**/*.config.{ts,js}',
         '**/next-env.d.ts',
+        '**/.next/**',
+        '**/dist/**',
+        '**/build/**',
       ],
+      // Only track files that are actually imported (reduces source map issues)
+      all: false,
+      // Skip source map remapping to avoid errors
+      skipFull: false,
     },
   },
   resolve: {
