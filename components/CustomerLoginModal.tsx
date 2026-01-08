@@ -329,10 +329,10 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
               <div className="relative">
                 <input
                   required
-                  minLength={8}
+                  minLength={isRegistering ? 8 : undefined}
                   className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   id="password"
-                  placeholder="Enter your password (minimum 8 characters)"
+                  placeholder={isRegistering ? "Enter your password (minimum 8 characters)" : "Enter your password"}
                   type={showPassword ? "text" : "password"}
                   value={formData.password}
                   onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
@@ -350,7 +350,7 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
                   )}
                 </button>
               </div>
-              {formData.password && (
+              {isRegistering && formData.password && (
                 <div className="mt-2">
                   {/* Strength Bar */}
                   <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
