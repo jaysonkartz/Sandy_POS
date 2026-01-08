@@ -72,8 +72,8 @@ export default function OrderHistory() {
       }
 
       // Get the order details
-      const { data: orderData, error: orderError } = await supabase
-        .from("orders")
+      const { data: orderData, error: orderError } = await (supabase
+        .from("orders") as any)
         .select("customer_name, customer_phone, customer_address")
         .eq("id", orderId)
         .single();
@@ -90,8 +90,8 @@ export default function OrderHistory() {
         console.log("Processing item:", item);
 
         // Get the actual product details from the database
-        const { data: productData, error: productError } = await supabase
-          .from("products")
+        const { data: productData, error: productError } = await (supabase
+          .from("products") as any)
           .select("*")
           .eq("id", item.product_id)
           .single();
@@ -236,18 +236,18 @@ export default function OrderHistory() {
       const to = from + ordersPerPage - 1;
 
       // Fetch orders with count
-      const { data: ordersData = [], count } = await supabase
-        .from("orders")
+      const { data: ordersData = [], count } = await (supabase
+        .from("orders") as any)
         .select("*", { count: "exact" })
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .range(from, to);
 
       // Fetch items for these orders
-      const { data: itemsDataResult = [] } = await supabase
-        .from("order_items")
+      const { data: itemsDataResult = [] } = await (supabase
+        .from("order_items") as any)
         .select("*")
-        .in("order_id", ordersData?.map((o) => o.id) || []);
+        .in("order_id", (ordersData as any[])?.map((o: any) => o.id) || []);
 
       if (isLoadMore) {
         setOrders((prev) => [...prev, ...(ordersData || [])]);
