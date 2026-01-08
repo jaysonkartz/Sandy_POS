@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
 import { USER_ROLES } from "@/app/constants/app-constants";
@@ -19,10 +19,62 @@ export default function SignupPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  // Password strength calculation
+  const getPasswordStrength = (password: string): { strength: "weak" | "medium" | "strong"; score: number; feedback: string } => {
+    if (!password) {
+      return { strength: "weak", score: 0, feedback: "" };
+    }
+
+    let score = 0;
+    const feedback: string[] = [];
+
+    // Length checks
+    if (password.length >= 8) score += 1;
+    else feedback.push("At least 8 characters");
+    
+    if (password.length >= 12) score += 1;
+
+    // Character variety checks
+    if (/[a-z]/.test(password)) score += 1;
+    else feedback.push("lowercase letter");
+    
+    if (/[A-Z]/.test(password)) score += 1;
+    else feedback.push("uppercase letter");
+    
+    if (/[0-9]/.test(password)) score += 1;
+    else feedback.push("number");
+    
+    if (/[^a-zA-Z0-9]/.test(password)) score += 1;
+    else feedback.push("special character");
+
+    let strength: "weak" | "medium" | "strong";
+    if (score <= 2) {
+      strength = "weak";
+    } else if (score <= 4) {
+      strength = "medium";
+    } else {
+      strength = "strong";
+    }
+
+    return { strength, score, feedback: feedback.length > 0 ? `Add: ${feedback.slice(0, 2).join(", ")}` : "" };
+  };
+
+  const passwordStrength = useMemo(
+    () => getPasswordStrength(formData.password),
+    [formData.password]
+  );
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setIsLoading(true);
+
+    // Validate password length
+    if (formData.password.length < 8) {
+      setError("Password must be at least 8 characters long");
+      setIsLoading(false);
+      return;
+    }
 
     try {
       // 1. Check if customer already exists
@@ -207,13 +259,51 @@ export default function SignupPage() {
               </label>
               <input
                 required
+                minLength={8}
                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 id="password"
-                placeholder="Enter your password"
+                placeholder="Enter your password (minimum 8 characters)"
                 type="password"
                 value={formData.password}
                 onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
               />
+              {formData.password && (
+                <div className="mt-2">
+                  {/* Strength Bar */}
+                  <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                    <div
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        passwordStrength.strength === "weak"
+                          ? "bg-red-500"
+                          : passwordStrength.strength === "medium"
+                          ? "bg-yellow-500"
+                          : "bg-green-500"
+                      }`}
+                      style={{
+                        width: `${(passwordStrength.score / 6) * 100}%`,
+                      }}
+                    />
+                  </div>
+                  {/* Strength Text */}
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`text-xs font-medium ${
+                        passwordStrength.strength === "weak"
+                          ? "text-red-600"
+                          : passwordStrength.strength === "medium"
+                          ? "text-yellow-600"
+                          : "text-green-600"
+                      }`}
+                    >
+                      Password Strength: {passwordStrength.strength.charAt(0).toUpperCase() + passwordStrength.strength.slice(1)}
+                    </span>
+                  </div>
+                  {/* Feedback */}
+                  {passwordStrength.feedback && (
+                    <p className="text-xs text-gray-500 mt-1">{passwordStrength.feedback}</p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="flex items-center">
