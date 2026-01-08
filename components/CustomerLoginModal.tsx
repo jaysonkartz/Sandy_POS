@@ -389,6 +389,21 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
               )}
             </div>
 
+            {!isRegistering && (
+              <div className="text-right">
+                <button
+                  className="text-sm text-blue-600 hover:text-blue-500 transition-colors duration-200"
+                  onClick={() => {
+                    onClose();
+                    router.push("/forgot-password");
+                  }}
+                  type="button"
+                >
+                  Forgot password?
+                </button>
+              </div>
+            )}
+
             {isRegistering && (
               <div className="flex items-center">
                 <input

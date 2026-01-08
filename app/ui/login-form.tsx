@@ -103,6 +103,15 @@ export default function LoginForm() {
           </div>
         </div>
         {error && <div className="mt-4 text-sm text-red-500">{error}</div>}
+        <div className="text-right mt-2">
+          <button
+            className="text-sm text-blue-600 hover:text-blue-500 transition-colors duration-200"
+            onClick={() => router.push("/forgot-password")}
+            type="button"
+          >
+            Forgot password?
+          </button>
+        </div>
         <button
           className="mt-4 w-full rounded-lg bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 disabled:opacity-50"
           disabled={isLoading}
