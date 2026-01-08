@@ -548,7 +548,7 @@ export default function CustomerManagement() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
                   <input
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter phone number"
+                    placeholder="Enter mobile number"
                     type="tel"
                     value={newCustomer.phone}
                     onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
@@ -679,7 +679,7 @@ export default function CustomerManagement() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
                   <input
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter phone number"
+                    placeholder="Enter phmobileone number"
                     type="tel"
                     value={editingCustomer.phone}
                     onChange={(e) =>

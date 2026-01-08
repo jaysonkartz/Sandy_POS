@@ -109,7 +109,7 @@ export const useOrder = (): UseOrderReturn => {
 
     if (!customerName || !customerPhone || !customerAddress) {
       alert(
-        isEnglish ? "Please provide customer name, phone number, and address" : "请提供客户姓名、电话号码和地址"
+        isEnglish ? "Please provide customer name, Mobile number, and address" : "请提供客户姓名、电话号码和地址"
       );
       return false;
     }
