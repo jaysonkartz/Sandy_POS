@@ -545,12 +545,12 @@ export const OrderPanel = memo<OrderPanelProps>(({
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {isEnglish ? "Phone Number" : "电话号码"}
+                    {isEnglish ? "Mobile Number" : "电话号码"}
                   </label>
                   <input
                     required
                     className="w-full p-2 border rounded-md"
-                    placeholder={isEnglish ? "Enter phone number" : "输入电话号码"}
+                    placeholder={isEnglish ? "Enter mobile number" : "输入电话号码"}
                     type="tel"
                     value={customerPhone}
                     onChange={(e) => onCustomerPhoneChange(e.target.value)}

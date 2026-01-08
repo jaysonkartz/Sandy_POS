@@ -784,7 +784,7 @@ export default function ManagementDashboard() {
         // Error fetching customers - continue with default value
       }
 
-      // Count unique customers by phone number
+      // Count unique customers by mobile number
       const uniqueCustomers = new Set(
         ordersData?.map((order: { customer_phone?: string | null }) => order.customer_phone).filter(Boolean) || []
       );
