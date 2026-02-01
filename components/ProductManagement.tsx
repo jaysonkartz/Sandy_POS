@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { createBrowserClient } from "@supabase/ssr";
+import { supabase } from "@/app/lib/supabaseClient";
 import { Plus, Edit3, Trash2, Search, Camera, Image as ImageIcon, Eye, EyeOff } from "lucide-react";
 import EditProductModal from "./EditProductModal";
 import ProductPhotoEditor from "./ProductPhotoEditor";
@@ -46,10 +46,7 @@ export default function ProductManagement() {
   const [selectedProductForPhoto, setSelectedProductForPhoto] = useState<Product | null>(null);
   const [showImages, setShowImages] = useState(true);
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+
 
   // Fetch products
   const fetchProducts = useCallback(async () => {

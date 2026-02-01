@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
 import { useSignInLogging } from "@/app/hooks/useSignInLogging";
@@ -20,6 +20,7 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
     email: "",
     password: "",
     name: "",
+    company_name: "",
     address: "",
     phone: "",
     customer_code: "",
@@ -79,6 +80,7 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
     () => getPasswordStrength(formData.password),
     [formData.password]
   );
+
 
   // Function to get current location and convert to address
   const getCurrentLocation = async () => {
@@ -325,9 +327,24 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
       }
 
       if (data?.user) {
-        console.log("Login successful in SignupModal:", data.user);
-        console.log("User ID:", data.user.id);
-        console.log("User email:", data.user.email);
+        const { data: customerData, error: customerError } = await supabase
+          .from("customers")
+          .select("status")
+          .eq("user_id", data.user.id)
+          .single();
+
+        if (customerError || !customerData) {
+          await supabase.auth.signOut();
+          setError("Customer account not found. Please contact support.");
+          return;
+        }
+
+        if (!customerData.status) {
+          // Keep the session so the user can check approval status.
+          router.push("/pending-approval");
+          onClose();
+          return;
+        }
 
         // Log successful sign-in
         await logSignInSuccess(
@@ -340,7 +357,6 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
         const {
           data: { session },
         } = await supabase.auth.getSession();
-        console.log("Session in SignupModal after login:", session);
 
         // Notify parent component of successful login
         onLoginSuccess?.();
@@ -481,12 +497,13 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
         name: formData.name,
         email: formData.email,
         user_id: authData.user.id,
-        status: true,
+        status: false,
         created_at: new Date().toISOString(),
         address: finalAddress,
         phone: formData.phone,
         customer_code: formData.customer_code || null,
         whatsapp_notifications: formData.whatsapp_notifications,
+        company_name: formData.company_name || null,
       };
 
       const { error: customerError } = await supabase.from("customers").insert([customerData]);
@@ -494,12 +511,15 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
       if (customerError) throw customerError;
 
       // Success handling
-      alert("Account created successfully! Please check your email to verify your account.");
+      alert(
+        "Account created successfully! Please check your email to verify your account. Your login will be enabled after admin approval."
+      );
       // Reset form
       setFormData({
         email: "",
         password: "",
         name: "",
+        company_name: "",
         address: "",
         phone: "",
         customer_code: "",
@@ -548,9 +568,23 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
 
             {isRegistering && (
               <>
+ <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="company_name">
+                    Company Name
+                  </label>
+                  <input
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    id="company_name"
+                    placeholder="Enter your company name"
+                    type="text"
+                    value={formData.company_name}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, company_name: e.target.value }))}
+                  />
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="name">
-                    Full Name
+                    Company Name
                   </label>
                   <input
                     required
@@ -580,7 +614,7 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="postal_code">
-                    Postal Code (Optional - Auto-fill address)
+                    Postal Code
                   </label>
                   <input
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"

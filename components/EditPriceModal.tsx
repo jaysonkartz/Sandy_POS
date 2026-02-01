@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createBrowserClient } from "@supabase/ssr";
+import { supabase } from "@/app/lib/supabaseClient";
 
 interface Price {
   id: string;
@@ -26,10 +26,6 @@ export default function EditPriceModal({ price, isOpen, onClose, onUpdate }: Edi
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
 
   useEffect(() => {
     if (price) {

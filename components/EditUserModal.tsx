@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createBrowserClient } from "@supabase/ssr";
+import { supabase } from "@/app/lib/supabaseClient";
 import { USER_ROLES } from "@/app/constants/app-constants";
 
 interface User {
@@ -24,10 +24,7 @@ export default function EditUserModal({ user, isOpen, onClose, onUpdate }: EditU
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+
 
   // Update role when user changes
   useEffect(() => {
