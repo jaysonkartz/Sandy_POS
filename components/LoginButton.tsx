@@ -1,18 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createBrowserClient } from "@supabase/ssr";
 import { User } from "@supabase/supabase-js";
-import { Database } from "@/types/supabase";
+import { supabase } from "@/app/lib/supabaseClient";
 import CustomerLoginModal from "./CustomerLoginModal";
 
 export default function LoginButton() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
-  const supabase = createBrowserClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
 
   useEffect(() => {
     const checkUser = async () => {

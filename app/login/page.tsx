@@ -34,6 +34,24 @@ export default function LoginPage() {
       }
 
       if (data.session && data.user) {
+        const { data: customerData, error: customerError } = await supabase
+          .from("customers")
+          .select("status")
+          .eq("user_id", data.user.id)
+          .single();
+
+        if (customerError || !customerData) {
+          await supabase.auth.signOut();
+          setError("Customer account not found. Please contact support.");
+          return;
+        }
+
+        if (!customerData.status) {
+          // Keep the session so the user can check approval status.
+          router.push("/pending-approval");
+          return;
+        }
+
         // Log successful sign-in
         await logSignInSuccess(
           data.user.id, 

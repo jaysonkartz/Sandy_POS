@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
 import { motion } from "framer-motion";
@@ -9,6 +9,7 @@ import Link from "next/link";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -18,22 +19,131 @@ export default function ResetPasswordPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isValidating, setIsValidating] = useState(true);
 
+  // ✅ Prevent StrictMode double-run in dev
+  const ran = useRef(false);
+
   useEffect(() => {
-    // Check if we have a valid session (user clicked the reset link)
-    const checkSession = async () => {
-      try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError || !session) {
-          setError("Invalid or expired reset link. Please request a new password reset.");
+    if (ran.current) return;
+    ran.current = true;
+
+    const isAbortError = (err: any) =>
+      err?.name === "AbortError" ||
+      (typeof err?.message === "string" &&
+        err.message.toLowerCase().includes("signal is aborted"));
+
+    const getErrorParams = (url: URL) => {
+      const hashParams = new URLSearchParams(
+        url.hash.startsWith("#") ? url.hash.slice(1) : ""
+      );
+
+      return {
+        error:
+          url.searchParams.get("error") || hashParams.get("error") || null,
+        error_description:
+          url.searchParams.get("error_description") ||
+          hashParams.get("error_description") ||
+          null,
+        error_code:
+          url.searchParams.get("error_code") || hashParams.get("error_code") || null,
+        code: url.searchParams.get("code") || null,
+        access_token: hashParams.get("access_token"),
+        refresh_token: hashParams.get("refresh_token"),
+      };
+    };
+
+    const checkSessionOnce = async () => {
+      const url = new URL(window.location.href);
+      const params = getErrorParams(url);
+
+      // 0) if Supabase sent an auth error in URL
+      if (params.error || params.error_description || params.error_code) {
+        const message = decodeURIComponent(params.error_description || "")
+          .replace(/\+/g, " ")
+          .trim();
+
+        setError(
+          message ||
+            "Invalid or expired reset link. Please request a new password reset."
+        );
+        return;
+      }
+
+      // 1) If we have ?code=... (PKCE) -> exchange it
+      if (params.code) {
+        const { data, error } = await supabase.auth.exchangeCodeForSession(params.code);
+        if (error) throw error;
+
+        // data.session exists -> validated OK
+        if (!data?.session) {
+          setError("Unable to validate reset link. Please request a new password reset.");
         }
-      } catch (err) {
-        setError("An error occurred while validating the reset link.");
+        return;
+      }
+
+      // 2) If we have #access_token=... -> set session
+      if (params.access_token && params.refresh_token) {
+        const { data, error } = await supabase.auth.setSession({
+          access_token: params.access_token,
+          refresh_token: params.refresh_token,
+        });
+        if (error) throw error;
+
+        if (!data?.session) {
+          setError("Unable to validate reset link. Please request a new password reset.");
+        }
+
+        // clean hash
+        if (url.hash) {
+          window.history.replaceState(
+            null,
+            "",
+            `${url.origin}${url.pathname}${url.search}`
+          );
+        }
+        return;
+      }
+
+      // 3) Otherwise just check if user already has a session
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
+
+      if (!data?.session) {
+        setError("Invalid or expired reset link. Please request a new password reset.");
+      }
+    };
+
+    const run = async () => {
+      try {
+        setError(null);
+
+        // try once
+        await checkSessionOnce();
+      } catch (err: any) {
+        console.error("Reset link validation error:", err);
+
+        // ✅ AbortError is usually transient (locks.ts)
+        if (isAbortError(err)) {
+          try {
+            // quick retry once
+            await checkSessionOnce();
+          } catch (err2: any) {
+            console.error("Reset link validation retry error:", err2);
+            setError("Unable to validate reset link. Please request a new password reset.");
+          }
+        } else {
+          const msg = (err?.message || "").toLowerCase();
+          if (msg.includes("invalid_grant") || msg.includes("expired")) {
+            setError("Invalid or expired reset link. Please request a new password reset.");
+          } else {
+            setError("An error occurred while validating the reset link.");
+          }
+        }
       } finally {
         setIsValidating(false);
       }
     };
-    checkSession();
+
+    run();
   }, []);
 
   async function handleResetPassword(e: React.FormEvent) {
@@ -42,7 +152,6 @@ export default function ResetPasswordPage() {
     setError(null);
     setSuccess(false);
 
-    // Validate passwords
     if (password.length < 8) {
       setError("Password must be at least 8 characters long");
       setIsLoading(false);
@@ -56,22 +165,26 @@ export default function ResetPasswordPage() {
     }
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: password,
-      });
-
-      if (error) {
-        throw error;
-      }
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
 
       setSuccess(true);
-      
-      // Redirect to login after 2 seconds
-      setTimeout(() => {
-        router.push("/login");
-      }, 2000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred while resetting your password");
+      setTimeout(() => router.push("/login"), 2000);
+    } catch (err: any) {
+      console.error("Reset password error:", err);
+
+      const isAbort =
+        err?.name === "AbortError" ||
+        (typeof err?.message === "string" &&
+          err.message.toLowerCase().includes("signal is aborted"));
+
+      setError(
+        isAbort
+          ? "Network was interrupted. Please try again."
+          : err instanceof Error
+          ? err.message
+          : "An error occurred while resetting your password"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -108,9 +221,7 @@ export default function ResetPasswordPage() {
             className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg"
             initial={{ opacity: 0, y: -10 }}
           >
-            <p className="text-center">
-              Password reset successfully! Redirecting to login...
-            </p>
+            <p className="text-center">Password reset successfully! Redirecting to login...</p>
           </motion.div>
         ) : error && error.includes("Invalid or expired") ? (
           <motion.div
@@ -120,10 +231,7 @@ export default function ResetPasswordPage() {
           >
             <p className="text-center mb-4">{error}</p>
             <div className="text-center">
-              <Link
-                className="text-blue-600 hover:text-blue-500 font-medium"
-                href="/forgot-password"
-              >
+              <Link className="text-blue-600 hover:text-blue-500 font-medium" href="/forgot-password">
                 Request New Reset Link
               </Link>
             </div>
@@ -154,11 +262,7 @@ export default function ResetPasswordPage() {
                     onClick={() => setShowPassword(!showPassword)}
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
-                    {showPassword ? (
-                      <EyeOff className="h-5 w-5" />
-                    ) : (
-                      <Eye className="h-5 w-5" />
-                    )}
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
               </div>
@@ -186,11 +290,7 @@ export default function ResetPasswordPage() {
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                   >
-                    {showConfirmPassword ? (
-                      <EyeOff className="h-5 w-5" />
-                    ) : (
-                      <Eye className="h-5 w-5" />
-                    )}
+                    {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
               </div>
@@ -244,7 +344,6 @@ export default function ResetPasswordPage() {
           </form>
         )}
 
-        {/* Back to Login Link */}
         <motion.div
           animate={{ opacity: 1 }}
           className="text-center"

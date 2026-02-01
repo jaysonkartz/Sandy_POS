@@ -11,6 +11,7 @@ export default function SignupPage() {
     email: "",
     password: "",
     name: "",
+    company_name: "",
     address: "",
     phone: "",
     customer_code: "",
@@ -422,12 +423,13 @@ export default function SignupPage() {
         name: formData.name,
         email: formData.email,
         user_id: authData.user.id,
-        status: true,
+        status: false,
         created_at: new Date().toISOString(),
         address: finalAddress,
         phone: formData.phone,
         customer_code: formData.customer_code || null,
         whatsapp_notifications: formData.whatsapp_notifications,
+        company_name: formData.company_name || null,
       };
 
       const { error: customerError } = await supabase.from("customers").insert([customerData]);
@@ -435,7 +437,9 @@ export default function SignupPage() {
       if (customerError) throw customerError;
 
       // Success handling
-      alert("Account created successfully! Please check your email to verify your account.");
+      alert(
+        "Account created successfully! Please check your email to verify your account. Your login will be enabled after admin approval."
+      );
       router.push("/login");
     } catch (error) {
       console.error("Error:", error);
@@ -489,6 +493,20 @@ export default function SignupPage() {
             </div>
 
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="company_name">
+                Company Name (Optional)
+              </label>
+              <input
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                id="company_name"
+                placeholder="Enter your company name"
+                type="text"
+                value={formData.company_name}
+                onChange={(e) => setFormData((prev) => ({ ...prev, company_name: e.target.value }))}
+              />
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="phone">
                 Mobile Number
               </label>
@@ -505,7 +523,7 @@ export default function SignupPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="postal_code">
-                Postal Code (Optional - Auto-fill address)
+                Postal Code
               </label>
               <input
                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"

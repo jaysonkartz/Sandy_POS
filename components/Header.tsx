@@ -34,6 +34,13 @@ const clearInvalidSession = () => {
   }
 };
 
+// Helper to detect benign abort errors
+const isAbortError = (error: any): boolean => {
+  if (!error) return false;
+  const message = String(error?.message || "");
+  return error?.name === "AbortError" || message.includes("signal is aborted");
+};
+
 export default function Header() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -143,7 +150,9 @@ export default function Header() {
           setUserRole("");
           return;
         }
-        console.error("Header: Error in session recovery:", error);
+        if (!isAbortError(error)) {
+          console.error("Header: Error in session recovery:", error);
+        }
         setSession(null);
         setUserRole("");
       }

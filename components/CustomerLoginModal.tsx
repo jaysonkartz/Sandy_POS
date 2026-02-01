@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { createBrowserClient } from "@supabase/ssr";
+import { supabase } from "@/app/lib/supabaseClient";
 import { useSignInLogging } from "@/app/hooks/useSignInLogging";
 import { USER_ROLES } from "@/app/constants/app-constants";
 import { Eye, EyeOff } from "lucide-react";
@@ -16,19 +16,6 @@ interface CustomerLoginModalProps {
 export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: CustomerLoginModalProps) {
   const router = useRouter();
   const { logSignInSuccess, logSignInFailure } = useSignInLogging();
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      global: {
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        },
-      },
-    }
-  );
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -339,6 +326,25 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
       }
 
       if (data?.user) {
+        const { data: customerData, error: customerError } = await supabase
+          .from("customers")
+          .select("status")
+          .eq("user_id", data.user.id)
+          .single();
+
+        if (customerError || !customerData) {
+          await supabase.auth.signOut();
+          setError("Customer account not found. Please contact support.");
+          return;
+        }
+
+        if (!customerData.status) {
+          // Keep the session so the user can check approval status.
+          router.push("/pending-approval");
+          onClose();
+          return;
+        }
+
         // Log successful sign-in
         await logSignInSuccess(
           data.user.id,
@@ -484,7 +490,7 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
         name: formData.name,
         email: formData.email,
         user_id: authData.user.id,
-        status: true,
+        status: false,
         created_at: new Date().toISOString(),
         address: finalAddress,
         phone: formData.phone,
@@ -497,7 +503,9 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
       if (customerError) throw customerError;
 
       // Success handling
-      alert("Account created successfully! Please check your email to verify your account.");
+      alert(
+        "Account created successfully! Please check your email to verify your account. Your login will be enabled after admin approval."
+      );
       onClose();
     } catch (error) {
       console.error("Error:", error);
@@ -572,7 +580,7 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="postal_code">
-                    Postal Code (Optional - Auto-fill address)
+                    Postal Code 
                   </label>
                   <input
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"

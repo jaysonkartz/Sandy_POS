@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { createBrowserClient } from "@supabase/ssr";
-import { Database } from "@/types/supabase";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/app/lib/supabaseClient";
 
 type Customer = {
   name: string;
@@ -23,10 +22,6 @@ export default function CustomerDetails() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const router = useRouter();
-  const supabase = createBrowserClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
 
   const fetchCustomerData = useCallback(async () => {
     try {
@@ -52,7 +47,7 @@ export default function CustomerDetails() {
     } finally {
       setLoading(false);
     }
-  }, [supabase, router]);
+  }, [router]);
 
   useEffect(() => {
     fetchCustomerData();
@@ -76,16 +71,17 @@ export default function CustomerDetails() {
         data: { user },
       } = await supabase.auth.getUser();
 
-      // TypeScript workaround for Supabase update type inference issue
-      const updateData = {
+      const updates = {
         name: editedCustomer.name,
-        address: editedCustomer.address || null,
-        phone: editedCustomer.phone || null,
+        company_name: editedCustomer.company_name,
+        address: editedCustomer.address,
+        delivery_address: editedCustomer.delivery_address,
+        phone: editedCustomer.phone,
       };
 
-      const { error } = await (supabase
-        .from("customers") as any)
-        .update(updateData)
+      const { error } = await supabase
+        .from("customers")
+        .update(updates)
         .eq("user_id", user?.id);
 
       if (error) throw error;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createBrowserClient } from "@supabase/ssr";
+import { supabase } from "@/app/lib/supabaseClient";
 
 interface Product {
   id: number;
@@ -27,10 +27,6 @@ export default function ProductCategory({
   const [isOpen, setIsOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>(initialProducts || []);
   const [loading, setLoading] = useState(false);
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
 
   useEffect(() => {
     if (!isOpen) return;
@@ -53,7 +49,7 @@ export default function ProductCategory({
     }
 
     fetchProducts();
-  }, [categoryId, name, supabase, isOpen]);
+  }, [categoryId, isOpen]);
 
   return (
     <div className="border rounded-lg mb-4">

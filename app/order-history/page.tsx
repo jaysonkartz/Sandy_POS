@@ -1,10 +1,8 @@
 "use client";
 
-import { createBrowserClient } from "@supabase/ssr";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Database } from "@/types/supabase";
 import { useOrder } from "@/app/hooks/useOrder";
 import { ShoppingBag } from "lucide-react";
 import {
@@ -20,6 +18,7 @@ import {
   ArcElement,
 } from "chart.js";
 import { Line, Doughnut } from "react-chartjs-2";
+import { supabase } from "@/app/lib/supabaseClient";
 
 // Register ChartJS modules
 ChartJS.register(
@@ -211,12 +210,6 @@ export default function OrderHistory() {
       setReorderingId(null);
     }
   };
-
-  const supabase = createBrowserClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-
   const fetchOrders = async (page: number, isLoadMore = false) => {
     try {
       const loadingState = isLoadMore ? setLoadingMore : setLoading;
