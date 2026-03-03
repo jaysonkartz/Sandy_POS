@@ -1,18 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
 import { motion } from "framer-motion";
 import { useSignInLogging } from "@/app/hooks/useSignInLogging";
+import { X } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
   const { logSignInSuccess, logSignInFailure } = useSignInLogging();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Prevent background scroll if this is rendered as an overlay/modal
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -20,7 +31,7 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 150));
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
@@ -28,7 +39,6 @@ export default function LoginPage() {
       });
 
       if (error) {
-        // Log failed sign-in attempt
         await logSignInFailure("", email.trim(), error.message);
         throw error;
       }
@@ -47,14 +57,12 @@ export default function LoginPage() {
         }
 
         if (!customerData.status) {
-          // Keep the session so the user can check approval status.
           router.push("/pending-approval");
           return;
         }
 
-        // Log successful sign-in
         await logSignInSuccess(
-          data.user.id, 
+          data.user.id,
           data.user.email || email.trim(),
           data.session.access_token
         );
@@ -76,127 +84,119 @@ export default function LoginPage() {
 
   return (
     <motion.div
-      animate={{ opacity: 1 }}
-      className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-gray-100 py-12 px-4 sm:px-6 lg:px-8"
       initial={{ opacity: 0 }}
-      transition={{ duration: 0.5 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.18 }}
+      // Fullscreen overlay so it never "mixes" with the page behind
+      className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center px-4 py-10"
+      onClick={() => router.back()}
+      aria-modal="true"
+      role="dialog"
     >
-      <div className="max-w-md w-full space-y-8">
-        <motion.div animate={{ y: 0 }} initial={{ y: -20 }} transition={{ duration: 0.5 }}>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">Welcome Back</h2>
-          <p className="mt-2 text-center text-sm text-gray-600">Please sign in to continue</p>
-        </motion.div>
-        <form className="mt-8 space-y-6" onSubmit={handleLogin}>
-          <div className="space-y-4">
+      {/* Card */}
+      <motion.div
+        initial={{ y: 12, scale: 0.98, opacity: 0 }}
+        animate={{ y: 0, scale: 1, opacity: 1 }}
+        transition={{ duration: 0.2 }}
+        className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-100"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Welcome Back</h2>
+            <p className="text-sm text-gray-500">Please sign in to continue</p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="p-2 rounded-lg hover:bg-gray-100"
+            aria-label="Close"
+          >
+            <X className="h-5 w-5 text-gray-600" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-5">
+          <form className="space-y-4" onSubmit={handleLogin}>
             <div>
               <label className="sr-only" htmlFor="email-address">
                 Email address
               </label>
-              <motion.input
+              <input
                 required
-                className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ease-in-out"
                 id="email-address"
                 name="email"
-                placeholder="Email address"
                 type="email"
+                placeholder="Email address"
                 value={email}
-                whileFocus={{ scale: 1.01 }}
                 onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
+
             <div>
               <label className="sr-only" htmlFor="password">
                 Password
               </label>
-              <motion.input
+              <input
                 required
-                className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ease-in-out"
                 id="password"
                 name="password"
-                placeholder="Password"
                 type="password"
+                placeholder="Password"
                 value={password}
-                whileFocus={{ scale: 1.01 }}
                 onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
-          </div>
 
-          {error && (
-            <motion.div
-              animate={{ opacity: 1, y: 0 }}
-              className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg"
-              initial={{ opacity: 0, y: -10 }}
-            >
-              {error}
-            </motion.div>
-          )}
-
-          <div className="text-right">
-            <button
-              className="text-sm text-blue-600 hover:text-blue-500 transition-colors duration-200"
-              onClick={() => router.push("/forgot-password")}
-              type="button"
-            >
-              Forgot password?
-            </button>
-          </div>
-
-          <motion.button
-            className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-300 transition-all duration-200 ease-in-out"
-            disabled={isLoading}
-            type="submit"
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.99 }}
-          >
-            {isLoading ? (
-              <span className="flex items-center">
-                <svg
-                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    fill="currentColor"
-                  ></path>
-                </svg>
-                Signing in...
-              </span>
-            ) : (
-              "Sign in"
+            {error && (
+              <div className="text-red-600 text-sm bg-red-50 border border-red-100 p-3 rounded-lg">
+                {error}
+              </div>
             )}
-          </motion.button>
-        </form>
 
-        {/* Signup Link */}
-        <motion.div
-          animate={{ opacity: 1 }}
-          className="text-center"
-          initial={{ opacity: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <p className="text-sm text-gray-600">
-            Don't have an account?{" "}
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                className="text-sm text-blue-600 hover:text-blue-500"
+                onClick={() => router.push("/forgot-password")}
+              >
+                Forgot password?
+              </button>
+
+              <button
+                type="button"
+                className="text-sm text-gray-600 hover:text-gray-800"
+                onClick={() => router.push("/")}
+              >
+                Back to Home
+              </button>
+            </div>
+
             <button
-              className="font-medium text-blue-600 hover:text-blue-500 transition-colors duration-200"
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-3 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:bg-blue-300 transition"
+            >
+              {isLoading ? "Signing in..." : "Sign In"}
+            </button>
+          </form>
+
+          <div className="mt-5 text-center text-sm text-gray-600">
+            Don&apos;t have an account?{" "}
+            <button
+              className="font-medium text-blue-600 hover:text-blue-500"
               onClick={() => router.push("/signup")}
             >
               Sign up here
             </button>
-          </p>
-        </motion.div>
-      </div>
+          </div>
+        </div>
+      </motion.div>
     </motion.div>
   );
 }

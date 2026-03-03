@@ -254,7 +254,7 @@ export default function Header() {
             </Link>
 
             <div className="flex items-center gap-2">
-              {(pathname === "/" || pathname.startsWith("/dashboard")) && (
+              {/* {(pathname === "/" || pathname.startsWith("/dashboard")) && (
                 <a
                   className="hidden sm:inline-flex items-center justify-center text-sm text-gray-600 hover:text-gray-900"
                   href="https://wa.me/6593254825"
@@ -263,7 +263,7 @@ export default function Header() {
                 >
                   WhatsApp
                 </a>
-              )}
+              )} */}
 
               <TopBarLogin session={session} userRole={userRole} onLoginSuccess={handleLoginSuccess} />
             </div>

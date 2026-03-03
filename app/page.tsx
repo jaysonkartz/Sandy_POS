@@ -228,13 +228,11 @@ function HomeContent({
   return (
     <div className="w-full">
       {/* Shopee-like sticky filter bar (under the main header) */}
-      {/* IMPORTANT: make this full-width and allow wrap on small screens */}
       <div className="sticky top-14 sm:top-16 z-40 border-b border-gray-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
         <div className="w-full px-3 sm:px-6 py-2.5">
           <div className="flex flex-wrap items-center gap-2">
             <LanguageToggle isEnglish={isEnglish} onToggle={() => setIsEnglish(!isEnglish)} />
 
-            {/* Search should be flex-1 but not shrink to nothing */}
             <div className="flex-1 min-w-[160px]">
               <SearchBar
                 searchTerm={searchTerm}
@@ -244,7 +242,6 @@ function HomeContent({
               />
             </div>
 
-            {/* Category dropdown gets its own min width */}
             <div className="w-full sm:w-auto sm:min-w-[220px]">
               <CategoryFilter
                 selectedCategory={selectedCategory}
@@ -256,9 +253,8 @@ function HomeContent({
         </div>
       </div>
 
-      {/* Content area: full width on mobile, with bottom padding for bottom nav / floating btn */}
+      {/* Content area */}
       <div className="w-full px-3 sm:px-6 py-4 pb-24">
-        {/* Search Results Info */}
         {searchTerm && (
           <SearchResultsInfo
             searchTerm={searchTerm}
@@ -267,7 +263,6 @@ function HomeContent({
           />
         )}
 
-        {/* Product Grid */}
         <ProductGrid
           productGroups={productGroups}
           isEnglish={isEnglish}
@@ -285,10 +280,8 @@ function HomeContent({
           onOpenSignupModal={() => setIsSignupModalOpen(true)}
         />
 
-        {/* No Results */}
         {productGroups.length === 0 && !loading && !isInitialLoad && <NoResults isEnglish={isEnglish} />}
 
-        {/* Fallback for stuck loading */}
         {productGroups.length === 0 && !loading && isInitialLoad && (
           <div className="text-center py-8">
             <p className="text-gray-500 mb-4">{isEnglish ? "Loading products..." : "正在加载产品..."}</p>
@@ -302,18 +295,18 @@ function HomeContent({
         )}
       </div>
 
-      {/* Floating Order Button */}
+      {/* Floating buttons */}
       <div className="fixed right-4 z-50 bottom-[calc(env(safe-area-inset-bottom)+6rem)] flex flex-col gap-3 items-end">
-  {selectedProducts.length > 0 && (
-    <FloatingOrderButton
-      selectedProductsCount={selectedProducts.length}
-      isEnglish={isEnglish}
-      onClick={() => setIsOrderPanelOpen(true)}
-    />
-  )}
+        {selectedProducts.length > 0 && (
+          <FloatingOrderButton
+            selectedProductsCount={selectedProducts.length}
+            isEnglish={isEnglish}
+            onClick={() => setIsOrderPanelOpen(true)}
+          />
+        )}
+        <ScrollToTop show={showScrollTop} onClick={scrollToTop} />
+      </div>
 
-<ScrollToTop show={showScrollTop} onClick={scrollToTop} />
-</div>
       {/* Order Panel */}
       <OrderPanel
         isOpen={isOrderPanelOpen}
@@ -331,9 +324,6 @@ function HomeContent({
         onCustomerAddressChange={setCustomerAddress}
         onSubmitOrder={handleSubmitOrder}
       />
-
-      {/* Scroll to Top */}
-      <ScrollToTop show={showScrollTop} onClick={scrollToTop} />
 
       {/* Signup Modal */}
       <SignupModal
@@ -360,7 +350,10 @@ function HomeContent({
 export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [isEnglish, setIsEnglish] = useState(true);
+
+  // UI open/close comes from CartContext
   const { isOrderPanelOpen, setIsOrderPanelOpen } = useCart();
+
   const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [selectedOptions, setSelectedOptions] = useState<SelectedOptions>({});
@@ -373,15 +366,28 @@ export default function Home() {
   const { session, userRole, isLoading: sessionLoading, isSessionValid, forceRefreshSession } =
     useSession();
 
-  const { products, loading, error, productGroups, setProducts, searchTerm, handleSearchChange, handleClearSearch } =
-    useProducts(selectedCategory, isEnglish, session);
+  const {
+    products,
+    loading,
+    error,
+    productGroups,
+    setProducts,
+    searchTerm,
+    handleSearchChange,
+    handleClearSearch,
+  } = useProducts(selectedCategory, isEnglish, session);
 
   const { countryMap } = useCountries();
   const { showScrollTop, scrollToTop } = useScroll();
   const { handleCustomerService, sendWhatsAppNotification } = useWhatsApp();
 
-  const { isPhotoEditorOpen, selectedProductForPhoto, openPhotoEditor, closePhotoEditor, handleImageUpdate } =
-    usePhotoEditor();
+  const {
+    isPhotoEditorOpen,
+    selectedProductForPhoto,
+    openPhotoEditor,
+    closePhotoEditor,
+    handleImageUpdate,
+  } = usePhotoEditor();
 
   const {
     selectedProducts,
@@ -397,6 +403,14 @@ export default function Home() {
     clearOrder,
     submitOrder,
   } = useOrder();
+
+  // ✅ FIX: when logout happens (session becomes null), clear order state
+  useEffect(() => {
+    if (!session) {
+      clearOrder(); // this clears selectedProducts (the floating button uses this)
+      setIsOrderPanelOpen(false);
+    }
+  }, [session, clearOrder, setIsOrderPanelOpen]);
 
   return (
     <Suspense fallback={<LoadingSkeleton />}>
