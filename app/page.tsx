@@ -26,6 +26,7 @@ import { useCountries } from "@/app/hooks/useCountries";
 import { usePhotoEditor } from "@/app/hooks/usePhotoEditor";
 import { useScroll } from "@/app/hooks/useScroll";
 import { useWhatsApp } from "@/app/hooks/useWhatsApp";
+import { useCart } from "@/context/CartContext";
 
 // Types
 import { SelectedOptions } from "@/app/types/product";
@@ -90,7 +91,6 @@ function HomeContent({
     const reorderParam = searchParams.get("reorder");
     if (reorderParam === "true" && typeof window !== "undefined") {
       try {
-        // Load customer info from localStorage
         const reorderCustomerName = localStorage.getItem("reorder_customer_name");
         const reorderCustomerPhone = localStorage.getItem("reorder_customer_phone");
         const reorderCustomerAddress = localStorage.getItem("reorder_customer_address");
@@ -99,38 +99,26 @@ function HomeContent({
         if (reorderItemsStr) {
           const reorderItems = JSON.parse(reorderItemsStr);
 
-          // Clear current order first
           clearOrder();
 
-          // Set customer info
           if (reorderCustomerName) setCustomerName(reorderCustomerName);
           if (reorderCustomerPhone) setCustomerPhone(reorderCustomerPhone);
           if (reorderCustomerAddress) setCustomerAddress(reorderCustomerAddress);
 
-          // Add all items with correct quantities
           reorderItems.forEach((item: { product: any; quantity: number }) => {
-            // First add the product (this will add it with quantity 1)
             addToOrder(item.product);
-            // Then immediately update the quantity
             if (item.quantity > 1) {
-              setTimeout(() => {
-                updateOrderQuantity(item.product.id, item.quantity);
-              }, 10);
+              setTimeout(() => updateOrderQuantity(item.product.id, item.quantity), 10);
             }
           });
 
-          // Clean up localStorage
           localStorage.removeItem("reorder_customer_name");
           localStorage.removeItem("reorder_customer_phone");
           localStorage.removeItem("reorder_customer_address");
           localStorage.removeItem("reorder_items");
 
-          // Open the order panel
-          setTimeout(() => {
-            setIsOrderPanelOpen(true);
-          }, 100);
+          setTimeout(() => setIsOrderPanelOpen(true), 100);
 
-          // Clean up URL parameters
           if (typeof window !== "undefined") {
             const url = new URL(window.location.href);
             url.searchParams.delete("order");
@@ -138,8 +126,7 @@ function HomeContent({
             window.history.replaceState({}, "", url.toString());
           }
         }
-      } catch (error) {
-        // Clean up URL parameters even on error
+      } catch {
         if (typeof window !== "undefined") {
           const url = new URL(window.location.href);
           url.searchParams.delete("order");
@@ -168,14 +155,13 @@ function HomeContent({
       searchParams.get("reorder") !== "true"
     ) {
       setIsOrderPanelOpen(true);
-      // Remove the query parameter from URL to avoid reopening on refresh
       if (typeof window !== "undefined") {
         const url = new URL(window.location.href);
         url.searchParams.delete("order");
         window.history.replaceState({}, "", url.toString());
       }
     }
-  }, [searchParams, selectedProducts.length]);
+  }, [searchParams, selectedProducts.length, setIsOrderPanelOpen]);
 
   // Callbacks
   const handleOptionChange = useCallback(
@@ -196,16 +182,14 @@ function HomeContent({
       const success = await submitOrder(session, isEnglish, sendWhatsAppNotification, reviewData);
       if (success) {
         setIsOrderPanelOpen(false);
-        setReviewData(null); // Clear review data after successful submission
+        setReviewData(null);
       }
     },
     [submitOrder, session, isEnglish, sendWhatsAppNotification, setIsOrderPanelOpen, setReviewData]
   );
 
   const handleImageUpdateCallback = useCallback(
-    (imageUrl: string) => {
-      handleImageUpdate(imageUrl, setProducts);
-    },
+    (imageUrl: string) => handleImageUpdate(imageUrl, setProducts),
     [handleImageUpdate, setProducts]
   );
 
@@ -213,45 +197,28 @@ function HomeContent({
     try {
       setIsLoggingIn(true);
       setIsSignupModalOpen(false);
-
-      // Give a small delay to ensure the session is properly set
       await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Force refresh the session
       await forceRefreshSession();
-    } catch (error) {
-      // Error handled silently - user will see session state update
     } finally {
       setIsLoggingIn(false);
     }
   }, [forceRefreshSession, setIsLoggingIn, setIsSignupModalOpen]);
 
-  // Loading state - simplified logic to prevent infinite loading
+  // Loading state
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const isLoading = loading || sessionLoading;
 
-  // Timeout to prevent infinite loading - reduced to 5 seconds
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      setIsInitialLoad(false);
-    }, 5000); // 5 second maximum loading time
-
+    const timeout = setTimeout(() => setIsInitialLoad(false), 5000);
     return () => clearTimeout(timeout);
   }, []);
 
-  // Reset initial load when data is available or session is loaded
   useEffect(() => {
-    if (products.length > 0 || error || !sessionLoading) {
-      setIsInitialLoad(false);
-    }
+    if (products.length > 0 || error || !sessionLoading) setIsInitialLoad(false);
   }, [products.length, error, sessionLoading]);
 
-  // Show loading skeleton only during initial load and when actually loading
-  if (isLoading && isInitialLoad) {
-    return <LoadingSkeleton />;
-  }
+  if (isLoading && isInitialLoad) return <LoadingSkeleton />;
 
-  // Show error state
   if (error) {
     return (
       <ErrorState error={error} isEnglish={isEnglish} onRetry={() => window.location.reload()} />
@@ -259,89 +226,94 @@ function HomeContent({
   }
 
   return (
-    <div className="container mx-auto p-4">
-      {/* Language Toggle, Search, and Category Filter */}
-      <div className="flex flex-col lg:flex-row justify-between items-center mb-6 gap-4">
-        <div className="flex items-center gap-4">
-          <LanguageToggle isEnglish={isEnglish} onToggle={() => setIsEnglish(!isEnglish)} />
-          <SearchBar
-            searchTerm={searchTerm}
-            isEnglish={isEnglish}
-            onSearchChange={handleSearchChange}
-            onClearSearch={handleClearSearch}
-          />
-          <a
-            href="https://hongguanmp.com.sg/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium whitespace-nowrap"
-          >
-            {isEnglish ? "Visit Hong Guan Website" : "访问主网站"}
-          </a>
+    <div className="w-full">
+      {/* Shopee-like sticky filter bar (under the main header) */}
+      {/* IMPORTANT: make this full-width and allow wrap on small screens */}
+      <div className="sticky top-14 sm:top-16 z-40 border-b border-gray-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
+        <div className="w-full px-3 sm:px-6 py-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <LanguageToggle isEnglish={isEnglish} onToggle={() => setIsEnglish(!isEnglish)} />
+
+            {/* Search should be flex-1 but not shrink to nothing */}
+            <div className="flex-1 min-w-[160px]">
+              <SearchBar
+                searchTerm={searchTerm}
+                isEnglish={isEnglish}
+                onSearchChange={handleSearchChange}
+                onClearSearch={handleClearSearch}
+              />
+            </div>
+
+            {/* Category dropdown gets its own min width */}
+            <div className="w-full sm:w-auto sm:min-w-[220px]">
+              <CategoryFilter
+                selectedCategory={selectedCategory}
+                isEnglish={isEnglish}
+                onCategoryChange={setSelectedCategory}
+              />
+            </div>
+          </div>
         </div>
-        <CategoryFilter
-          selectedCategory={selectedCategory}
-          isEnglish={isEnglish}
-          onCategoryChange={setSelectedCategory}
-        />
       </div>
 
-      {/* Search Results Info */}
-      {searchTerm && (
-        <SearchResultsInfo
-          searchTerm={searchTerm}
-          resultsCount={productGroups.length}
+      {/* Content area: full width on mobile, with bottom padding for bottom nav / floating btn */}
+      <div className="w-full px-3 sm:px-6 py-4 pb-24">
+        {/* Search Results Info */}
+        {searchTerm && (
+          <SearchResultsInfo
+            searchTerm={searchTerm}
+            resultsCount={productGroups.length}
+            isEnglish={isEnglish}
+          />
+        )}
+
+        {/* Product Grid */}
+        <ProductGrid
+          productGroups={productGroups}
           isEnglish={isEnglish}
+          isSessionValid={isSessionValid}
+          userRole={userRole}
+          selectedOptions={selectedOptions}
+          selectedProducts={selectedProducts}
+          countryMap={countryMap}
+          isLoggingIn={isLoggingIn}
+          onOptionChange={handleOptionChange}
+          onAddToOrder={addToOrder}
+          onUpdateQuantity={updateOrderQuantity}
+          onCustomerService={handleCustomerService}
+          onOpenPhotoEditor={openPhotoEditor}
+          onOpenSignupModal={() => setIsSignupModalOpen(true)}
         />
-      )}
 
-      {/* Product Grid */}
-      <ProductGrid
-        productGroups={productGroups}
-        isEnglish={isEnglish}
-        isSessionValid={isSessionValid}
-        userRole={userRole}
-        selectedOptions={selectedOptions}
-        selectedProducts={selectedProducts}
-        countryMap={countryMap}
-        isLoggingIn={isLoggingIn}
-        onOptionChange={handleOptionChange}
-        onAddToOrder={addToOrder}
-        onUpdateQuantity={updateOrderQuantity}
-        onCustomerService={handleCustomerService}
-        onOpenPhotoEditor={openPhotoEditor}
-        onOpenSignupModal={() => setIsSignupModalOpen(true)}
-      />
+        {/* No Results */}
+        {productGroups.length === 0 && !loading && !isInitialLoad && <NoResults isEnglish={isEnglish} />}
 
-      {/* No Results Message */}
-      {productGroups.length === 0 && !loading && !isInitialLoad && (
-        <NoResults isEnglish={isEnglish} />
-      )}
-
-      {/* Fallback for when loading is stuck */}
-      {productGroups.length === 0 && !loading && isInitialLoad && (
-        <div className="text-center py-8">
-          <p className="text-gray-500 mb-4">
-            {isEnglish ? "Loading products..." : "正在加载产品..."}
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            {isEnglish ? "Refresh Page" : "刷新页面"}
-          </button>
-        </div>
-      )}
+        {/* Fallback for stuck loading */}
+        {productGroups.length === 0 && !loading && isInitialLoad && (
+          <div className="text-center py-8">
+            <p className="text-gray-500 mb-4">{isEnglish ? "Loading products..." : "正在加载产品..."}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              {isEnglish ? "Refresh Page" : "刷新页面"}
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Floating Order Button */}
-      {selectedProducts.length > 0 && (
-        <FloatingOrderButton
-          selectedProductsCount={selectedProducts.length}
-          isEnglish={isEnglish}
-          onClick={() => setIsOrderPanelOpen(true)}
-        />
-      )}
+      <div className="fixed right-4 z-50 bottom-[calc(env(safe-area-inset-bottom)+6rem)] flex flex-col gap-3 items-end">
+  {selectedProducts.length > 0 && (
+    <FloatingOrderButton
+      selectedProductsCount={selectedProducts.length}
+      isEnglish={isEnglish}
+      onClick={() => setIsOrderPanelOpen(true)}
+    />
+  )}
 
+<ScrollToTop show={showScrollTop} onClick={scrollToTop} />
+</div>
       {/* Order Panel */}
       <OrderPanel
         isOpen={isOrderPanelOpen}
@@ -360,7 +332,7 @@ function HomeContent({
         onSubmitOrder={handleSubmitOrder}
       />
 
-      {/* Scroll to Top Arrow */}
+      {/* Scroll to Top */}
       <ScrollToTop show={showScrollTop} onClick={scrollToTop} />
 
       {/* Signup Modal */}
@@ -370,7 +342,7 @@ function HomeContent({
         onLoginSuccess={handleLoginSuccess}
       />
 
-      {/* Photo Editor Modal */}
+      {/* Photo Editor */}
       {selectedProductForPhoto && (
         <ProductPhotoEditor
           currentImageUrl={selectedProductForPhoto.image_url}
@@ -386,10 +358,9 @@ function HomeContent({
 }
 
 export default function Home() {
-  // State
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [isEnglish, setIsEnglish] = useState(true);
-  const [isOrderPanelOpen, setIsOrderPanelOpen] = useState(false);
+  const { isOrderPanelOpen, setIsOrderPanelOpen } = useCart();
   const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [selectedOptions, setSelectedOptions] = useState<SelectedOptions>({});
@@ -399,34 +370,19 @@ export default function Home() {
     uploadedFiles: File[];
   } | null>(null);
 
-  // Hooks
-  const {
-    session,
-    userRole,
-    isLoading: sessionLoading,
-    isSessionValid,
-    forceRefreshSession,
-  } = useSession();
-  const {
-    products,
-    loading,
-    error,
-    productGroups,
-    setProducts,
-    searchTerm,
-    handleSearchChange,
-    handleClearSearch,
-  } = useProducts(selectedCategory, isEnglish, session);
+  const { session, userRole, isLoading: sessionLoading, isSessionValid, forceRefreshSession } =
+    useSession();
+
+  const { products, loading, error, productGroups, setProducts, searchTerm, handleSearchChange, handleClearSearch } =
+    useProducts(selectedCategory, isEnglish, session);
+
   const { countryMap } = useCountries();
   const { showScrollTop, scrollToTop } = useScroll();
   const { handleCustomerService, sendWhatsAppNotification } = useWhatsApp();
-  const {
-    isPhotoEditorOpen,
-    selectedProductForPhoto,
-    openPhotoEditor,
-    closePhotoEditor,
-    handleImageUpdate,
-  } = usePhotoEditor();
+
+  const { isPhotoEditorOpen, selectedProductForPhoto, openPhotoEditor, closePhotoEditor, handleImageUpdate } =
+    usePhotoEditor();
+
   const {
     selectedProducts,
     customerName,

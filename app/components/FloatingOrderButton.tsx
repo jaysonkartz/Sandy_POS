@@ -1,5 +1,8 @@
+"use client";
+
 import React from "react";
 import { motion } from "framer-motion";
+import { ShoppingCart } from "lucide-react";
 
 interface FloatingOrderButtonProps {
   selectedProductsCount: number;
@@ -14,19 +17,27 @@ export const FloatingOrderButton: React.FC<FloatingOrderButtonProps> = ({
 }) => {
   return (
     <motion.button
-      animate={{ scale: 1 }}
-      className="fixed bottom-4 right-4 bg-blue-500 text-white p-4 rounded-full shadow-lg hover:bg-blue-600 transition-colors z-40"
+      type="button"
       initial={{ scale: 0 }}
-      whileHover={{ scale: 1.05 }}
+      animate={{ scale: 1 }}
       whileTap={{ scale: 0.95 }}
       onClick={onClick}
+      className="relative flex items-center gap-2 px-4 py-3 rounded-full bg-blue-600 text-white shadow-xl hover:bg-blue-700 transition"
+      aria-label={isEnglish ? "View Order" : "查看订单"}
     >
-      <div className="flex items-center gap-2">
-        <span className="text-lg font-semibold">{isEnglish ? "View Order" : "查看订单"}</span>
-        <span className="bg-white text-blue-500 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">
-          {selectedProductsCount}
+      <ShoppingCart size={20} />
+
+      {/* Text: hidden on mobile, show on sm+ */}
+      <span className="hidden sm:inline font-semibold text-sm">
+        {isEnglish ? "View Order" : "查看订单"}
+      </span>
+
+      {/* Badge: always show */}
+      {selectedProductsCount > 0 && (
+        <span className="ml-1 bg-white text-blue-600 rounded-full min-w-6 h-6 px-2 text-xs font-bold flex items-center justify-center">
+          {selectedProductsCount > 9 ? "9+" : selectedProductsCount}
         </span>
-      </div>
+      )}
     </motion.button>
   );
 };

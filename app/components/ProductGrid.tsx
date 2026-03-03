@@ -74,13 +74,13 @@ export const ProductGrid = memo<ProductGridProps>(({
         <div key={category} className="space-y-4">
           {/* Category Header */}
           <div className="border-b border-gray-200 pb-2">
-            <h2 className="text-2xl font-bold text-gray-800">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
               {isEnglish ? category : groups[0]?.products[0]?.Category_CH || category}
             </h2>
           </div>
 
           {/* Products in this category */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 [@media(min-width:480px)]:grid-cols-4 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
             {groups.map((group) => (
               <ProductCard
                 key={group.title}

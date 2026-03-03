@@ -8,7 +8,7 @@ import Link from "next/link";
 export default function CartPage() {
   const { cart, removeFromCart, updateQuantity, getCartTotal, clearCart } = useCart();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const [removingItem, setRemovingItem] = useState<number | null>(null);
+  const [removingItem, setRemovingItem] = useState<null | string | number>(null);
 
   const handleCheckout = async () => {
     setIsCheckingOut(true);
@@ -31,7 +31,7 @@ export default function CartPage() {
     }
   };
 
-  const handleRemoveItem = async (itemId: number) => {
+  const handleRemoveItem = async (itemId: string | number) => {
     setRemovingItem(itemId);
     try {
       // Simulate API call delay
@@ -109,7 +109,7 @@ export default function CartPage() {
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-lg text-gray-800 mb-2">{item.title}</h3>
                     <div className="text-2xl font-bold text-blue-600 mb-4">
-                      ${item.price.toFixed(2)}/kg
+                      ${(item.price ?? 0).toFixed(2)}/kg
                     </div>
 
                     {/* Quantity Controls */}
@@ -161,7 +161,7 @@ export default function CartPage() {
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Item Total:</span>
                     <span className="text-xl font-bold text-gray-800">
-                      ${(item.price * item.quantity).toFixed(2)}
+                      ${((item.price ?? 0) * item.quantity).toFixed(2)}
                     </span>
                   </div>
                 </div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import TopBarLogin from "./TopBarLogin";
 import { supabase } from "@/app/lib/supabaseClient";
 
@@ -236,25 +237,38 @@ export default function Header() {
 
   return (
     <>
-      <header className="flex justify-between items-center p-4 bg-white shadow-md">
-        <div className="logo hover:opacity-80 transition-opacity">
-          <img alt="HongGuan Logo" className="h-12 rounded-lg" src="/HongGuan_Icon.jpg" />
+      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b shadow-sm">
+        <div className="mx-auto w-full max-w-7xl px-3 sm:px-6 lg:px-8">
+          <div className="h-14 flex items-center justify-between gap-3">
+            <Link
+              href="/"
+              className="flex items-center gap-2 hover:opacity-90 transition-opacity"
+              aria-label="Go to homepage"
+            >
+              <img
+                alt="Hong Guan"
+                className="h-50 w-20 rounded-lg object-cover"
+                src="/HongGuan_Icon.jpg"
+              />
+              <span className="hidden sm:block font-semibold text-gray-900">Hong Guan</span>
+            </Link>
+
+            <div className="flex items-center gap-2">
+              {(pathname === "/" || pathname.startsWith("/dashboard")) && (
+                <a
+                  className="hidden sm:inline-flex items-center justify-center text-sm text-gray-600 hover:text-gray-900"
+                  href="https://wa.me/6593254825"
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  WhatsApp
+                </a>
+              )}
+
+              <TopBarLogin session={session} userRole={userRole} onLoginSuccess={handleLoginSuccess} />
+            </div>
+          </div>
         </div>
-        {(pathname === "/dashboard" || pathname === "/") && (
-          <>
-            <a
-              className="inline-flex items-center justify-center"
-              href="https://wa.me/6593254825"
-              rel="noopener noreferrer"
-              target="_blank"
-            ></a>
-            <TopBarLogin
-              session={session}
-              userRole={userRole}
-              onLoginSuccess={handleLoginSuccess}
-            />
-          </>
-        )}
       </header>
     </>
   );

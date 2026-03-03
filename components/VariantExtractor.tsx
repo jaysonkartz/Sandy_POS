@@ -1,9 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence as FramerAnimatePresence } from "framer-motion";
 import { supabase } from "@/app/lib/supabaseClient";
 import { Plus, Edit3, Trash2, Save, X, Camera, Image as ImageIcon } from "lucide-react";
+
+const AnimatePresence = FramerAnimatePresence as unknown as React.FC<
+  React.PropsWithChildren<Record<string, unknown>>
+>;
 
 interface ProductVariant {
   id: number;

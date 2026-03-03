@@ -1,13 +1,17 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence as FramerAnimatePresence } from "framer-motion";
 import { supabase } from "@/app/lib/supabaseClient";
 import { Plus, Edit3, Trash2, Search, Camera, Image as ImageIcon, Eye, EyeOff } from "lucide-react";
 import EditProductModal from "./EditProductModal";
 import ProductPhotoEditor from "./ProductPhotoEditor";
 import ProductImage from "./ProductImage";
 import { ProductVariant } from "@/app/types/product";
+
+const AnimatePresence = FramerAnimatePresence as unknown as React.FC<
+  React.PropsWithChildren<Record<string, unknown>>
+>;
 
 interface Product {
   id: number;

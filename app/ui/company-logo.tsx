@@ -1,13 +1,17 @@
+import Link from "next/link";
 import Image from "next/image";
 
 export default function CompanyLogo() {
   return (
-    <Image
-      alt="HongGuan Logo"
-      className="rounded-lg"
-      height={50}
-      src="/HongGuan_Icon.jpg"
-      width={50}
-    />
+    <Link href="/" aria-label="Go to homepage" className="inline-flex">
+      <Image
+        src="/HongGuan_Icon.jpg"  
+        alt="HongGuan Logo"
+        width={1000}
+        height={1000}
+        className="rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+        priority
+      />
+    </Link>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
 import { supabase } from "@/app/lib/supabaseClient";
 import { useSignInLogging } from "@/app/hooks/useSignInLogging";
 import { USER_ROLES } from "@/app/constants/app-constants";
@@ -16,6 +17,54 @@ interface SignupModalProps {
 export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupModalProps) {
   const router = useRouter();
   const { logSignInSuccess, logSignInFailure } = useSignInLogging();
+
+  // --- Portal root ---
+  const [mounted, setMounted] = useState(false);
+  const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+
+    // reuse if exists
+    const existing = document.getElementById("signup-modal-root");
+    if (existing) {
+      setPortalEl(existing);
+      return;
+    }
+
+    const el = document.createElement("div");
+    el.id = "signup-modal-root";
+    document.body.appendChild(el);
+    setPortalEl(el);
+
+    return () => {
+      // only remove if we created it
+      if (el.parentNode) el.parentNode.removeChild(el);
+    };
+  }, []);
+
+  // lock scroll when open
+  useEffect(() => {
+    if (!mounted) return;
+    if (!isOpen) return;
+
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [isOpen, mounted]);
+
+  // close on ESC
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOpen, onClose]);
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -24,56 +73,54 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
     address: "",
     phone: "",
     customer_code: "",
-    whatsapp_notifications: true, // Default to opt-in
+    whatsapp_notifications: true,
   });
+
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [locationError, setLocationError] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [isSearchingPostalCode, setIsSearchingPostalCode] = useState(false);
   const [unitNumber, setUnitNumber] = useState("");
 
-  // Password strength calculation
-  const getPasswordStrength = (password: string): { strength: "weak" | "medium" | "strong"; score: number; feedback: string } => {
-    if (!password) {
-      return { strength: "weak", score: 0, feedback: "" };
-    }
+  const getPasswordStrength = (
+    password: string
+  ): { strength: "weak" | "medium" | "strong"; score: number; feedback: string } => {
+    if (!password) return { strength: "weak", score: 0, feedback: "" };
 
     let score = 0;
     const feedback: string[] = [];
 
-    // Length checks
     if (password.length >= 8) score += 1;
     else feedback.push("At least 8 characters");
-    
-    if (password.length >= 12) score += 1;
 
-    // Character variety checks
+    if (password.length >= 12) score += 1;
     if (/[a-z]/.test(password)) score += 1;
     else feedback.push("lowercase letter");
-    
+
     if (/[A-Z]/.test(password)) score += 1;
     else feedback.push("uppercase letter");
-    
+
     if (/[0-9]/.test(password)) score += 1;
     else feedback.push("number");
-    
+
     if (/[^a-zA-Z0-9]/.test(password)) score += 1;
     else feedback.push("special character");
 
     let strength: "weak" | "medium" | "strong";
-    if (score <= 2) {
-      strength = "weak";
-    } else if (score <= 4) {
-      strength = "medium";
-    } else {
-      strength = "strong";
-    }
+    if (score <= 2) strength = "weak";
+    else if (score <= 4) strength = "medium";
+    else strength = "strong";
 
-    return { strength, score, feedback: feedback.length > 0 ? `Add: ${feedback.slice(0, 2).join(", ")}` : "" };
+    return {
+      strength,
+      score,
+      feedback: feedback.length > 0 ? `Add: ${feedback.slice(0, 2).join(", ")}` : "",
+    };
   };
 
   const passwordStrength = useMemo(
@@ -81,8 +128,6 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
     [formData.password]
   );
 
-
-  // Function to get current location and convert to address
   const getCurrentLocation = async () => {
     setIsGettingLocation(true);
     setLocationError("");
@@ -96,217 +141,140 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-        
+
         try {
-          // Use OpenStreetMap Nominatim API for reverse geocoding (free, no API key needed)
           const response = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`,
-            {
-              headers: {
-                'User-Agent': 'SandyPOS/1.0' // Required by Nominatim
-              }
-            }
+            { headers: { "User-Agent": "SandyPOS/1.0" } }
           );
 
-          if (!response.ok) {
-            throw new Error("Failed to get address from coordinates");
-          }
-
+          if (!response.ok) throw new Error("Failed to get address from coordinates");
           const data = await response.json();
-          
-          if (data && data.display_name) {
-            setFormData((prev) => ({
-              ...prev,
-              address: data.display_name,
-            }));
+
+          if (data?.display_name) {
+            setFormData((prev) => ({ ...prev, address: data.display_name }));
             setLocationError("");
           } else {
             throw new Error("Could not determine address from location");
           }
-        } catch (error) {
-          console.error("Reverse geocoding error:", error);
+        } catch {
           setLocationError("Failed to get address. Please enter manually.");
-          // Still set coordinates as fallback
-          setFormData((prev) => ({
-            ...prev,
-            address: `${latitude}, ${longitude}`,
-          }));
+          setFormData((prev) => ({ ...prev, address: `${latitude}, ${longitude}` }));
         } finally {
           setIsGettingLocation(false);
         }
       },
-      (error) => {
-        console.error("Geolocation error:", error);
-        let errorMessage = "Failed to get your location. ";
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            errorMessage += "Please allow location access in your browser settings.";
+      (err) => {
+        let msg = "Failed to get your location. ";
+        switch (err.code) {
+          case err.PERMISSION_DENIED:
+            msg += "Please allow location access in your browser settings.";
             break;
-          case error.POSITION_UNAVAILABLE:
-            errorMessage += "Location information is unavailable.";
+          case err.POSITION_UNAVAILABLE:
+            msg += "Location information is unavailable.";
             break;
-          case error.TIMEOUT:
-            errorMessage += "Location request timed out.";
+          case err.TIMEOUT:
+            msg += "Location request timed out.";
             break;
           default:
-            errorMessage += "An unknown error occurred.";
+            msg += "An unknown error occurred.";
             break;
         }
-        setLocationError(errorMessage);
+        setLocationError(msg);
         setIsGettingLocation(false);
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
-      }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
 
-  // Function to format address from OneMap.sg data
   const formatOneMapAddress = (result: any): string => {
     const parts: string[] = [];
-    
-    // Building name or block number (skip if NIL)
-    if (result.BUILDING && result.BUILDING.toUpperCase() !== 'NIL') {
-      parts.push(result.BUILDING);
-    } else if (result.BLK_NO && result.BLK_NO.toUpperCase() !== 'NIL') {
-      parts.push(`Blk ${result.BLK_NO}`);
-    }
-    
-    // Street name (skip if NIL)
-    if (result.ROAD_NAME && result.ROAD_NAME.toUpperCase() !== 'NIL') {
-      parts.push(result.ROAD_NAME);
-    }
-    
-    // Don't include unit/floor from API - user will enter separately
-    // Don't include Singapore/postal code here - we'll add it at the end
-    
-    // Filter out NIL and empty values
-    const formatted = parts.filter(part => part && part.toUpperCase() !== 'NIL').join(', ');
-    return formatted || (result.ADDRESS && result.ADDRESS.toUpperCase() !== 'NIL' ? result.ADDRESS.replace(/NIL,?\s*/gi, '').replace(/,\s*Singapore\s+\d{6}$/i, '').trim() : '');
+    if (result.BUILDING && result.BUILDING.toUpperCase() !== "NIL") parts.push(result.BUILDING);
+    else if (result.BLK_NO && result.BLK_NO.toUpperCase() !== "NIL") parts.push(`Blk ${result.BLK_NO}`);
+    if (result.ROAD_NAME && result.ROAD_NAME.toUpperCase() !== "NIL") parts.push(result.ROAD_NAME);
+
+    const formatted = parts.filter(Boolean).join(", ");
+    return (
+      formatted ||
+      (result.ADDRESS && result.ADDRESS.toUpperCase() !== "NIL"
+        ? result.ADDRESS.replace(/NIL,?\s*/gi, "").replace(/,\s*Singapore\s+\d{6}$/i, "").trim()
+        : "")
+    );
   };
 
-  // Function to search address by postal code
   const searchAddressByPostalCode = async (code: string) => {
-    if (!code || code.trim().length < 4) {
-      return; // Don't search if postal code is too short
-    }
+    if (!code || code.trim().length < 4) return;
 
     setIsSearchingPostalCode(true);
     setLocationError("");
 
     try {
-      // First, try OneMap.sg API (Singapore's official mapping service - more accurate)
       const oneMapResponse = await fetch(
-        `https://www.onemap.gov.sg/api/common/elastic/search?searchVal=${encodeURIComponent(code)}&returnGeom=Y&getAddrDetails=Y&pageNum=1`
+        `https://www.onemap.gov.sg/api/common/elastic/search?searchVal=${encodeURIComponent(
+          code
+        )}&returnGeom=Y&getAddrDetails=Y&pageNum=1`
       );
 
       if (oneMapResponse.ok) {
         const oneMapData = await oneMapResponse.json();
-        
-        if (oneMapData.results && oneMapData.results.length > 0) {
-          // Find the exact postal code match
-          const exactMatch = oneMapData.results.find((r: any) => r.POSTAL === code);
-          const result = exactMatch || oneMapData.results[0];
-          
-          let formattedAddress = formatOneMapAddress(result);
-          
-          // Remove NIL from address if present
-          formattedAddress = formattedAddress.replace(/NIL,?\s*/gi, '').replace(/,\s*,/g, ',').trim();
-          
-          // Ensure Singapore and postal code are at the end
+        if (oneMapData?.results?.length > 0) {
+          const exact = oneMapData.results.find((r: any) => r.POSTAL === code);
+          const result = exact || oneMapData.results[0];
+
+          let formattedAddress = formatOneMapAddress(result)
+            .replace(/NIL,?\s*/gi, "")
+            .replace(/,\s*,/g, ",")
+            .trim();
+
           if (formattedAddress) {
-            // Remove existing "Singapore" and postal code if present
-            formattedAddress = formattedAddress.replace(/,\s*Singapore\s+\d{6}$/i, '').replace(/Singapore\s+\d{6}$/i, '').trim();
-            
-            // Add Singapore and postal code at the end
-            if (code && code.length === 6) {
-              formattedAddress = `${formattedAddress}, Singapore ${code}`;
-            }
-            
-            setFormData((prev) => ({
-              ...prev,
-              address: formattedAddress,
-            }));
-            setLocationError("");
+            formattedAddress = formattedAddress
+              .replace(/,\s*Singapore\s+\d{6}$/i, "")
+              .replace(/Singapore\s+\d{6}$/i, "")
+              .trim();
+
+            if (code.length === 6) formattedAddress = `${formattedAddress}, Singapore ${code}`;
+
+            setFormData((prev) => ({ ...prev, address: formattedAddress }));
             setIsSearchingPostalCode(false);
             return;
           }
         }
       }
 
-      // Fallback to Nominatim if OneMap doesn't work
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&postalcode=${encodeURIComponent(code)}&countrycodes=SG&addressdetails=1&limit=1`,
-        {
-          headers: {
-            'User-Agent': 'SandyPOS/1.0' // Required by Nominatim
-          }
-        }
+        `https://nominatim.openstreetmap.org/search?format=json&postalcode=${encodeURIComponent(
+          code
+        )}&countrycodes=SG&addressdetails=1&limit=1`,
+        { headers: { "User-Agent": "SandyPOS/1.0" } }
       );
 
-      if (!response.ok) {
-        throw new Error("Failed to search address");
-      }
-
+      if (!response.ok) throw new Error("Failed to search address");
       const data = await response.json();
-      
-      if (data && data.length > 0 && data[0].display_name) {
-        // Format Nominatim address better
-        const addr = data[0].address || {};
-        let formattedAddr = '';
-        
-        if (addr.house_number && addr.house_number.toUpperCase() !== 'NIL') formattedAddr += `${addr.house_number} `;
-        if (addr.road && addr.road.toUpperCase() !== 'NIL') formattedAddr += `${addr.road}, `;
-        if (addr.suburb || addr.neighbourhood) {
-          const suburb = (addr.suburb || addr.neighbourhood);
-          if (suburb.toUpperCase() !== 'NIL') formattedAddr += `${suburb}, `;
-        }
-        if (addr.city || addr.state) {
-          const city = (addr.city || addr.state);
-          if (city.toUpperCase() !== 'NIL') formattedAddr += `${city} `;
-        }
-        if (addr.postcode) formattedAddr += `${addr.postcode}`;
-        
-        formattedAddr = formattedAddr.trim().replace(/,$/, '').replace(/NIL,?\s*/gi, '').replace(/,\s*,/g, ',').trim() || data[0].display_name.replace(/NIL,?\s*/gi, '');
-        
-        // Ensure Singapore and postal code are at the end
-        if (formattedAddr) {
-          // Remove existing "Singapore" and postal code if present
-          formattedAddr = formattedAddr.replace(/,\s*Singapore\s+\d{6}$/i, '').replace(/Singapore\s+\d{6}$/i, '').trim();
-          
-          // Add Singapore and postal code at the end
-          if (code && code.length === 6) {
-            formattedAddr = `${formattedAddr}, Singapore ${code}`;
-          }
-        }
-        
-        setFormData((prev) => ({
-          ...prev,
-          address: formattedAddr,
-        }));
-        setLocationError("");
+
+      if (data?.length > 0 && data[0]?.display_name) {
+        let formattedAddr = String(data[0].display_name).replace(/NIL,?\s*/gi, "");
+        formattedAddr = formattedAddr
+          .replace(/,\s*Singapore\s+\d{6}$/i, "")
+          .replace(/Singapore\s+\d{6}$/i, "")
+          .trim();
+
+        if (code.length === 6) formattedAddr = `${formattedAddr}, Singapore ${code}`;
+
+        setFormData((prev) => ({ ...prev, address: formattedAddr }));
       } else {
         setLocationError(`No address found for postal code ${code}`);
       }
-    } catch (error) {
-      console.error("Postal code search error:", error);
+    } catch {
       setLocationError("Failed to find address for this postal code. Please enter manually.");
     } finally {
       setIsSearchingPostalCode(false);
     }
   };
 
-  // Handle postal code input with debounce
   const handlePostalCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, ''); // Only allow numbers
+    const value = e.target.value.replace(/\D/g, "");
     setPostalCode(value);
-    
-    // Auto-search when postal code is 6 digits (Singapore postal code format)
-    if (value.length === 6) {
-      searchAddressByPostalCode(value);
-    }
+    if (value.length === 6) searchAddressByPostalCode(value);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -321,7 +289,6 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
       });
 
       if (signInError) {
-        // Log failed sign-in attempt
         await logSignInFailure("", formData.email, signInError.message);
         throw signInError;
       }
@@ -340,25 +307,17 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
         }
 
         if (!customerData.status) {
-          // Keep the session so the user can check approval status.
           router.push("/pending-approval");
           onClose();
           return;
         }
 
-        // Log successful sign-in
         await logSignInSuccess(
-          data.user.id, 
+          data.user.id,
           data.user.email || formData.email,
           data.session?.access_token
         );
 
-        // Check session immediately after login
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-
-        // Notify parent component of successful login
         onLoginSuccess?.();
         router.refresh();
         onClose();
@@ -375,146 +334,84 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
     setError("");
     setIsLoading(true);
 
-    // Validate all mandatory fields
-    if (!formData.name || !formData.name.trim()) {
-      setError("Full name is required");
-      setIsLoading(false);
-      return;
-    }
-
-    if (!formData.phone || !formData.phone.trim()) {
-      setError("Mobile number is required");
-      setIsLoading(false);
-      return;
-    }
-
-    if (!formData.address || !formData.address.trim()) {
-      setError("Address is required");
-      setIsLoading(false);
-      return;
-    }
-
-    if (!formData.email || !formData.email.trim()) {
-      setError("Email address is required");
-      setIsLoading(false);
-      return;
-    }
-
-    if (!formData.password || !formData.password.trim()) {
-      setError("Password is required");
-      setIsLoading(false);
-      return;
-    }
-
-    // Validate password length
-    if (formData.password.length < 8) {
-      setError("Password must be at least 8 characters long");
-      setIsLoading(false);
-      return;
-    }
-
-    // Validate postal code if provided
-    if (postalCode && postalCode.length > 0 && postalCode.length !== 6) {
-      setError("Postal code must be exactly 6 digits");
-      setIsLoading(false);
-      return;
-    }
+    if (!formData.name?.trim()) return setError("Full name is required"), setIsLoading(false);
+    if (!formData.phone?.trim()) return setError("Mobile number is required"), setIsLoading(false);
+    if (!formData.address?.trim()) return setError("Address is required"), setIsLoading(false);
+    if (!formData.email?.trim()) return setError("Email address is required"), setIsLoading(false);
+    if (!formData.password?.trim()) return setError("Password is required"), setIsLoading(false);
+    if (formData.password.length < 8)
+      return setError("Password must be at least 8 characters long"), setIsLoading(false);
+    if (postalCode && postalCode.length !== 6)
+      return setError("Postal code must be exactly 6 digits"), setIsLoading(false);
 
     try {
-      // 1. Check if user already exists in auth (Supabase handles this automatically)
-      // but we can also check customers table to see if email is already registered
       const { data: existingCustomer, error: customerCheckError } = await supabase
         .from("customers")
         .select("email")
         .eq("email", formData.email)
         .maybeSingle();
 
-      // If there's an error and it's not a "no rows" error, throw it
-      if (customerCheckError && customerCheckError.code !== 'PGRST116') {
-        throw customerCheckError;
-      }
+      if (customerCheckError && customerCheckError.code !== "PGRST116") throw customerCheckError;
+      if (existingCustomer) throw new Error("An account with this email already exists");
 
-      if (existingCustomer) {
-        throw new Error("An account with this email already exists");
-      }
-
-      // 2. Sign up the user in auth
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
       });
 
       if (signUpError) {
-        // Handle specific Supabase auth errors
         if (signUpError.message.includes("already registered")) {
           throw new Error("An account with this email already exists");
         }
         throw signUpError;
       }
+      if (!authData.user) throw new Error("Failed to create user account");
 
-      if (!authData.user) {
-        throw new Error("Failed to create user account");
-      }
-
-      // 3. Create user record in users table
-      const userData = {
-        id: authData.user.id,
-        email: formData.email,
-        role: USER_ROLES.USER,
-        created_at: new Date().toISOString(),
-      };
-
-      const { error: userError } = await supabase.from("users").insert([userData]);
-
+      const { error: userError } = await supabase.from("users").insert([
+        {
+          id: authData.user.id,
+          email: formData.email,
+          role: USER_ROLES.USER,
+          created_at: new Date().toISOString(),
+        },
+      ]);
       if (userError) throw userError;
 
-      // 4. Create customer record
-      // Combine address with unit number if provided
       let finalAddress = formData.address;
-      if (unitNumber && unitNumber.trim()) {
-        // Add unit number to address if not already included
+      if (unitNumber?.trim()) {
         if (finalAddress && !finalAddress.includes(unitNumber.trim())) {
-          // Insert unit number before "Singapore" or at the end if no Singapore
-          if (finalAddress.includes('Singapore')) {
-            finalAddress = finalAddress.replace('Singapore', `#${unitNumber.trim()}, Singapore`);
+          if (finalAddress.includes("Singapore")) {
+            finalAddress = finalAddress.replace("Singapore", `#${unitNumber.trim()}, Singapore`);
+          } else if (postalCode?.length === 6) {
+            finalAddress = `${finalAddress}, #${unitNumber.trim()}, Singapore ${postalCode}`;
           } else {
-            // If no Singapore/postal code, add unit number and then Singapore + postal code
-            if (postalCode && postalCode.length === 6) {
-              finalAddress = `${finalAddress}, #${unitNumber.trim()}, Singapore ${postalCode}`;
-            } else {
-              finalAddress = `${finalAddress}, #${unitNumber.trim()}`;
-            }
+            finalAddress = `${finalAddress}, #${unitNumber.trim()}`;
           }
         }
-      } else {
-        // If no unit number but we have postal code, ensure Singapore and postal code are at the end
-        if (postalCode && postalCode.length === 6 && !finalAddress.includes('Singapore')) {
-          finalAddress = `${finalAddress}, Singapore ${postalCode}`;
-        }
+      } else if (postalCode?.length === 6 && !finalAddress.includes("Singapore")) {
+        finalAddress = `${finalAddress}, Singapore ${postalCode}`;
       }
 
-      const customerData = {
-        name: formData.name,
-        email: formData.email,
-        user_id: authData.user.id,
-        status: false,
-        created_at: new Date().toISOString(),
-        address: finalAddress,
-        phone: formData.phone,
-        customer_code: formData.customer_code || null,
-        whatsapp_notifications: formData.whatsapp_notifications,
-        company_name: formData.company_name || null,
-      };
-
-      const { error: customerError } = await supabase.from("customers").insert([customerData]);
-
+      const { error: customerError } = await supabase.from("customers").insert([
+        {
+          name: formData.name,
+          email: formData.email,
+          user_id: authData.user.id,
+          status: false,
+          created_at: new Date().toISOString(),
+          address: finalAddress,
+          phone: formData.phone,
+          customer_code: formData.customer_code || null,
+          whatsapp_notifications: formData.whatsapp_notifications,
+          company_name: formData.company_name || null,
+        },
+      ]);
       if (customerError) throw customerError;
 
-      // Success handling
       alert(
         "Account created successfully! Please check your email to verify your account. Your login will be enabled after admin approval."
       );
-      // Reset form
+
       setFormData({
         email: "",
         password: "",
@@ -525,70 +422,83 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
         customer_code: "",
         whatsapp_notifications: true,
       });
+      setPostalCode("");
+      setUnitNumber("");
       setIsRegistering(false);
       onClose();
-    } catch (error) {
-      console.error("Error:", error);
-      setError(error instanceof Error ? error.message : "An error occurred");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted || !portalEl) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 relative">
-        <button
-          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
-          onClick={onClose}
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              d="M6 18L18 6M6 6l12 12"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-            />
-          </svg>
-        </button>
+  const modalUI = (
+    <div className="fixed inset-0 z-[9999]" role="dialog" aria-modal="true">
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
-        <div className="p-8">
-          <h1 className="text-2xl font-bold text-center mb-8">
+      {/* Modal */}
+      <div
+        className="
+          absolute left-1/2 top-1/2
+          w-[calc(100%-2rem)] max-w-md
+          -translate-x-1/2 -translate-y-1/2
+          rounded-2xl bg-white shadow-2xl
+        "
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b px-5 py-4">
+          <h1 className="text-lg font-bold">
             {isRegistering ? "Register Account" : "Customer Login"}
           </h1>
 
-          <form className="space-y-6" onSubmit={isRegistering ? handleSignUp : handleSubmit}>
-            {error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded text-center">
-                {error}
-              </div>
-            )}
+          <button
+            className="rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+            onClick={onClose}
+            aria-label="Close"
+            type="button"
+          >
+            ✕
+          </button>
+        </div>
 
+        {/* Body */}
+        <div className="max-h-[80vh] overflow-y-auto px-5 py-5">
+          {error && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <form className="space-y-4" onSubmit={isRegistering ? handleSignUp : handleSubmit}>
             {isRegistering && (
               <>
- <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="company_name">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="company_name">
                     Company Name
                   </label>
                   <input
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-md border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     id="company_name"
                     placeholder="Enter your company name"
                     type="text"
                     value={formData.company_name}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, company_name: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, company_name: e.target.value }))
+                    }
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="name">
-                    Company Name
+                  <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="name">
+                    Full Name
                   </label>
                   <input
                     required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-md border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     id="name"
                     placeholder="Enter your full name"
                     type="text"
@@ -598,12 +508,12 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="phone">
+                  <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="phone">
                     Mobile Number
                   </label>
                   <input
                     required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-md border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     id="phone"
                     placeholder="Enter your mobile number"
                     type="tel"
@@ -613,11 +523,11 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="postal_code">
+                  <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="postal_code">
                     Postal Code
                   </label>
                   <input
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-md border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     id="postal_code"
                     placeholder="Enter postal code (e.g., 640965)"
                     type="text"
@@ -626,28 +536,19 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
                     onChange={handlePostalCodeChange}
                   />
                   {isSearchingPostalCode && (
-                    <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
-                      <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Searching address...
-                    </p>
+                    <p className="mt-1 text-xs text-blue-600">Searching address...</p>
                   )}
                   {postalCode && postalCode.length > 0 && postalCode.length !== 6 && (
-                    <p className="text-xs text-red-600 mt-1">Postal code must be exactly 6 digits</p>
-                  )}
-                  {postalCode && postalCode.length === 6 && !isSearchingPostalCode && (
-                    <p className="text-xs text-gray-500 mt-1">Address will be auto-filled when you enter 6 digits</p>
+                    <p className="mt-1 text-xs text-red-600">Postal code must be exactly 6 digits</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="unit_number">
+                  <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="unit_number">
                     Unit Number (Optional)
                   </label>
                   <input
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-md border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     id="unit_number"
                     placeholder="Enter unit number (e.g., 04-211)"
                     type="text"
@@ -657,7 +558,7 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="mb-1 flex items-center justify-between">
                     <label className="block text-sm font-medium text-gray-700" htmlFor="address">
                       Address
                     </label>
@@ -665,74 +566,60 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
                       type="button"
                       onClick={getCurrentLocation}
                       disabled={isGettingLocation}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:bg-green-400 disabled:cursor-not-allowed"
-                      title="Get your current location"
+                      className="rounded-md bg-green-600 px-3 py-1.5 text-xs text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-400"
                     >
-                      {isGettingLocation ? (
-                        <>
-                          <svg className="animate-spin h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          <span>Getting...</span>
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
-                          <span>Use My Location</span>
-                        </>
-                      )}
+                      {isGettingLocation ? "Getting..." : "Use My Location"}
                     </button>
                   </div>
-                  <div className="space-y-2">
-                    <textarea
-                      required
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      id="address"
-                      placeholder="Enter your address or click 'Use My Location' button above"
-                      rows={3}
-                      value={(() => {
-                        // Combine address with unit number for display
-                        let displayAddress = formData.address;
-                        if (unitNumber && unitNumber.trim() && displayAddress) {
-                          // Check if unit number is already in address
-                          if (!displayAddress.includes(unitNumber.trim())) {
-                            if (displayAddress.includes('Singapore')) {
-                              displayAddress = displayAddress.replace('Singapore', `#${unitNumber.trim()}, Singapore`);
-                            } else {
-                              displayAddress = `${displayAddress}, #${unitNumber.trim()}`;
-                            }
-                          }
+
+                  <textarea
+                    required
+                    className="w-full rounded-md border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    id="address"
+                    placeholder="Enter your address"
+                    rows={3}
+                    value={(() => {
+                      let displayAddress = formData.address;
+                      if (
+                        unitNumber?.trim() &&
+                        displayAddress &&
+                        !displayAddress.includes(unitNumber.trim())
+                      ) {
+                        if (displayAddress.includes("Singapore")) {
+                          displayAddress = displayAddress.replace(
+                            "Singapore",
+                            `#${unitNumber.trim()}, Singapore`
+                          );
+                        } else {
+                          displayAddress = `${displayAddress}, #${unitNumber.trim()}`;
                         }
-                        return displayAddress;
-                      })()}
-                      onChange={(e) => {
-                        // Extract base address (remove unit number if user edits)
-                        let baseAddress = e.target.value;
-                        if (unitNumber && unitNumber.trim()) {
-                          baseAddress = baseAddress.replace(`#${unitNumber.trim()}, `, '').replace(`, #${unitNumber.trim()}`, '').trim();
-                        }
-                        setFormData((prev) => ({ ...prev, address: baseAddress }));
-                      }}
-                    />
-                    {locationError && (
-                      <p className="text-xs text-red-600">{locationError}</p>
-                    )}
-                  </div>
+                      }
+                      return displayAddress;
+                    })()}
+                    onChange={(e) => {
+                      let base = e.target.value;
+                      if (unitNumber?.trim()) {
+                        base = base
+                          .replace(`#${unitNumber.trim()}, `, "")
+                          .replace(`, #${unitNumber.trim()}`, "")
+                          .trim();
+                      }
+                      setFormData((prev) => ({ ...prev, address: base }));
+                    }}
+                  />
+                  {locationError && <p className="mt-1 text-xs text-red-600">{locationError}</p>}
                 </div>
               </>
             )}
 
+            {/* Common fields */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="email">
+              <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="email">
                 Email Address
               </label>
               <input
                 required
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-md border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 id="email"
                 placeholder="Enter your email"
                 type="email"
@@ -742,89 +629,77 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="password">
+              <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="password">
                 Password
               </label>
               <div className="relative">
                 <input
                   required
                   minLength={8}
-                  className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-md border border-gray-300 px-4 py-2 pr-11 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   id="password"
-                  placeholder="Enter your password (minimum 8 characters)"
+                  placeholder="Enter your password (min 8 chars)"
                   type={showPassword ? "text" : "password"}
                   value={formData.password}
                   onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
                 />
                 <button
                   type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 z-10 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded p-1"
-                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-2 text-gray-600 hover:text-gray-900"
+                  onClick={() => setShowPassword((v) => !v)}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5" />
-                  ) : (
-                    <Eye className="h-5 w-5" />
-                  )}
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
+
               {formData.password && (
                 <div className="mt-2">
-                  {/* Strength Bar */}
-                  <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                  <div className="mb-2 h-2 w-full rounded-full bg-gray-200">
                     <div
-                      className={`h-2 rounded-full transition-all duration-300 ${
+                      className={`h-2 rounded-full transition-all ${
                         passwordStrength.strength === "weak"
                           ? "bg-red-500"
                           : passwordStrength.strength === "medium"
                           ? "bg-yellow-500"
                           : "bg-green-500"
                       }`}
-                      style={{
-                        width: `${(passwordStrength.score / 6) * 100}%`,
-                      }}
+                      style={{ width: `${(passwordStrength.score / 6) * 100}%` }}
                     />
                   </div>
-                  {/* Strength Text */}
-                  <div className="flex items-center justify-between">
-                    <span
-                      className={`text-xs font-medium ${
-                        passwordStrength.strength === "weak"
-                          ? "text-red-600"
-                          : passwordStrength.strength === "medium"
-                          ? "text-yellow-600"
-                          : "text-green-600"
-                      }`}
-                    >
-                      Password Strength: {passwordStrength.strength.charAt(0).toUpperCase() + passwordStrength.strength.slice(1)}
+                  <div className="text-xs text-gray-600">
+                    Password Strength:{" "}
+                    <span className="font-semibold">
+                      {passwordStrength.strength.charAt(0).toUpperCase() +
+                        passwordStrength.strength.slice(1)}
                     </span>
                   </div>
-                  {/* Feedback */}
                   {passwordStrength.feedback && (
-                    <p className="text-xs text-gray-500 mt-1">{passwordStrength.feedback}</p>
+                    <p className="mt-1 text-xs text-gray-500">{passwordStrength.feedback}</p>
                   )}
                 </div>
               )}
             </div>
 
             {isRegistering && (
-              <div className="flex items-center">
+              <div className="flex items-start gap-2">
                 <input
                   type="checkbox"
                   id="whatsapp_notifications"
                   checked={formData.whatsapp_notifications}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, whatsapp_notifications: e.target.checked }))}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, whatsapp_notifications: e.target.checked }))
+                  }
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
-                <label htmlFor="whatsapp_notifications" className="ml-2 block text-sm text-gray-700">
+                <label htmlFor="whatsapp_notifications" className="text-sm text-gray-700">
                   I want to receive WhatsApp notifications about my orders and updates
                 </label>
               </div>
             )}
 
             <button
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors disabled:bg-blue-400"
+              className="w-full rounded-md bg-blue-600 py-2.5 text-white hover:bg-blue-700 disabled:bg-blue-400"
               disabled={isLoading}
               type="submit"
             >
@@ -835,7 +710,7 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
               <button
                 className="text-blue-600 hover:underline"
                 type="button"
-                onClick={() => setIsRegistering(!isRegistering)}
+                onClick={() => setIsRegistering((v) => !v)}
               >
                 {isRegistering ? "Already have an account? Sign in" : "New customer? Register here"}
               </button>
@@ -845,4 +720,6 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
       </div>
     </div>
   );
+
+  return createPortal(modalUI, portalEl);
 }
