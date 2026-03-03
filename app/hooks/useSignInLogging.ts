@@ -56,8 +56,12 @@ export const useSignInLogging = (): UseSignInLoggingReturn => {
   const logSignInFailure = useCallback(
     async (userId: string, email: string, failureReason: string) => {
       try {
+        if (!userId) {
+          // Avoid inserting invalid UUIDs when user is not identified
+          return;
+        }
         await logSignIn({
-          userId: userId || "anonymous",
+          userId,
           email,
           success: false,
           failureReason,

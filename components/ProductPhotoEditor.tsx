@@ -1,9 +1,13 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence as FramerAnimatePresence } from "framer-motion";
 import { Upload, X, Edit3, Loader2, Check, Trash2 } from "lucide-react";
 import { supabase } from "@/app/lib/supabaseClient";
+
+const AnimatePresence = FramerAnimatePresence as unknown as React.FC<
+  React.PropsWithChildren<Record<string, unknown>>
+>;
 
 interface ProductPhotoEditorProps {
   productId: number;

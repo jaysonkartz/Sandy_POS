@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createBrowserClient } from "@supabase/ssr";
+import { supabase } from "@/app/lib/supabaseClient";
 import { LazyMotion, domAnimation, m } from "framer-motion";
 
 interface Customer {
@@ -26,7 +26,9 @@ interface EditCustomer extends Customer {
   isEditing?: boolean;
 }
 
-export default function CustomerManagement() {
+type CustomerManagementView = "all" | "pending";
+
+export default function CustomerManagement({ view = "all" }: { view?: CustomerManagementView }) {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -43,25 +45,22 @@ export default function CustomerManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseKey) {
-    console.error("Missing Supabase environment variables");
-    throw new Error("Missing Supabase environment variables");
-  }
-
-  const supabase = createBrowserClient(supabaseUrl, supabaseKey);
-
   const [error, setError] = useState<string | null>(null);
 
   const fetchCustomers = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("customers")
         .select("*")
         .order("created_at", { ascending: false });
+
+      // Approval workflow: pending customers are stored as status=false
+      if (view === "pending") {
+        query = query.eq("status", false);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error("Supabase error:", error);
@@ -115,7 +114,7 @@ export default function CustomerManagement() {
 
   useEffect(() => {
     fetchCustomers();
-  }, []); // Empty dependency array to run only once on mount
+  }, [view]);
 
   // Reset to first page if current page exceeds total pages
   useEffect(() => {
@@ -471,23 +470,32 @@ export default function CustomerManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Header with Add Button */}
+      {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Customer Management</h2>
-          <p className="text-sm text-gray-500 mt-1">Manage your customer database</p>
+          <h2 className="text-2xl font-bold text-gray-900">
+            {view === "pending" ? "Pending Approvals" : "Customer Management"}
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">
+            {view === "pending"
+              ? "Review and approve new customer accounts"
+              : "Manage your customer database"}
+          </p>
         </div>
-        <button
-          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm font-medium"
-          onClick={() => setIsModalOpen(true)}
-        >
-          + Add Customer
-        </button>
+
+        {view !== "pending" && (
+          <button
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm font-medium"
+            onClick={() => setIsModalOpen(true)}
+          >
+            + Add Customer
+          </button>
+        )}
       </div>
 
-      {/* Add Customer Modal */}
+      {/* Add Customer Modal (not shown on Pending Approvals tab) */}
       <LazyMotion features={domAnimation}>
-        {isModalOpen && (
+        {view !== "pending" && isModalOpen && (
           <m.div
             key="modal"
             animate={{ opacity: 1 }}
@@ -548,7 +556,7 @@ export default function CustomerManagement() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
                   <input
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter phone number"
+                    placeholder="Enter mobile number"
                     type="tel"
                     value={newCustomer.phone}
                     onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
@@ -679,7 +687,7 @@ export default function CustomerManagement() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
                   <input
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter phone number"
+                    placeholder="Enter phmobileone number"
                     type="tel"
                     value={editingCustomer.phone}
                     onChange={(e) =>

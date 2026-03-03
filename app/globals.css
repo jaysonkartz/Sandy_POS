@@ -12,7 +12,15 @@ body {
   background: rgb(var(--background-rgb));
 }
 
-/* Add smooth transitions */
+/* Keep transitions lightweight (avoid `all` – it hurts perf on mobile) */
 * {
-  transition: all 0.2s ease-in-out;
+  transition-property: color, background-color, border-color, outline-color, box-shadow, transform, opacity;
+  transition-duration: 200ms;
+  transition-timing-function: ease-in-out;
+}
+
+html,
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }

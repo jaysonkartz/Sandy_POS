@@ -1,103 +1,123 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useMemo, useState } from "react";
 
-interface CartItem {
-  id: number;
-  title: string;
-  price: number;
+export type CartItem = {
+  id: number | string;
+  name?: string;
+  price?: number;
   quantity: number;
-  maxQuantity: number;
-  imagesUrl: string;
-}
+  // keep flexible for your product shape
+  [key: string]: any;
+};
 
-interface CartContextType {
+type CartContextValue = {
   cart: CartItem[];
-  addToCart: (product: CartItem) => void;
-  removeFromCart: (productId: number) => void;
-  updateQuantity: (productId: number, quantity: number) => void;
-  clearCart: () => void;
+  setCart: React.Dispatch<React.SetStateAction<CartItem[]>>;
+
+  // derived
+  cartCount: number;
   getCartTotal: () => number;
-}
 
-const CartContext = createContext<CartContextType | undefined>(undefined);
+  // cart helpers
+  addItem: (item: Omit<CartItem, "quantity">, qty?: number) => void;
+  addToCart: (item: CartItem) => void;
+  updateQty: (id: CartItem["id"], qty: number) => void;
+  updateQuantity: (id: CartItem["id"], qty: number) => void;
+  removeItem: (id: CartItem["id"]) => void;
+  removeFromCart: (id: CartItem["id"]) => void;
+  clearCart: () => void;
 
-export function CartProvider({ children }: { children: ReactNode }) {
-  const [cart, setCart] = useState<CartItem[]>(() => {
-    if (typeof window !== "undefined") {
-      const savedCart = localStorage.getItem("cart");
-      return savedCart ? JSON.parse(savedCart) : [];
-    }
-    return [];
-  });
+  // OrderPanel (global)
+  isOrderPanelOpen: boolean;
+  setIsOrderPanelOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  openOrderPanel: () => void;
+  closeOrderPanel: () => void;
+  toggleOrderPanel: () => void;
+};
 
-  // Save cart to localStorage whenever it changes
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("cart", JSON.stringify(cart));
-    }
-  }, [cart]);
+const CartContext = createContext<CartContextValue | null>(null);
 
-  const addToCart = (product: CartItem) => {
-    setCart((currentCart) => {
-      const existingItem = currentCart.find((item) => item.id === product.id);
+export function CartProvider({ children }: { children: React.ReactNode }) {
+  const [cart, setCart] = useState<CartItem[]>([]);
 
-      if (existingItem) {
-        // Check if adding one more would exceed maxQuantity
-        if (existingItem.quantity >= existingItem.maxQuantity) {
-          alert(`Maximum quantity (${existingItem.maxQuantity}) reached for this item`);
-          return currentCart;
-        }
+  // OrderPanel open state (global)
+  const [isOrderPanelOpen, setIsOrderPanelOpen] = useState(false);
 
-        return currentCart.map((item) =>
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
-        );
+  const cartCount = useMemo(
+    () => cart.reduce((sum, item) => sum + (item.quantity || 0), 0),
+    [cart]
+  );
+  const getCartTotal = useMemo(
+    () => () => cart.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 0), 0),
+    [cart]
+  );
+
+  const addItem = (item: Omit<CartItem, "quantity">, qty = 1) => {
+    setCart((prev) => {
+      const idx = prev.findIndex((x) => x.id === item.id);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = { ...copy[idx], quantity: (copy[idx].quantity || 0) + qty };
+        return copy;
       }
-
-      return [...currentCart, { ...product, quantity: 1 }];
+      const nextItem: CartItem = { id: item.id, ...item, quantity: qty };
+      return [...prev, nextItem];
     });
   };
-
-  const removeFromCart = (productId: number) => {
-    setCart((currentCart) => currentCart.filter((item) => item.id !== productId));
+  const addToCart: CartContextValue["addToCart"] = (item) => {
+    const { quantity, ...rest } = item;
+    addItem(rest, quantity ?? 1);
   };
 
-  const updateQuantity = (productId: number, quantity: number) => {
-    setCart((currentCart) =>
-      currentCart.map((item) =>
-        item.id === productId ? { ...item, quantity: Math.min(quantity, item.maxQuantity) } : item
-      )
-    );
+  const updateQty: CartContextValue["updateQty"] = (id, qty) => {
+    setCart((prev) => {
+      if (qty <= 0) return prev.filter((x) => x.id !== id);
+      return prev.map((x) => (x.id === id ? { ...x, quantity: qty } : x));
+    });
+  };
+  const updateQuantity: CartContextValue["updateQuantity"] = (id, qty) => {
+    updateQty(id, qty);
   };
 
-  const clearCart = () => {
-    setCart([]);
+  const removeItem: CartContextValue["removeItem"] = (id) => {
+    setCart((prev) => prev.filter((x) => x.id !== id));
+  };
+  const removeFromCart: CartContextValue["removeFromCart"] = (id) => {
+    removeItem(id);
   };
 
-  const getCartTotal = () => {
-    return cart.reduce((total, item) => total + item.price * item.quantity, 0);
+  const clearCart = () => setCart([]);
+
+  const openOrderPanel = () => setIsOrderPanelOpen(true);
+  const closeOrderPanel = () => setIsOrderPanelOpen(false);
+  const toggleOrderPanel = () => setIsOrderPanelOpen((v) => !v);
+
+  const value: CartContextValue = {
+    cart,
+    setCart,
+    cartCount,
+    getCartTotal,
+    addItem,
+    addToCart,
+    updateQty,
+    updateQuantity,
+    removeItem,
+    removeFromCart,
+    clearCart,
+
+    isOrderPanelOpen,
+    setIsOrderPanelOpen,
+    openOrderPanel,
+    closeOrderPanel,
+    toggleOrderPanel,
   };
 
-  return (
-    <CartContext.Provider
-      value={{
-        cart,
-        addToCart,
-        removeFromCart,
-        updateQuantity,
-        clearCart,
-        getCartTotal,
-      }}
-    >
-      {children}
-    </CartContext.Provider>
-  );
+  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
 
 export function useCart() {
-  const context = useContext(CartContext);
-  if (context === undefined) {
-    throw new Error("useCart must be used within a CartProvider");
-  }
-  return context;
+  const ctx = useContext(CartContext);
+  if (!ctx) throw new Error("useCart must be used within CartProvider");
+  return ctx;
 }

@@ -1,5 +1,7 @@
+"use client";
+
 import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence as FramerAnimatePresence } from "framer-motion";
 import { Loader2, X, FileText, Upload, MessageSquare } from "lucide-react";
 
 interface Product {
@@ -37,6 +39,10 @@ interface OrderReviewProps {
   }) => void;
   onBackToEdit: () => void;
 }
+
+const AnimatePresence = FramerAnimatePresence as unknown as React.FC<
+  React.PropsWithChildren<Record<string, unknown>>
+>;
 
 export const OrderReview = ({
   isOpen,
@@ -105,7 +111,7 @@ export const OrderReview = ({
 
             {/* Customer Information */}
             <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-              <h3 className="font-semibold mb-2">{isEnglish ? "Customer Details" : "客户详情"}</h3>
+              <h3 className="font-semibold mb-2">{isEnglish ? "Company Details" : "客户详情"}</h3>
               <p className="text-sm"><strong>{isEnglish ? "Name" : "姓名"}:</strong> {customerName}</p>
               <p className="text-sm"><strong>{isEnglish ? "Phone" : "电话"}:</strong> {customerPhone}</p>
               <p className="text-sm"><strong>{isEnglish ? "Address" : "地址"}:</strong> {customerAddress}</p>

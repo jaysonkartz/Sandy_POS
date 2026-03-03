@@ -1,9 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { createBrowserClient } from "@supabase/ssr";
+import { motion, AnimatePresence as FramerAnimatePresence } from "framer-motion";
+import { supabase } from "@/app/lib/supabaseClient";
 import { Plus, Edit3, Trash2, Save, X, Camera, Image as ImageIcon } from "lucide-react";
+
+const AnimatePresence = FramerAnimatePresence as unknown as React.FC<
+  React.PropsWithChildren<Record<string, unknown>>
+>;
 
 interface ProductVariant {
   id: number;
@@ -34,10 +38,7 @@ export default function VariantExtractor({ productId, productName, onVariantsCha
   const [editingVariant, setEditingVariant] = useState<ProductVariant | null>(null);
   const [isAddingVariant, setIsAddingVariant] = useState(false);
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+
 
   // Fetch variants from the products table
   const fetchVariants = useCallback(async () => {

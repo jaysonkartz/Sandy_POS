@@ -1,22 +1,33 @@
+"use client";
+
 import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence as FramerAnimatePresence } from "framer-motion";
 
 interface ScrollToTopProps {
   show: boolean;
   onClick: () => void;
+  className?: string; // allow parent to position it
 }
 
-export const ScrollToTop: React.FC<ScrollToTopProps> = ({ show, onClick }) => {
+const AnimatePresence = FramerAnimatePresence as unknown as React.FC<
+  React.PropsWithChildren<Record<string, unknown>>
+>;
+
+export const ScrollToTop: React.FC<ScrollToTopProps> = ({ show, onClick, className = "" }) => {
   return (
     <AnimatePresence>
       {show && (
         <motion.button
-          animate={{ opacity: 1, scale: 1 }}
-          aria-label="Scroll to top"
-          className="fixed bottom-20 right-4 z-50 bg-blue-500 text-white p-3 rounded-full shadow-lg hover:bg-blue-600 transition-colors flex items-center justify-center"
-          exit={{ opacity: 0, scale: 0 }}
+          type="button"
           initial={{ opacity: 0, scale: 0 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0 }}
+          aria-label="Scroll to top"
           onClick={onClick}
+          className={
+            "bg-blue-500 text-white p-3 rounded-full shadow-lg hover:bg-blue-600 transition-colors flex items-center justify-center " +
+            className
+          }
         >
           <svg
             className="w-6 h-6"

@@ -34,6 +34,24 @@ export default function LoginPage() {
       }
 
       if (data.session && data.user) {
+        const { data: customerData, error: customerError } = await supabase
+          .from("customers")
+          .select("status")
+          .eq("user_id", data.user.id)
+          .single();
+
+        if (customerError || !customerData) {
+          await supabase.auth.signOut();
+          setError("Customer account not found. Please contact support.");
+          return;
+        }
+
+        if (!customerData.status) {
+          // Keep the session so the user can check approval status.
+          router.push("/pending-approval");
+          return;
+        }
+
         // Log successful sign-in
         await logSignInSuccess(
           data.user.id, 
@@ -113,6 +131,16 @@ export default function LoginPage() {
               {error}
             </motion.div>
           )}
+
+          <div className="text-right">
+            <button
+              className="text-sm text-blue-600 hover:text-blue-500 transition-colors duration-200"
+              onClick={() => router.push("/forgot-password")}
+              type="button"
+            >
+              Forgot password?
+            </button>
+          </div>
 
           <motion.button
             className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-300 transition-all duration-200 ease-in-out"

@@ -3,6 +3,8 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import { CartProvider } from "@/context/CartContext";
+import ApprovalGate from "@/components/ApprovalGate";
+import BottomNav from "@/components/BottomNav";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -16,8 +18,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className={inter.className}>
         <CartProvider>
-          <Header />
-          <main className="container mx-auto px-4 py-8">{children}</main>
+          <ApprovalGate>
+            <div className="min-h-screen bg-gray-50">
+              <Header />
+
+              <main className="mx-auto w-full max-w-7xl px-3 sm:px-6 lg:px-8 py-3 sm:py-6 pb-24 sm:pb-6">
+                {children}
+              </main>
+
+              {/* Mobile-only BottomNav */}
+              <div className="block sm:hidden">
+                <BottomNav />
+              </div>
+            </div>
+          </ApprovalGate>
         </CartProvider>
       </body>
     </html>

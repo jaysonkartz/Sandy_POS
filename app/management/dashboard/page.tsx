@@ -784,7 +784,7 @@ export default function ManagementDashboard() {
         // Error fetching customers - continue with default value
       }
 
-      // Count unique customers by phone number
+      // Count unique customers by mobile number
       const uniqueCustomers = new Set(
         ordersData?.map((order: { customer_phone?: string | null }) => order.customer_phone).filter(Boolean) || []
       );
@@ -1045,6 +1045,21 @@ export default function ManagementDashboard() {
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+          />
+        </svg>
+      ),
+    },
+    {
+      id: "pending-approvals",
+      title: "Pending Approvals",
+      description: "",
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
@@ -3168,6 +3183,8 @@ export default function ManagementDashboard() {
         );
       case "customers":
         return <CustomerManagement />;
+      case "pending-approvals":
+        return <CustomerManagement view="pending" />;
       case "users":
         return renderUsers();
       case "signin-monitoring":

@@ -14,7 +14,7 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
 }) => {
   return (
     <select
-      className="p-2 border rounded-md"
+      className="p-2 border border-gray-200 rounded-full bg-white text-sm w-full sm:w-auto"
       value={selectedCategory}
       onChange={(e) => onCategoryChange(e.target.value)}
     >

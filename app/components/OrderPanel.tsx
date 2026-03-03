@@ -1,8 +1,14 @@
+"use client";
+
 import React, { memo, useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence as FramerAnimatePresence } from "framer-motion";
 import { Loader2, Plus } from "lucide-react";
 import { supabase } from "@/app/lib/supabaseClient";
 import OrderReview from "./OrderReview";
+
+const AnimatePresence = FramerAnimatePresence as unknown as React.FC<
+  React.PropsWithChildren<Record<string, unknown>>
+>;
 
 interface Product {
   id: number;
@@ -498,7 +504,7 @@ export const OrderPanel = memo<OrderPanelProps>(({
       {isOpen && (
         <motion.div
           animate={{ opacity: 1 }}
-          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-end"
+          className="fixed inset-0 bg-black bg-opacity-50 z-[70] flex justify-end"
           exit={{ opacity: 0 }}
           initial={{ opacity: 0 }}
           onClick={(e) => {
@@ -509,7 +515,7 @@ export const OrderPanel = memo<OrderPanelProps>(({
         >
           <motion.div
             animate={{ x: 0 }}
-            className="w-full max-w-md bg-white h-full p-4 overflow-y-auto"
+            className="w-full max-w-md bg-white h-full p-4 overflow-y-auto pb-32"
             exit={{ x: "100%" }}
             initial={{ x: "100%" }}
             onClick={(e) => e.stopPropagation()}
@@ -545,12 +551,12 @@ export const OrderPanel = memo<OrderPanelProps>(({
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {isEnglish ? "Phone Number" : "电话号码"}
+                    {isEnglish ? "Mobile Number" : "电话号码"}
                   </label>
                   <input
                     required
                     className="w-full p-2 border rounded-md"
-                    placeholder={isEnglish ? "Enter phone number" : "输入电话号码"}
+                    placeholder={isEnglish ? "Enter mobile number" : "输入电话号码"}
                     type="tel"
                     value={customerPhone}
                     onChange={(e) => onCustomerPhoneChange(e.target.value)}

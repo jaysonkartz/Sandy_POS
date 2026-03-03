@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
-import { createBrowserClient } from "@supabase/ssr";
+import { supabase } from "@/app/lib/supabaseClient";
 import { Edit3, Save, X, Camera, Image as ImageIcon } from "lucide-react";
 import ProductPhotoEditor from "./ProductPhotoEditor";
 import VariantManager from "./VariantManager";
@@ -40,10 +40,7 @@ export default function EditProductModal({ product, onClose, onUpdate }: EditPro
   const [currentImageUrl, setCurrentImageUrl] = useState(product.image_url || "");
   const [variants, setVariants] = useState<ProductVariant[]>(product.variants || []);
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+
 
   // Fetch variants when component mounts
   useEffect(() => {

@@ -25,7 +25,7 @@ export default function Cart() {
 
               <div className="flex-grow">
                 <h3 className="font-medium">{item.title}</h3>
-                <p className="text-gray-600">${item.price.toFixed(2)}</p>
+                <p className="text-gray-600">${(item.price ?? 0).toFixed(2)}</p>
 
                 <div className="flex items-center gap-2 mt-2">
                   <select

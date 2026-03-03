@@ -1,17 +1,16 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { createBrowserClient } from "@supabase/ssr";
-import { Database } from "@/types/supabase";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/app/lib/supabaseClient";
 
 type Customer = {
   name: string;
   email: string;
-  company_name: string;
-  address: string;
-  delivery_address: string;
-  phone: string;
+  company_name?: string;
+  address: string | null;
+  delivery_address?: string;
+  phone: string | null;
   status: boolean;
   created_at: string;
 };
@@ -23,10 +22,6 @@ export default function CustomerDetails() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const router = useRouter();
-  const supabase = createBrowserClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
 
   const fetchCustomerData = useCallback(async () => {
     try {
@@ -52,7 +47,7 @@ export default function CustomerDetails() {
     } finally {
       setLoading(false);
     }
-  }, [supabase, router]);
+  }, [router]);
 
   useEffect(() => {
     fetchCustomerData();
@@ -76,15 +71,17 @@ export default function CustomerDetails() {
         data: { user },
       } = await supabase.auth.getUser();
 
+      const updates = {
+        name: editedCustomer.name,
+        company_name: editedCustomer.company_name,
+        address: editedCustomer.address,
+        delivery_address: editedCustomer.delivery_address,
+        phone: editedCustomer.phone,
+      };
+
       const { error } = await supabase
         .from("customers")
-        .update({
-          name: editedCustomer.name,
-          company_name: editedCustomer.company_name,
-          address: editedCustomer.address,
-          delivery_address: editedCustomer.delivery_address,
-          phone: editedCustomer.phone,
-        })
+        .update(updates)
         .eq("user_id", user?.id);
 
       if (error) throw error;
@@ -205,12 +202,12 @@ export default function CustomerDetails() {
                       <p className="text-lg font-medium text-gray-900">{customer.email}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">Phone Number</p>
+                      <p className="text-sm text-gray-500">Mobile Number</p>
                       {editMode ? (
                         <input
                           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                           type="text"
-                          value={editedCustomer.phone}
+                          value={editedCustomer.phone ?? ""}
                           onChange={(e) => handleChange("phone", e.target.value)}
                         />
                       ) : (
@@ -229,7 +226,7 @@ export default function CustomerDetails() {
                         <input
                           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                           type="text"
-                          value={editedCustomer.company_name}
+                          value={editedCustomer.company_name ?? ""}
                           onChange={(e) => handleChange("company_name", e.target.value)}
                         />
                       ) : (
@@ -242,7 +239,7 @@ export default function CustomerDetails() {
                         <textarea
                           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                           rows={3}
-                          value={editedCustomer.address}
+                          value={editedCustomer.address ?? ""}
                           onChange={(e) => handleChange("address", e.target.value)}
                         />
                       ) : (
@@ -264,7 +261,7 @@ export default function CustomerDetails() {
                       <textarea
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         rows={3}
-                        value={editedCustomer.delivery_address}
+                        value={editedCustomer.delivery_address ?? ""}
                         onChange={(e) => handleChange("delivery_address", e.target.value)}
                       />
                     ) : (
