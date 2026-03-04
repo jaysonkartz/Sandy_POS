@@ -250,7 +250,7 @@ export default function Header() {
                 className="h-50 w-20 rounded-lg object-cover"
                 src="/HongGuan_Icon.jpg"
               />
-              <span className="hidden sm:block font-semibold text-gray-900">Hong Guan</span>
+              {/* <span className="hidden sm:block font-semibold text-gray-900">Hong Guan</span> */}
             </Link>
 
             <div className="flex items-center gap-2">
