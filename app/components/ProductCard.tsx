@@ -104,6 +104,8 @@ export const ProductCard = memo<ProductCardProps>(({
     [onOptionChange, title]
   );
 
+  const currentQty = selectedProducts.find((p) => p.product.id === product.id)?.quantity ?? 0;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 15 }}
@@ -145,17 +147,16 @@ export const ProductCard = memo<ProductCardProps>(({
 
         {/* OPTIONS */}
         <div className="space-y-2 mb-4">
-
           {/* Variation */}
           {variations.length > 1 ? (
             <select
               className="w-full p-2 text-sm border rounded"
               value={selectedOptions[title]?.variation || variations[0]}
-              onChange={e => handleOptionChange("variation", e.target.value)}
+              onChange={(e) => handleOptionChange("variation", e.target.value)}
             >
-              {variations.map(v => (
+              {variations.map((v) => (
                 <option key={v} value={v}>
-                  {isEnglish ? v : products.find(p => p.Variation === v)?.Variation_CH || v}
+                  {isEnglish ? v : products.find((p) => p.Variation === v)?.Variation_CH || v}
                 </option>
               ))}
             </select>
@@ -173,9 +174,9 @@ export const ProductCard = memo<ProductCardProps>(({
             <select
               className="w-full p-2 text-sm border rounded"
               value={selectedOptions[title]?.countryId || origins[0]}
-              onChange={e => handleOptionChange("countryId", e.target.value)}
+              onChange={(e) => handleOptionChange("countryId", e.target.value)}
             >
-              {origins.map(o => (
+              {origins.map((o) => (
                 <option key={o} value={o}>
                   {isEnglish ? countryMap[o]?.name || o : countryMap[o]?.chineseName || o}
                 </option>
@@ -197,18 +198,18 @@ export const ProductCard = memo<ProductCardProps>(({
             <select
               className="w-full p-2 text-sm border rounded"
               value={selectedOptions[title]?.weight || weights[0]}
-              onChange={e => handleOptionChange("weight", e.target.value)}
+              onChange={(e) => handleOptionChange("weight", e.target.value)}
             >
-              {weights.map(w => (
-                <option key={w} value={w}>{w}</option>
+              {weights.map((w) => (
+                <option key={w} value={w}>
+                  {w}
+                </option>
               ))}
             </select>
           ) : weights.length === 1 ? (
             <div className="text-sm text-gray-600">
               {isEnglish ? "Weight" : "重量"}:
-              <span className="ml-2 px-2 py-0.5 bg-gray-100 rounded">
-                {weights[0]}
-              </span>
+              <span className="ml-2 px-2 py-0.5 bg-gray-100 rounded">{weights[0]}</span>
             </div>
           ) : null}
         </div>
@@ -222,83 +223,84 @@ export const ProductCard = memo<ProductCardProps>(({
         )}
 
         {/* Action Buttons */}
-<div className="mt-auto pt-4 border-t border-gray-100">
-  {!isSessionValid ? (
-    <button
-      className="w-full text-center text-blue-600 font-semibold hover:text-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      disabled={isLoggingIn}
-      onClick={onOpenSignupModal}
-    >
-      {isLoggingIn
-        ? isEnglish
-          ? "Logging in..."
-          : "登录中..."
-        : isEnglish
-          ? "Login to see price"
-          : "登录查看价格"}
-    </button>
-  ) : (
-    <div className="flex items-center justify-between w-full gap-2 py-3 px-1 sm:px-3 rounded-lg">
-    {/* Left: Quantity controls */}
-<div className="flex items-center gap-2 flex-1">
-  <div className="flex items-stretch flex-1 overflow-hidden rounded-md border bg-white">
-    {/* Minus */}
-    <button
-      className="shrink-0 w-10 h-10 bg-gray-100 hover:bg-gray-200 text-base font-semibold flex items-center justify-center"
-      onClick={() => {
-        const existing = selectedProducts.find((p) => p.product.id === product.id);
-        if (existing && existing.quantity > 1) onUpdateQuantity(product.id, existing.quantity - 1);
-        else if (existing && existing.quantity === 1) onUpdateQuantity(product.id, 0);
-      }}
-    >
-      −
-    </button>
+        <div className="mt-auto pt-4 border-t border-gray-100">
+          {!isSessionValid ? (
+            <button
+              className="w-full text-center text-blue-600 font-semibold hover:text-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isLoggingIn}
+              onClick={onOpenSignupModal}
+            >
+              {isLoggingIn
+                ? isEnglish
+                  ? "Logging in..."
+                  : "登录中..."
+                : isEnglish
+                  ? "Login to see price"
+                  : "登录查看价格"}
+            </button>
+          ) : (
+            // ✅ KEY FIX:
+            // iPad(md) cards are narrow -> stack WhatsApp below.
+            // Only go horizontal at lg (>=1024).
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+              {/* Quantity controls */}
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <div className="flex items-stretch w-full overflow-hidden rounded-md border bg-white">
+                  {/* Minus */}
+                  <button
+                    className="shrink-0 w-9 h-9 lg:w-10 lg:h-10 bg-gray-100 hover:bg-gray-200 text-base font-semibold flex items-center justify-center"
+                    onClick={() => {
+                      if (currentQty > 1) onUpdateQuantity(product.id, currentQty - 1);
+                      else if (currentQty === 1) onUpdateQuantity(product.id, 0);
+                    }}
+                  >
+                    −
+                  </button>
 
-    {/* Quantity */}
-    <input
-      type="number"
-      inputMode="numeric"
-      min={0}
-      className="w-16 sm:w-20 text-center text-base font-semibold outline-none border-x bg-white
-                 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-      value={selectedProducts.find((p) => p.product.id === product.id)?.quantity ?? 0}
-      onChange={(e) => {
-        const newQuantity = parseInt(e.target.value) || 0;
-        if (newQuantity > 0) {
-          if (!selectedProducts.find((p) => p.product.id === product.id)) onAddToOrder(product);
-          onUpdateQuantity(product.id, newQuantity);
-        } else {
-          onUpdateQuantity(product.id, 0);
-        }
-      }}
-    />
+                  {/* Quantity */}
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    className="w-14 lg:w-16 text-center text-base font-semibold outline-none border-x bg-white
+                               [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    value={currentQty}
+                    onChange={(e) => {
+                      const newQuantity = parseInt(e.target.value) || 0;
+                      if (newQuantity > 0) {
+                        if (currentQty === 0) onAddToOrder(product);
+                        onUpdateQuantity(product.id, newQuantity);
+                      } else {
+                        onUpdateQuantity(product.id, 0);
+                      }
+                    }}
+                  />
 
-    {/* Plus */}
-    <button
-      className="shrink-0 w-10 h-10 bg-gray-100 hover:bg-gray-200 text-base font-semibold flex items-center justify-center"
-      onClick={() => {
-        const existing = selectedProducts.find((p) => p.product.id === product.id);
-        if (existing) onUpdateQuantity(product.id, existing.quantity + 1);
-        else onAddToOrder(product);
-      }}
-    >
-      +
-    </button>
-  </div>
-</div>
+                  {/* Plus */}
+                  <button
+                    className="shrink-0 w-9 h-9 lg:w-10 lg:h-10 bg-gray-100 hover:bg-gray-200 text-base font-semibold flex items-center justify-center"
+                    onClick={() => {
+                      if (currentQty > 0) onUpdateQuantity(product.id, currentQty + 1);
+                      else onAddToOrder(product);
+                    }}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
 
-      {/* Right: WhatsApp */}
-      <button
-        className="flex-shrink-0 bg-gray-100 text-gray-600 w-9 h-9 sm:w-10 sm:h-10 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center"
-        title={isEnglish ? "Inquire via WhatsApp" : "通过WhatsApp询价"}
-        onClick={onCustomerService}
-      >
-        <WhatsAppIcon className="w-4 h-4" />
-      </button>
-    </div>
-  )}
-</div>
-
+              {/* WhatsApp (stacked on md/ipad) */}
+              <button
+                className="bg-gray-100 text-gray-600 h-10 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center
+                           lg:w-10 lg:h-10"
+                title={isEnglish ? "Inquire via WhatsApp" : "通过WhatsApp询价"}
+                onClick={onCustomerService}
+              >
+                <WhatsAppIcon className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </motion.div>
   );
