@@ -21,9 +21,12 @@ export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [locationError, setLocationError] = useState("");
+  const [postalCodeError, setPostalCodeError] = useState("");
   const [postalCode, setPostalCode] = useState("");
+  const [resolvedPostalCode, setResolvedPostalCode] = useState("");
   const [isSearchingPostalCode, setIsSearchingPostalCode] = useState(false);
   const [unitNumber, setUnitNumber] = useState("");
+  const [addressSource, setAddressSource] = useState<"manual" | "postal" | "geolocation">("manual");
 
   // Password strength calculation
   const getPasswordStrength = (password: string): { strength: "weak" | "medium" | "strong"; score: number; feedback: string } => {
@@ -107,6 +110,7 @@ export default function SignupPage() {
               ...prev,
               address: data.display_name,
             }));
+            setAddressSource("geolocation");
             setLocationError("");
           } else {
             throw new Error("Could not determine address from location");
@@ -114,11 +118,6 @@ export default function SignupPage() {
         } catch (error) {
           console.error("Reverse geocoding error:", error);
           setLocationError("Failed to get address. Please enter manually.");
-          // Still set coordinates as fallback
-          setFormData((prev) => ({
-            ...prev,
-            address: `${latitude}, ${longitude}`,
-          }));
         } finally {
           setIsGettingLocation(false);
         }
@@ -182,7 +181,8 @@ export default function SignupPage() {
     }
 
     setIsSearchingPostalCode(true);
-    setLocationError("");
+    setPostalCodeError("");
+    setResolvedPostalCode("");
 
     try {
       // First, try OneMap.sg API (Singapore's official mapping service - more accurate)
@@ -217,7 +217,9 @@ export default function SignupPage() {
               ...prev,
               address: formattedAddress,
             }));
+            setAddressSource("postal");
             setLocationError("");
+            setResolvedPostalCode(code);
             setIsSearchingPostalCode(false);
             return;
           }
@@ -274,13 +276,15 @@ export default function SignupPage() {
           ...prev,
           address: formattedAddr,
         }));
+        setAddressSource("postal");
         setLocationError("");
+        setResolvedPostalCode(code);
       } else {
-        setLocationError(`No address found for postal code ${code}`);
+        setPostalCodeError(`No address found for postal code ${code}`);
       }
     } catch (error) {
       console.error("Postal code search error:", error);
-      setLocationError("Failed to find address for this postal code. Please enter manually.");
+      setPostalCodeError("Failed to find address for this postal code. Please enter manually.");
     } finally {
       setIsSearchingPostalCode(false);
     }
@@ -289,7 +293,21 @@ export default function SignupPage() {
   // Handle postal code input with debounce
   const handlePostalCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, ''); // Only allow numbers
+    setError("");
     setPostalCode(value);
+
+    if (value !== resolvedPostalCode) {
+      setResolvedPostalCode("");
+      setPostalCodeError("");
+
+      if (addressSource === "postal") {
+        setFormData((prev) => ({
+          ...prev,
+          address: "",
+        }));
+        setAddressSource("manual");
+      }
+    }
     
     // Auto-search when postal code is 6 digits (Singapore postal code format)
     if (value.length === 6) {
@@ -343,6 +361,18 @@ export default function SignupPage() {
     // Validate postal code if provided
     if (postalCode && postalCode.length > 0 && postalCode.length !== 6) {
       setError("Postal code must be exactly 6 digits");
+      setIsLoading(false);
+      return;
+    }
+
+    if (isSearchingPostalCode) {
+      setError("Wait for postal code validation to finish");
+      setIsLoading(false);
+      return;
+    }
+
+    if (postalCode && resolvedPostalCode !== postalCode) {
+      setError(postalCodeError || "Enter a valid postal code to continue");
       setIsLoading(false);
       return;
     }
@@ -450,7 +480,7 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-[100svh] bg-gray-100 flex items-start justify-center overflow-y-auto px-4 py-6 sm:px-6 sm:py-12 lg:px-8">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 relative">
         {/* Back Button */}
         <button
@@ -546,8 +576,15 @@ export default function SignupPage() {
               {postalCode && postalCode.length > 0 && postalCode.length !== 6 && (
                 <p className="text-xs text-red-600 mt-1">Postal code must be exactly 6 digits</p>
               )}
-              {postalCode && postalCode.length === 6 && !isSearchingPostalCode && (
-                <p className="text-xs text-gray-500 mt-1">Address will be auto-filled when you enter 6 digits</p>
+              {postalCodeError && (
+                <p className="text-xs text-red-600 mt-1">{postalCodeError}</p>
+              )}
+              {postalCode && postalCode.length === 6 && !isSearchingPostalCode && !postalCodeError && (
+                <p className="text-xs text-gray-500 mt-1">
+                  {resolvedPostalCode === postalCode
+                    ? "Address auto-filled from postal code"
+                    : "Address will be auto-filled when you enter 6 digits"}
+                </p>
               )}
             </div>
 
@@ -624,6 +661,8 @@ export default function SignupPage() {
                     if (unitNumber && unitNumber.trim()) {
                       baseAddress = baseAddress.replace(`#${unitNumber.trim()}, `, '').replace(`, #${unitNumber.trim()}`, '').trim();
                     }
+                    setLocationError("");
+                    setAddressSource("manual");
                     setFormData((prev) => ({ ...prev, address: baseAddress }));
                   }}
                 />

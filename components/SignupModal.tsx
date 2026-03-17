@@ -83,9 +83,12 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
 
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [locationError, setLocationError] = useState("");
+  const [postalCodeError, setPostalCodeError] = useState("");
   const [postalCode, setPostalCode] = useState("");
+  const [resolvedPostalCode, setResolvedPostalCode] = useState("");
   const [isSearchingPostalCode, setIsSearchingPostalCode] = useState(false);
   const [unitNumber, setUnitNumber] = useState("");
+  const [addressSource, setAddressSource] = useState<"manual" | "postal" | "geolocation">("manual");
 
   const getPasswordStrength = (
     password: string
@@ -153,13 +156,13 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
 
           if (data?.display_name) {
             setFormData((prev) => ({ ...prev, address: data.display_name }));
+            setAddressSource("geolocation");
             setLocationError("");
           } else {
             throw new Error("Could not determine address from location");
           }
         } catch {
           setLocationError("Failed to get address. Please enter manually.");
-          setFormData((prev) => ({ ...prev, address: `${latitude}, ${longitude}` }));
         } finally {
           setIsGettingLocation(false);
         }
@@ -206,7 +209,8 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
     if (!code || code.trim().length < 4) return;
 
     setIsSearchingPostalCode(true);
-    setLocationError("");
+    setPostalCodeError("");
+    setResolvedPostalCode("");
 
     try {
       const oneMapResponse = await fetch(
@@ -235,6 +239,9 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
             if (code.length === 6) formattedAddress = `${formattedAddress}, Singapore ${code}`;
 
             setFormData((prev) => ({ ...prev, address: formattedAddress }));
+            setAddressSource("postal");
+            setLocationError("");
+            setResolvedPostalCode(code);
             setIsSearchingPostalCode(false);
             return;
           }
@@ -261,11 +268,14 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
         if (code.length === 6) formattedAddr = `${formattedAddr}, Singapore ${code}`;
 
         setFormData((prev) => ({ ...prev, address: formattedAddr }));
+        setAddressSource("postal");
+        setLocationError("");
+        setResolvedPostalCode(code);
       } else {
-        setLocationError(`No address found for postal code ${code}`);
+        setPostalCodeError(`No address found for postal code ${code}`);
       }
     } catch {
-      setLocationError("Failed to find address for this postal code. Please enter manually.");
+      setPostalCodeError("Failed to find address for this postal code. Please enter manually.");
     } finally {
       setIsSearchingPostalCode(false);
     }
@@ -273,7 +283,19 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
 
   const handlePostalCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, "");
+    setError("");
     setPostalCode(value);
+
+    if (value !== resolvedPostalCode) {
+      setResolvedPostalCode("");
+      setPostalCodeError("");
+
+      if (addressSource === "postal") {
+        setFormData((prev) => ({ ...prev, address: "" }));
+        setAddressSource("manual");
+      }
+    }
+
     if (value.length === 6) searchAddressByPostalCode(value);
   };
 
@@ -343,6 +365,10 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
       return setError("Password must be at least 8 characters long"), setIsLoading(false);
     if (postalCode && postalCode.length !== 6)
       return setError("Postal code must be exactly 6 digits"), setIsLoading(false);
+    if (isSearchingPostalCode)
+      return setError("Wait for postal code validation to finish"), setIsLoading(false);
+    if (postalCode && resolvedPostalCode !== postalCode)
+      return setError(postalCodeError || "Enter a valid postal code to continue"), setIsLoading(false);
 
     try {
       const { data: existingCustomer, error: customerCheckError } = await supabase
@@ -541,6 +567,16 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
                   {postalCode && postalCode.length > 0 && postalCode.length !== 6 && (
                     <p className="mt-1 text-xs text-red-600">Postal code must be exactly 6 digits</p>
                   )}
+                  {postalCodeError && (
+                    <p className="mt-1 text-xs text-red-600">{postalCodeError}</p>
+                  )}
+                  {postalCode && postalCode.length === 6 && !isSearchingPostalCode && !postalCodeError && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      {resolvedPostalCode === postalCode
+                        ? "Address auto-filled from postal code"
+                        : "Address will be auto-filled when you enter 6 digits"}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -604,6 +640,8 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
                           .replace(`, #${unitNumber.trim()}`, "")
                           .trim();
                       }
+                      setLocationError("");
+                      setAddressSource("manual");
                       setFormData((prev) => ({ ...prev, address: base }));
                     }}
                   />
