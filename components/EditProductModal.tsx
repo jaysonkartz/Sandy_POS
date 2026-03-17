@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
+import { CldImage } from "next-cloudinary";
 import { supabase } from "@/app/lib/supabaseClient";
 import { Edit3, Save, X, Camera, Image as ImageIcon } from "lucide-react";
 import ProductPhotoEditor from "./ProductPhotoEditor";
@@ -121,10 +122,13 @@ export default function EditProductModal({ product, onClose, onUpdate }: EditPro
               {/* Current Image Preview */}
               {currentImageUrl ? (
                 <div className="relative inline-block">
-                  <img
+                  <CldImage
                     alt={editedProduct.Product}
                     className="w-32 h-32 object-cover rounded-lg border"
                     src={currentImageUrl}
+                    width={128}
+                    height={128}
+                    unoptimized
                   />
                   <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-20 transition-all rounded-lg flex items-center justify-center">
                     <Edit3 className="w-6 h-6 text-white opacity-0 hover:opacity-100 transition-opacity" />

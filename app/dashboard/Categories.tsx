@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
 import ProductModal from "@/app/components/ProductModal";
+import { CldImage } from "next-cloudinary";
 
 interface Category {
   id: number;
@@ -71,10 +72,12 @@ export default function Categories() {
             className="border rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow"
           >
             <div className="relative w-full h-48">
-              <img
+              <CldImage
                 alt={category.title}
                 className="w-full h-full object-cover"
                 src={category.imageUrl}
+                width={640}
+                height={384}
               />
             </div>
             <div className="p-4">

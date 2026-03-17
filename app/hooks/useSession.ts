@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/app/lib/supabaseClient";
 import {
@@ -28,6 +28,45 @@ export const useSession = (): UseSessionReturn => {
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
+  const refreshPromiseRef = useRef<Promise<Session | null> | null>(null);
+
+  const shouldRefreshSession = useCallback((sessionToCheck: Session | null) => {
+    const expiresAt = sessionToCheck?.expires_at;
+    if (!expiresAt) return false;
+
+    const expiresAtMs = expiresAt * 1000;
+    const refreshThresholdMs = 10 * 60 * 1000;
+    return expiresAtMs - Date.now() <= refreshThresholdMs;
+  }, []);
+
+  const refreshInFlight = useCallback(async () => {
+    const currentSession = session;
+    if (!shouldRefreshSession(currentSession)) {
+      return currentSession;
+    }
+
+    if (refreshPromiseRef.current) {
+      return refreshPromiseRef.current;
+    }
+
+    refreshPromiseRef.current = (async () => {
+      const refreshedSession = await refreshSession();
+
+      if (!refreshedSession) {
+        handleRefreshTokenError(setSession, setUserRole);
+        return null;
+      }
+
+      setSession(refreshedSession);
+      return refreshedSession;
+    })();
+
+    try {
+      return await refreshPromiseRef.current;
+    } finally {
+      refreshPromiseRef.current = null;
+    }
+  }, [session, shouldRefreshSession]);
 
   // Helper function to check if session is valid
   const isSessionValid = useCallback(() => {
@@ -296,20 +335,11 @@ export const useSession = (): UseSessionReturn => {
     if (!session?.user) return;
 
     const refreshInterval = setInterval(async () => {
-      const refreshedSession = await refreshSession();
-      
-      if (!refreshedSession) {
-        handleRefreshTokenError(setSession, setUserRole);
-        return;
-      }
-
-      if (refreshedSession) {
-        setSession(refreshedSession);
-      }
+      await refreshInFlight();
     }, SESSION_REFRESH_INTERVAL);
 
     return () => clearInterval(refreshInterval);
-  }, [session?.user]);
+  }, [session?.user, refreshInFlight]);
 
   // Session monitoring
   useEffect(() => {
@@ -327,18 +357,15 @@ export const useSession = (): UseSessionReturn => {
               setSession(null);
               setUserRole("");
             }
-          } else {
-            // Proactively refresh session
+          } else if (shouldRefreshSession(currentSession)) {
             const refreshedSession = await refreshSession();
-            
+
             if (!refreshedSession) {
               handleRefreshTokenError(setSession, setUserRole);
               return;
             }
 
-            if (refreshedSession) {
-              setSession(refreshedSession);
-            }
+            setSession(refreshedSession);
           }
         } else {
           const recovered = await aggressiveSessionRecovery();
@@ -350,7 +377,7 @@ export const useSession = (): UseSessionReturn => {
     }, SESSION_CHECK_INTERVAL);
 
     return () => clearInterval(sessionCheckInterval);
-  }, [session?.user, aggressiveSessionRecovery]);
+  }, [session?.user, aggressiveSessionRecovery, shouldRefreshSession]);
 
   // Handle page visibility changes
   useEffect(() => {
@@ -388,16 +415,7 @@ export const useSession = (): UseSessionReturn => {
 
       activityTimeout = setTimeout(async () => {
         if (session?.user) {
-          const refreshedSession = await refreshSession();
-          
-          if (!refreshedSession) {
-            handleRefreshTokenError(setSession, setUserRole);
-            return;
-          }
-
-          if (refreshedSession) {
-            setSession(refreshedSession);
-          }
+          await refreshInFlight();
         }
       }, USER_ACTIVITY_TIMEOUT);
     };
@@ -415,7 +433,7 @@ export const useSession = (): UseSessionReturn => {
         document.removeEventListener(event, handleUserActivity, true);
       });
     };
-  }, [session?.user]);
+  }, [session?.user, refreshInFlight]);
 
   // Function to handle sign out
   const signOut = useCallback(async () => {

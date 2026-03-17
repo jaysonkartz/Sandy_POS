@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { CldImage } from "next-cloudinary";
 import { ImageIcon } from "lucide-react";
 
 interface ProductImageProps {
@@ -31,12 +32,11 @@ export default function ProductImage({
     setIsLoading(false);
   }, []);
 
-  // Reset state when src changes
-  if (src !== imageSrc && !hasError) {
+  useEffect(() => {
     setImageSrc(src);
     setIsLoading(true);
     setHasError(false);
-  }
+  }, [src]);
 
   return (
     <div className="relative w-full h-full">
@@ -46,10 +46,16 @@ export default function ProductImage({
         </div>
       )}
 
-      <img
+      <CldImage
         alt={alt}
         className={`${className} ${isLoading ? "opacity-0" : "opacity-100"} transition-opacity duration-200`}
         src={imageSrc}
+        width={800}
+        height={800}
+        unoptimized
+        loading="lazy"
+        decoding="async"
+        fetchPriority="low"
         onError={handleError}
         onLoad={handleLoad}
       />

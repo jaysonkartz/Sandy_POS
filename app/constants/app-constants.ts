@@ -1,7 +1,7 @@
 // Session management constants
 export const SESSION_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 export const SESSION_CHECK_INTERVAL = 1 * 60 * 1000; // 1 minute
-export const USER_ACTIVITY_TIMEOUT = 30 * 1000; // 30 seconds
+export const USER_ACTIVITY_TIMEOUT = 10 * 60 * 1000; // 10 minutes
 export const SESSION_RETRY_DELAY = 1000; // 1 second
 export const MAX_SESSION_RETRIES = 3;
 

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { CldImage } from "next-cloudinary";
 import TopBarLogin from "./TopBarLogin";
 import { supabase } from "@/app/lib/supabaseClient";
 
@@ -245,10 +246,13 @@ export default function Header() {
               className="flex items-center gap-2 hover:opacity-90 transition-opacity"
               aria-label="Go to homepage"
             >
-              <img
+              <CldImage
                 alt="Hong Guan"
                 className="h-50 w-20 rounded-lg object-cover"
                 src="/HongGuan_Icon.jpg"
+                width={80}
+                height={50}
+                unoptimized
               />
               <span className="hidden sm:block font-semibold text-gray-900">Hong Guan</span>
             </Link>

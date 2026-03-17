@@ -1,7 +1,6 @@
 "use client";
 
 import React, { memo, useCallback } from "react";
-import { motion } from "framer-motion";
 import { Camera } from "lucide-react";
 import ProductImage from "@/components/ProductImage";
 import { WhatsAppIcon } from "./WhatsAppIcon";
@@ -40,7 +39,7 @@ interface ProductCardProps {
   selectedOptions: {
     [title: string]: { variation?: string; countryId?: string; weight?: string };
   };
-  selectedProducts: { product: Product; quantity: number }[];
+  currentQuantityByProductId: Record<number, number>;
   countryMap: { [key: string]: { name: string; chineseName: string } };
   isLoggingIn: boolean;
   onOptionChange: (
@@ -64,7 +63,7 @@ export const ProductCard = memo<ProductCardProps>(({
   isSessionValid,
   userRole,
   selectedOptions,
-  selectedProducts,
+  currentQuantityByProductId,
   countryMap,
   isLoggingIn,
   onOptionChange,
@@ -89,6 +88,7 @@ export const ProductCard = memo<ProductCardProps>(({
   }, [products, selectedOptions, title]);
 
   const product = getSelectedProduct();
+  const currentQuantity = currentQuantityByProductId[product.id] ?? 0;
 
   const uniq = (arr: Array<string | undefined | null>) =>
     Array.from(new Set(arr.filter(Boolean).map((v) => String(v).trim()))).filter(Boolean);
@@ -105,10 +105,7 @@ export const ProductCard = memo<ProductCardProps>(({
   );
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
+    <div
       className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-shadow"
       role="article"
       aria-label={isEnglish ? product.Product : product.Product_CH}
@@ -246,9 +243,8 @@ export const ProductCard = memo<ProductCardProps>(({
     <button
       className="shrink-0 w-10 h-10 bg-gray-100 hover:bg-gray-200 text-base font-semibold flex items-center justify-center"
       onClick={() => {
-        const existing = selectedProducts.find((p) => p.product.id === product.id);
-        if (existing && existing.quantity > 1) onUpdateQuantity(product.id, existing.quantity - 1);
-        else if (existing && existing.quantity === 1) onUpdateQuantity(product.id, 0);
+        if (currentQuantity > 1) onUpdateQuantity(product.id, currentQuantity - 1);
+        else if (currentQuantity === 1) onUpdateQuantity(product.id, 0);
       }}
     >
       −
@@ -261,11 +257,11 @@ export const ProductCard = memo<ProductCardProps>(({
       min={0}
       className="w-16 sm:w-20 text-center text-base font-semibold outline-none border-x bg-white
                  [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-      value={selectedProducts.find((p) => p.product.id === product.id)?.quantity ?? 0}
+      value={currentQuantity}
       onChange={(e) => {
         const newQuantity = parseInt(e.target.value) || 0;
         if (newQuantity > 0) {
-          if (!selectedProducts.find((p) => p.product.id === product.id)) onAddToOrder(product);
+          if (currentQuantity === 0) onAddToOrder(product);
           onUpdateQuantity(product.id, newQuantity);
         } else {
           onUpdateQuantity(product.id, 0);
@@ -277,8 +273,7 @@ export const ProductCard = memo<ProductCardProps>(({
     <button
       className="shrink-0 w-10 h-10 bg-gray-100 hover:bg-gray-200 text-base font-semibold flex items-center justify-center"
       onClick={() => {
-        const existing = selectedProducts.find((p) => p.product.id === product.id);
-        if (existing) onUpdateQuantity(product.id, existing.quantity + 1);
+        if (currentQuantity > 0) onUpdateQuantity(product.id, currentQuantity + 1);
         else onAddToOrder(product);
       }}
     >
@@ -300,7 +295,7 @@ export const ProductCard = memo<ProductCardProps>(({
 </div>
 
       </div>
-    </motion.div>
+    </div>
   );
 });
 

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
 import { supabase } from "@/app/lib/supabaseClient";
 import { useSignInLogging } from "@/app/hooks/useSignInLogging";
 import { USER_ROLES } from "@/app/constants/app-constants";
@@ -16,6 +17,8 @@ interface CustomerLoginModalProps {
 export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: CustomerLoginModalProps) {
   const router = useRouter();
   const { logSignInSuccess, logSignInFailure } = useSignInLogging();
+  const [mounted, setMounted] = useState(false);
+  const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -35,6 +38,46 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
   const [postalCode, setPostalCode] = useState("");
   const [isSearchingPostalCode, setIsSearchingPostalCode] = useState(false);
   const [unitNumber, setUnitNumber] = useState("");
+
+  useEffect(() => {
+    setMounted(true);
+
+    const existing = document.getElementById("customer-login-modal-root");
+    if (existing) {
+      setPortalEl(existing);
+      return;
+    }
+
+    const el = document.createElement("div");
+    el.id = "customer-login-modal-root";
+    document.body.appendChild(el);
+    setPortalEl(el);
+
+    return () => {
+      if (el.parentNode) el.parentNode.removeChild(el);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mounted || !isOpen) return;
+
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [isOpen, mounted]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOpen, onClose]);
 
   // Password strength calculation
   const getPasswordStrength = (password: string): { strength: "weak" | "medium" | "strong"; score: number; feedback: string } => {
@@ -515,11 +558,12 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted || !portalEl) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 relative">
+  return createPortal(
+    <div className="fixed inset-0 z-50 bg-black bg-opacity-50 p-4 overflow-y-auto">
+      <div className="min-h-full flex items-center justify-center">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full relative">
         <button
           className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
           onClick={onClose}
@@ -824,6 +868,9 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
           </form>
         </div>
       </div>
+      </div>
     </div>
+    ,
+    portalEl
   );
 }
