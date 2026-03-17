@@ -11,6 +11,8 @@ const ALLOWLIST = new Set([
   "/forgot-password",
   "/reset-password",
   "/pending-approval",
+  "/unauthorized",
+  "/403",
 ]);
 
 // Routes that should never be blocked by approval gating.

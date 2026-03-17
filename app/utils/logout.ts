@@ -29,9 +29,9 @@ export const performLogout = async (): Promise<void> => {
 };
 
 /**
- * Logout with page reload to ensure clean state
+ * Logout with full-page redirect to ensure clean state
  */
-export const performLogoutWithReload = async (): Promise<void> => {
+export const performLogoutWithReload = async (redirectTo: string = "/"): Promise<void> => {
   await performLogout();
-  window.location.reload();
+  window.location.replace(redirectTo);
 };

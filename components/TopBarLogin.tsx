@@ -91,6 +91,7 @@ export default function TopBarLogin({ session, userRole: propUserRole, onLoginSu
       setCustomer(null);
       setCustomerName("");
       setIsDropdownOpen(false);
+      router.replace("/");
     }
   };
 
