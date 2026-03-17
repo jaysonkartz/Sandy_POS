@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 import { CATEGORY_ID_NAME_MAP } from "@/app/(admin)/const/category";
 
@@ -51,7 +51,6 @@ export const useProducts = (
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>();
 
 
   // Get category name by id
@@ -59,22 +58,12 @@ export const useProducts = (
     return CATEGORY_ID_NAME_MAP[String(category)] || "Unknown Category";
   }, []);
 
-  // Debounced search handler
   const handleSearchChange = useCallback((value: string) => {
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    searchTimeoutRef.current = setTimeout(() => {
-      setSearchTerm(value);
-    }, 300);
+    setSearchTerm(value);
   }, []);
 
   // Clear search handler
   const handleClearSearch = useCallback(() => {
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
     setSearchTerm("");
   }, []);
 
