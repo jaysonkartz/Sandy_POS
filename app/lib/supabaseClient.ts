@@ -36,6 +36,20 @@ export const supabase = createBrowserClient(supabaseUrl || "", supabaseAnonKey |
   },
 });
 
+export const supabasePublic = createBrowserClient(supabaseUrl || "", supabaseAnonKey || "", {
+  auth: {
+    flowType: "pkce",
+    autoRefreshToken: false,
+    persistSession: false,
+    detectSessionInUrl: false,
+  },
+  cookieOptions: {
+    path: "/",
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+  },
+});
+
 export const isSupabaseConfigured = (): boolean => {
   const url = getSupabaseUrl();
   const key = getSupabaseAnonKey();

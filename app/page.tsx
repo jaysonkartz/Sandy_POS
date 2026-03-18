@@ -27,6 +27,7 @@ import { usePhotoEditor } from "@/app/hooks/usePhotoEditor";
 import { useScroll } from "@/app/hooks/useScroll";
 import { useWhatsApp } from "@/app/hooks/useWhatsApp";
 import { useCart } from "@/context/CartContext";
+import { FORCE_LOADING_RESET_DELAY } from "@/app/constants/app-constants";
 
 // Types
 import { SelectedOptions } from "@/app/types/product";
@@ -209,7 +210,7 @@ function HomeContent({
   const isLoading = loading || sessionLoading;
 
   useEffect(() => {
-    const timeout = setTimeout(() => setIsInitialLoad(false), 5000);
+    const timeout = setTimeout(() => setIsInitialLoad(false), FORCE_LOADING_RESET_DELAY);
     return () => clearTimeout(timeout);
   }, []);
 

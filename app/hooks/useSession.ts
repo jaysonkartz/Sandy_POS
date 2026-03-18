@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { supabase } from "@/app/lib/supabaseClient";
+import { SESSION_TIMEOUT_MS } from "../constants/app-constants";
 
 interface UseSessionReturn {
   session: Session | null;
@@ -15,6 +16,27 @@ export const useSession = (): UseSessionReturn => {
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
+
+  const withTimeout = useCallback(
+    async <T,>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> => {
+      let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutHandle = setTimeout(() => {
+          reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+      });
+
+      try {
+        return await Promise.race([promise, timeoutPromise]);
+      } finally {
+        if (timeoutHandle) {
+          clearTimeout(timeoutHandle);
+        }
+      }
+    },
+    []
+  );
 
   const fetchUserRole = useCallback(async (userId?: string) => {
     if (!userId) {
@@ -41,9 +63,9 @@ export const useSession = (): UseSessionReturn => {
   }, []);
 
   const syncSessionState = useCallback(
-    async (nextSession: Session | null) => {
+    (nextSession: Session | null) => {
       setSession(nextSession);
-      await fetchUserRole(nextSession?.user?.id);
+      void fetchUserRole(nextSession?.user?.id);
     },
     [fetchUserRole]
   );
@@ -54,13 +76,17 @@ export const useSession = (): UseSessionReturn => {
     try {
       const {
         data: { session: currentSession },
-      } = await supabase.auth.getSession();
+      } = await withTimeout(
+        supabase.auth.getSession(),
+        SESSION_TIMEOUT_MS,
+        "getSession(forceRefresh)"
+      );
 
-      await syncSessionState(currentSession);
+      syncSessionState(currentSession);
     } finally {
       setIsLoading(false);
     }
-  }, [syncSessionState]);
+  }, [syncSessionState, withTimeout]);
 
   useEffect(() => {
     let isMounted = true;
@@ -69,10 +95,10 @@ export const useSession = (): UseSessionReturn => {
       try {
         const {
           data: { session: initialSession },
-        } = await supabase.auth.getSession();
+        } = await withTimeout(supabase.auth.getSession(), SESSION_TIMEOUT_MS, "getSession(init)");
 
         if (!isMounted) return;
-        await syncSessionState(initialSession);
+        syncSessionState(initialSession);
       } finally {
         if (isMounted) {
           setIsLoading(false);
@@ -84,9 +110,9 @@ export const useSession = (): UseSessionReturn => {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event: AuthChangeEvent, nextSession: Session | null) => {
+    } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, nextSession: Session | null) => {
       if (!isMounted) return;
-      await syncSessionState(nextSession);
+      syncSessionState(nextSession);
       setIsLoading(false);
     });
 
@@ -94,7 +120,7 @@ export const useSession = (): UseSessionReturn => {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, [syncSessionState]);
+  }, [syncSessionState, withTimeout]);
 
   const signOut = useCallback(async () => {
     try {

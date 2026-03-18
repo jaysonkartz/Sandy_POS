@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { supabase } from "@/app/lib/supabaseClient";
+import { supabasePublic } from "@/app/lib/supabaseClient";
 import { CATEGORY_ID_NAME_MAP } from "@/app/(admin)/const/category";
 
 interface Product {
@@ -178,7 +178,7 @@ export const useProducts = (
         return;
       }
 
-      let query = supabase.from("products").select("*");
+      let query = supabasePublic.from("products").select("*");
 
       if (selectedCategory !== "all") {
         query = query.eq("Category", selectedCategory);

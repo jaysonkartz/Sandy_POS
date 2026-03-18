@@ -3,21 +3,21 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { CldImage } from "next-cloudinary";
+import Image from "next/image";
+import { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import TopBarLogin from "./TopBarLogin";
-import { supabase } from "@/app/lib/supabaseClient";
+import { supabase } from "../app/lib/supabaseClient";
 
 // Helper to detect benign abort errors
-const isAbortError = (error: any): boolean => {
+const isAbortError = (error: unknown): boolean => {
   if (!error) return false;
-  const message = String(error?.message || "");
-  return error?.name === "AbortError" || message.includes("signal is aborted");
+  const maybeError = error as { name?: string; message?: string };
+  const message = String(maybeError.message || "");
+  return maybeError.name === "AbortError" || message.includes("signal is aborted");
 };
 
 export default function Header() {
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<string>("");
   const pathname = usePathname();
 
@@ -32,9 +32,6 @@ export default function Header() {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem("customerToken");
-    setIsLoggedIn(!!token);
-
     // Read initial session from Supabase client state.
     const getInitialSession = async () => {
       try {
@@ -58,7 +55,7 @@ export default function Header() {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
       setSession(session);
       loadUserRole(session?.user?.id);
     });
@@ -93,13 +90,13 @@ export default function Header() {
               className="flex items-center gap-2 hover:opacity-90 transition-opacity"
               aria-label="Go to homepage"
             >
-              <CldImage
+              <Image
                 alt="Hong Guan"
                 className="h-50 w-20 rounded-lg object-cover"
                 src="/HongGuan_Icon.jpg"
                 width={80}
                 height={50}
-                unoptimized
+                priority
               />
               <span className="hidden sm:block font-semibold text-gray-900">Hong Guan</span>
             </Link>

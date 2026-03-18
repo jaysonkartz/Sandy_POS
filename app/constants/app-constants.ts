@@ -2,7 +2,9 @@
 export const SCROLL_THRESHOLD = 100;
 export const SEARCH_DEBOUNCE_DELAY = 300;
 export const LOADING_TIMEOUT = 3000;
-export const FORCE_LOADING_RESET_DELAY = 5000;
+export const SESSION_TIMEOUT_MS = 4000;
+export const LOGOUT_TIMEOUT_MS = SESSION_TIMEOUT_MS;
+export const FORCE_LOADING_RESET_DELAY = SESSION_TIMEOUT_MS;
 
 // WhatsApp constants
 export const WHATSAPP_PHONE_NUMBER = "6593254825";

@@ -1,15 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { User } from "@supabase/supabase-js";
+import { Session, User } from "@supabase/supabase-js";
 import CustomerLoginModal from "./CustomerLoginModal";
 import { useRouter } from "next/navigation";
-import { Customer } from "@/app/lib/definitions";
-import { supabase } from "@/app/lib/supabaseClient";
-import { performLogoutWithReload } from "@/app/utils/logout";
+import { supabase } from "../app/lib/supabaseClient";
+import { performLogoutWithReload } from "../app/utils/logout";
 
 interface TopBarLoginProps {
-  session?: any;
+  session?: Session | null;
   userRole?: string;
   onLoginSuccess?: () => void;
 }
@@ -18,7 +17,6 @@ export default function TopBarLogin({ session, userRole: propUserRole, onLoginSu
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
-  const [customer, setCustomer] = useState<Customer | null>(null);
   const [userRole, setUserRole] = useState<string>("");
   const [customerName, setCustomerName] = useState<string>("");
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -33,14 +31,13 @@ export default function TopBarLogin({ session, userRole: propUserRole, onLoginSu
       // Check for customer data
       const checkCustomer = async () => {
         // Try to find customer by email since auth_user_id column doesn't exist
-        const { data: customerData, error } = await supabase
+        const { data: customerData } = await supabase
           .from("customers")
           .select("*")
           .eq("email", session.user.email)
           .single();
 
         if (customerData) {
-          setCustomer(customerData);
           setCustomerName(customerData.name);
         } else {
           // If no customer found, use the user's email as fallback
@@ -52,7 +49,6 @@ export default function TopBarLogin({ session, userRole: propUserRole, onLoginSu
     } else {
       setUser(null);
       setUserRole("");
-      setCustomer(null);
       setCustomerName("");
     }
   }, [session, propUserRole]);
@@ -77,7 +73,6 @@ export default function TopBarLogin({ session, userRole: propUserRole, onLoginSu
       // Reset local state first
       setUser(null);
       setUserRole("");
-      setCustomer(null);
       setCustomerName("");
       setIsDropdownOpen(false);
       
@@ -88,7 +83,6 @@ export default function TopBarLogin({ session, userRole: propUserRole, onLoginSu
       // Even if there's an error, ensure local state is cleared
       setUser(null);
       setUserRole("");
-      setCustomer(null);
       setCustomerName("");
       setIsDropdownOpen(false);
       router.replace("/");

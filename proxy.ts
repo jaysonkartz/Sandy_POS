@@ -26,7 +26,7 @@ const isAdminPath = (pathname: string): boolean => {
 
 const copyCookies = (from: NextResponse, to: NextResponse): NextResponse => {
   from.cookies.getAll().forEach((cookie) => {
-    to.cookies.set(cookie.name, cookie.value);
+    to.cookies.set(cookie);
   });
   return to;
 };

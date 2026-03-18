@@ -1,20 +1,87 @@
-import { supabase } from "@/app/lib/supabaseClient";
+import { supabase } from "../lib/supabaseClient";
+import { LOGOUT_TIMEOUT_MS } from "../constants/app-constants";
+
+const AUTH_STORAGE_PREFIXES = ["sb-", "supabase.auth", "customerToken"];
+
+const hasAuthPrefix = (key: string): boolean =>
+  AUTH_STORAGE_PREFIXES.some((prefix) => key === prefix || key.startsWith(prefix));
+
+const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> => {
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutHandle = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
+  }
+};
+
+const clearClientAuthState = (): void => {
+  const storageKeys = Object.keys(localStorage);
+  storageKeys.forEach((key) => {
+    if (hasAuthPrefix(key) || key.startsWith("customer_data_")) {
+      localStorage.removeItem(key);
+    }
+  });
+
+  // Best-effort cleanup for non-httpOnly auth cookies.
+  document.cookie
+    .split(";")
+    .map((cookie) => cookie.trim().split("=")[0])
+    .filter(Boolean)
+    .forEach((name) => {
+      if (name.startsWith("sb-") || name.startsWith("supabase")) {
+        document.cookie = `${name}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+      }
+    });
+};
 
 /**
  * Standard logout flow for Supabase SSR cookie sessions.
  */
 export const performLogout = async (): Promise<void> => {
+  const signOutErrors: unknown[] = [];
+
   try {
-    await supabase.auth.signOut({ scope: "global" });
-
-    // Keep non-auth app cache cleanup only.
-    const customerKeys = Object.keys(localStorage).filter((key) => key.startsWith("customer_data_"));
-    customerKeys.forEach((key) => localStorage.removeItem(key));
-
-    console.log("Logout completed successfully");
+    await withTimeout(supabase.auth.signOut({ scope: "local" }), LOGOUT_TIMEOUT_MS, "local signOut");
   } catch (error) {
-    console.error("Error during logout:", error);
-    throw error;
+    signOutErrors.push(error);
+  }
+
+  try {
+    await withTimeout(supabase.auth.signOut({ scope: "global" }), LOGOUT_TIMEOUT_MS, "global signOut");
+  } catch (error) {
+    signOutErrors.push(error);
+  }
+
+  try {
+    await withTimeout(
+      fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+      }),
+      LOGOUT_TIMEOUT_MS,
+      "server logout"
+    );
+  } catch (error) {
+    signOutErrors.push(error);
+  }
+
+  clearClientAuthState();
+
+  if (signOutErrors.length > 0) {
+    console.warn("Logout completed with recoverable errors:", signOutErrors);
+  } else {
+    console.log("Logout completed successfully");
   }
 };
 
