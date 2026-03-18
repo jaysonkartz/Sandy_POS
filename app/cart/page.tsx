@@ -7,7 +7,7 @@ import Link from "next/link";
 import { CldImage } from "next-cloudinary";
 
 export default function CartPage() {
-  const { cart, removeFromCart, updateQuantity, getCartTotal, clearCart } = useCart();
+  const { cart, removeFromCart, updateQuantity, getCartTotal, clearCart, resolveCartItemKey } = useCart();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [removingItem, setRemovingItem] = useState<null | string | number>(null);
 
@@ -33,12 +33,7 @@ export default function CartPage() {
   };
 
   const getCartItemKey = (item: (typeof cart)[number]) =>
-    item.cartItemKey ??
-    [
-      String(item.id),
-      String(item.Variation ?? item.variation ?? ""),
-      String(item.Country_of_origin ?? item.country_of_origin ?? item.origin ?? ""),
-    ].join("::");
+    item.cartItemKey ?? resolveCartItemKey(item);
 
   const getVariationLabel = (item: (typeof cart)[number]) => item.Variation ?? item.variation;
   const getOriginLabel = (item: (typeof cart)[number]) =>

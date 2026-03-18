@@ -54,6 +54,7 @@ type CartContextValue = {
   removeItem: (id: CartItem["id"], cartItemKey?: string) => void;
   removeFromCart: (id: CartItem["id"], cartItemKey?: string) => void;
   clearCart: () => void;
+  resolveCartItemKey: (item: Partial<CartItem>) => string;
 
   // OrderPanel (global)
   isOrderPanelOpen: boolean;
@@ -150,6 +151,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     removeItem,
     removeFromCart,
     clearCart,
+    resolveCartItemKey,
 
     isOrderPanelOpen,
     setIsOrderPanelOpen,
