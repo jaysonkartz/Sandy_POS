@@ -31,7 +31,7 @@ const copyCookies = (from: NextResponse, to: NextResponse): NextResponse => {
   return to;
 };
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   const { response, user, supabase } = await updateSession(request);
