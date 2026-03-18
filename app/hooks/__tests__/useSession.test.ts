@@ -3,12 +3,21 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useSession } from "../useSession";
 import { Session } from "@supabase/supabase-js";
 
-const mockGetSession = vi.fn();
-const mockOnAuthStateChange = vi.fn();
-const mockSignOut = vi.fn();
-const mockFromSelect = vi.fn();
-const mockFromEq = vi.fn();
-const mockFromSingle = vi.fn();
+const {
+  mockGetSession,
+  mockOnAuthStateChange,
+  mockSignOut,
+  mockFromSelect,
+  mockFromEq,
+  mockFromSingle,
+} = vi.hoisted(() => ({
+  mockGetSession: vi.fn(),
+  mockOnAuthStateChange: vi.fn(),
+  mockSignOut: vi.fn(),
+  mockFromSelect: vi.fn(),
+  mockFromEq: vi.fn(),
+  mockFromSingle: vi.fn(),
+}));
 
 vi.mock("@/app/lib/supabaseClient", () => ({
   supabase: {

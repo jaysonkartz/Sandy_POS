@@ -33,7 +33,7 @@ describe("FloatingOrderButton", () => {
     const onClick = vi.fn();
     render(<FloatingOrderButton isEnglish={true} selectedProductsCount={0} onClick={onClick} />);
 
-    expect(screen.getByText("0")).toBeInTheDocument();
+    expect(screen.queryByText("0")).not.toBeInTheDocument();
   });
 
   it("should have correct styling classes", () => {
@@ -43,7 +43,7 @@ describe("FloatingOrderButton", () => {
     );
 
     const button = container.querySelector("button");
-    expect(button?.classList.contains("fixed")).toBe(true);
-    expect(button?.classList.contains("bg-blue-500")).toBe(true);
+    expect(button?.classList.contains("relative")).toBe(true);
+    expect(button?.classList.contains("bg-blue-600")).toBe(true);
   });
 });

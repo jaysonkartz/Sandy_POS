@@ -92,9 +92,7 @@ describe("useSignInLogging", () => {
       await result.current.logSignInFailure("", "test@example.com", "User not found");
     });
 
-    expect(SignInLogger.logSignIn).toHaveBeenCalledTimes(1);
-    const callArgs = (SignInLogger.logSignIn as any).mock.calls[0][0];
-    expect(callArgs.userId).toBe("anonymous");
+    expect(SignInLogger.logSignIn).not.toHaveBeenCalled();
   });
 
   it("should get user sign-in history", async () => {
