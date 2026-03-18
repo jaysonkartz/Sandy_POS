@@ -18,16 +18,16 @@ export const ScrollToTop: React.FC<ScrollToTopProps> = ({ show, onClick, classNa
     <AnimatePresence>
       {show && (
         <motion.button
-          type="button"
-          initial={{ opacity: 0, scale: 0 }}
           animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0 }}
           aria-label="Scroll to top"
-          onClick={onClick}
           className={
             "bg-blue-500 text-white p-3 rounded-full shadow-lg hover:bg-blue-600 transition-colors flex items-center justify-center " +
             className
           }
+          exit={{ opacity: 0, scale: 0 }}
+          initial={{ opacity: 0, scale: 0 }}
+          type="button"
+          onClick={onClick}
         >
           <svg
             className="w-6 h-6"

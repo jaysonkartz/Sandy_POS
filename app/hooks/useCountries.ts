@@ -14,22 +14,25 @@ interface UseCountriesReturn {
 }
 
 export const useCountries = (): UseCountriesReturn => {
-  const [countryMap, setCountryMap] = useState<{ [key: string]: { name: string; chineseName: string } }>({});
+  const [countryMap, setCountryMap] = useState<{
+    [key: string]: { name: string; chineseName: string };
+  }>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchCountries = useCallback(async () => {
     try {
       setError(null);
-      
+
       // Check if Supabase is properly configured before making requests
       if (!isSupabaseConfigured()) {
-        const configError = "Supabase is not configured. Please ensure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set in .env.local and restart your dev server.";
+        const configError =
+          "Supabase is not configured. Please ensure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set in .env.local and restart your dev server.";
         setError(configError);
         setLoading(false);
         return;
       }
-      
+
       const { data, error } = await supabase.from("countries").select("*");
 
       if (error) throw error;
@@ -68,14 +71,15 @@ export const useCountries = (): UseCountriesReturn => {
       };
 
       const errorMessage = getErrorMessage(error);
-      
+
       // Check for API key errors and provide helpful guidance
       if (errorMessage.includes("No API key found") || errorMessage.includes("API key")) {
-        const apiKeyError = "Missing Supabase API key. Please ensure NEXT_PUBLIC_SUPABASE_ANON_KEY is set in your environment variables.";
+        const apiKeyError =
+          "Missing Supabase API key. Please ensure NEXT_PUBLIC_SUPABASE_ANON_KEY is set in your environment variables.";
         setError(apiKeyError);
         return;
       }
-      
+
       setError(errorMessage || "Failed to load countries");
     } finally {
       setLoading(false);

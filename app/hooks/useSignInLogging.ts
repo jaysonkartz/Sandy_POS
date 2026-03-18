@@ -37,14 +37,14 @@ export const useSignInLogging = (): UseSignInLoggingReturn => {
   const logSignInSuccess = useCallback(
     async (userId: string, email: string, sessionId?: string) => {
       try {
-        console.log("Logging successful sign-in for:", { userId, email });
+        console.warn("Logging successful sign-in for:", { userId, email });
         await logSignIn({
           userId,
           email,
           success: true,
           sessionId,
         });
-        console.log("Successfully logged sign-in");
+        console.warn("Successfully logged sign-in");
       } catch (error) {
         // Log but don't throw - we don't want logging failures to break the login flow
         console.error("Error in logSignInSuccess:", error);

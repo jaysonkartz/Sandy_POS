@@ -109,9 +109,9 @@ export default function CartPage() {
                       <CldImage
                         alt={item.title}
                         className="w-24 h-24 object-cover rounded-lg"
+                        height={96}
                         src={item.imagesUrl}
                         width={96}
-                        height={96}
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
                           target.src = "/product-placeholder.png";
@@ -127,12 +127,18 @@ export default function CartPage() {
                       <div className="mb-3 space-y-1 text-sm text-gray-600">
                         {getVariationLabel(item) && (
                           <p>
-                            Variation: <span className="font-medium text-gray-800">{getVariationLabel(item)}</span>
+                            Variation:{" "}
+                            <span className="font-medium text-gray-800">
+                              {getVariationLabel(item)}
+                            </span>
                           </p>
                         )}
                         {getOriginLabel(item) && (
                           <p>
-                            Origin: <span className="font-medium text-gray-800">{getOriginLabel(item)}</span>
+                            Origin:{" "}
+                            <span className="font-medium text-gray-800">
+                              {getOriginLabel(item)}
+                            </span>
                           </p>
                         )}
                       </div>
@@ -150,7 +156,11 @@ export default function CartPage() {
                             className="p-2 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             disabled={item.quantity <= 1}
                             onClick={() =>
-                              updateQuantity(item.id, Math.max(0, item.quantity - 1), getCartItemKey(item))
+                              updateQuantity(
+                                item.id,
+                                Math.max(0, item.quantity - 1),
+                                getCartItemKey(item)
+                              )
                             }
                           >
                             <Minus className="w-4 h-4" />

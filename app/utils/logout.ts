@@ -6,7 +6,11 @@ const AUTH_STORAGE_PREFIXES = ["sb-", "supabase.auth", "customerToken"];
 const hasAuthPrefix = (key: string): boolean =>
   AUTH_STORAGE_PREFIXES.some((prefix) => key === prefix || key.startsWith(prefix));
 
-const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> => {
+const withTimeout = async <T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  label: string
+): Promise<T> => {
   let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
 
   const timeoutPromise = new Promise<never>((_, reject) => {
@@ -51,13 +55,21 @@ export const performLogout = async (): Promise<void> => {
   const signOutErrors: unknown[] = [];
 
   try {
-    await withTimeout(supabase.auth.signOut({ scope: "local" }), LOGOUT_TIMEOUT_MS, "local signOut");
+    await withTimeout(
+      supabase.auth.signOut({ scope: "local" }),
+      LOGOUT_TIMEOUT_MS,
+      "local signOut"
+    );
   } catch (error) {
     signOutErrors.push(error);
   }
 
   try {
-    await withTimeout(supabase.auth.signOut({ scope: "global" }), LOGOUT_TIMEOUT_MS, "global signOut");
+    await withTimeout(
+      supabase.auth.signOut({ scope: "global" }),
+      LOGOUT_TIMEOUT_MS,
+      "global signOut"
+    );
   } catch (error) {
     signOutErrors.push(error);
   }
@@ -81,7 +93,7 @@ export const performLogout = async (): Promise<void> => {
   if (signOutErrors.length > 0) {
     console.warn("Logout completed with recoverable errors:", signOutErrors);
   } else {
-    console.log("Logout completed successfully");
+    console.warn("Logout completed successfully");
   }
 };
 

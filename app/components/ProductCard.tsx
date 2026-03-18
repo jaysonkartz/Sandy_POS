@@ -62,326 +62,333 @@ interface ProductCardProps {
 const getCategoryName = (category: string | number) =>
   CATEGORY_ID_NAME_MAP[String(category)] || "Unknown Category";
 
-export const ProductCard = memo<ProductCardProps>(({
-  group,
-  isEnglish,
-  isSessionValid,
-  userRole,
-  selectedOptions,
-  currentQuantityByProductId,
-  countryMap,
-  isLoggingIn,
-  onOptionChange,
-  onAddToOrder,
-  onUpdateQuantity,
-  onCustomerService,
-  onOpenPhotoEditor,
-  onOpenSignupModal,
-}) => {
-  const { title, products } = group;
-  const optionIdPrefix = `product-${String(title).toLowerCase().replace(/\s+/g, "-")}`;
+export const ProductCard = memo<ProductCardProps>(
+  ({
+    group,
+    isEnglish,
+    isSessionValid,
+    userRole,
+    selectedOptions,
+    currentQuantityByProductId,
+    countryMap,
+    isLoggingIn,
+    onOptionChange,
+    onAddToOrder,
+    onUpdateQuantity,
+    onCustomerService,
+    onOpenPhotoEditor,
+    onOpenSignupModal,
+  }) => {
+    const { title, products } = group;
+    const optionIdPrefix = `product-${String(title).toLowerCase().replace(/\s+/g, "-")}`;
 
-  const getValue = (value?: string | null) => (value ? String(value).trim() : "");
-  const matchBySelection = (
-    p: Product,
-    selection: { variation?: string; countryId?: string; weight?: string }
-  ) => {
-    const variation = getValue(selection.variation);
-    const countryId = getValue(selection.countryId);
-    const weight = getValue(selection.weight);
-
-    if (variation && getValue(p.Variation) !== variation) return false;
-    if (countryId && getValue(p.Country) !== countryId) return false;
-    if (weight && getValue(p.weight) !== weight) return false;
-
-    return true;
-  };
-
-  const getSelectedProduct = useCallback(() => {
-    const selected = selectedOptions[title] || {};
-    return (
-      products.find((p) => matchBySelection(p, selected)) ||
-      products.find((p) => {
-        const normalizedCountry = getValue(selected.countryId);
-        return normalizedCountry ? getValue(p.Country) === normalizedCountry : false;
-      }) ||
-      products.find((p) => {
-        const normalizedVariation = getValue(selected.variation);
-        return normalizedVariation ? getValue(p.Variation) === normalizedVariation : false;
-      }) ||
-      products.find((p) => {
-        const normalizedWeight = getValue(selected.weight);
-        return normalizedWeight ? getValue(p.weight) === normalizedWeight : false;
-      }) ||
-      products[0]
+    const getValue = useCallback(
+      (value?: string | null) => (value ? String(value).trim() : ""),
+      []
     );
-  }, [products, selectedOptions, title]);
+    const matchBySelection = useCallback(
+      (p: Product, selection: { variation?: string; countryId?: string; weight?: string }) => {
+        const variation = getValue(selection.variation);
+        const countryId = getValue(selection.countryId);
+        const weight = getValue(selection.weight);
 
-  const product = getSelectedProduct();
-  const currentQuantity = currentQuantityByProductId[product.id] ?? 0;
+        if (variation && getValue(p.Variation) !== variation) return false;
+        if (countryId && getValue(p.Country) !== countryId) return false;
+        if (weight && getValue(p.weight) !== weight) return false;
 
-  const uniq = (arr: Array<string | undefined | null>) =>
-    Array.from(new Set(arr.filter(Boolean).map((v) => String(v).trim()))).filter(Boolean);
+        return true;
+      },
+      [getValue]
+    );
 
-  const variations = uniq(products.map((p) => p.Variation));
-  const origins = uniq(products.map((p) => p.Country));
-  const weights = uniq(products.map((p) => p.weight));
-  const productOrigin = getValue(product.Country);
-  const originDisplayName = productOrigin
-    ? isEnglish
-      ? countryMap[productOrigin]?.name || productOrigin
-      : countryMap[productOrigin]?.chineseName || productOrigin
-    : "";
-
-  const handleOptionChange = useCallback(
-    (type: "variation" | "countryId" | "weight", value: string) => {
-      const current = selectedOptions[title] || {};
-      const next = { ...current, [type]: value };
-
-      const exactMatch = products.find((p) => matchBySelection(p, next));
-      const targetedMatch =
+    const getSelectedProduct = useCallback(() => {
+      const selected = selectedOptions[title] || {};
+      return (
+        products.find((p) => matchBySelection(p, selected)) ||
         products.find((p) => {
-          if (type === "variation") return getValue(p.Variation) === getValue(value);
-          if (type === "countryId") return getValue(p.Country) === getValue(value);
-          return getValue(p.weight) === getValue(value);
-        }) || products[0];
+          const normalizedCountry = getValue(selected.countryId);
+          return normalizedCountry ? getValue(p.Country) === normalizedCountry : false;
+        }) ||
+        products.find((p) => {
+          const normalizedVariation = getValue(selected.variation);
+          return normalizedVariation ? getValue(p.Variation) === normalizedVariation : false;
+        }) ||
+        products.find((p) => {
+          const normalizedWeight = getValue(selected.weight);
+          return normalizedWeight ? getValue(p.weight) === normalizedWeight : false;
+        }) ||
+        products[0]
+      );
+    }, [products, selectedOptions, title, matchBySelection, getValue]);
 
-      const resolvedProduct = exactMatch || targetedMatch;
+    const product = getSelectedProduct();
+    const currentQuantity = currentQuantityByProductId[product.id] ?? 0;
 
-      onOptionChange(title, "variation", getValue(resolvedProduct?.Variation));
-      onOptionChange(title, "countryId", getValue(resolvedProduct?.Country));
-      onOptionChange(title, "weight", getValue(resolvedProduct?.weight));
-    },
-    [onOptionChange, products, selectedOptions, title]
-  );
+    const uniq = (arr: Array<string | undefined | null>) =>
+      Array.from(new Set(arr.filter(Boolean).map((v) => String(v).trim()))).filter(Boolean);
 
-  return (
-    <div
-      className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-shadow"
-      role="article"
-      aria-label={isEnglish ? product.Product : product.Product_CH}
-    >
-      {/* Image */}
-      <div className="relative h-24 sm:h-48 bg-gray-100">
-        <ProductImage
-          src={
-            product.image_url ||
-            `/Img/${getCategoryName(product.Category)}/${product.Product}${
-              product.Variation ? ` (${product.Variation})` : ""
-            }.png`
-          }
-          alt={isEnglish ? product.Product : product.Product_CH || product.Product}
-          className="w-full h-full object-cover"
-        />
+    const variations = uniq(products.map((p) => p.Variation));
+    const origins = uniq(products.map((p) => p.Country));
+    const weights = uniq(products.map((p) => p.weight));
+    const productOrigin = getValue(product.Country);
+    const originDisplayName = productOrigin
+      ? isEnglish
+        ? countryMap[productOrigin]?.name || productOrigin
+        : countryMap[productOrigin]?.chineseName || productOrigin
+      : "";
 
-        {isSessionValid && userRole === "ADMIN" && (
-          <button
-            onClick={() => onOpenPhotoEditor(product)}
-            className="absolute top-2 right-2 bg-blue-500 text-white p-2 rounded-full"
-          >
-            <Camera size={14} />
-          </button>
-        )}
-      </div>
+    const handleOptionChange = useCallback(
+      (type: "variation" | "countryId" | "weight", value: string) => {
+        const current = selectedOptions[title] || {};
+        const next = { ...current, [type]: value };
 
-      {/* Info */}
-      <div className="p-3 sm:p-4 flex flex-col flex-grow">
-        <h3 className="text-base sm:text-lg font-bold leading-snug line-clamp-2">
-          {isEnglish ? product.Product : product.Product_CH}
-        </h3>
-        <p className="text-xs text-gray-400 mb-3">{product["Item Code"]}</p>
+        const exactMatch = products.find((p) => matchBySelection(p, next));
+        const targetedMatch =
+          products.find((p) => {
+            if (type === "variation") return getValue(p.Variation) === getValue(value);
+            if (type === "countryId") return getValue(p.Country) === getValue(value);
+            return getValue(p.weight) === getValue(value);
+          }) || products[0];
 
-        {/* OPTIONS */}
-        <div className="space-y-2 mb-4">
+        const resolvedProduct = exactMatch || targetedMatch;
 
-          {/* Variation */}
-          {variations.length > 1 ? (
-            <div>
-              <label
-                htmlFor={`${optionIdPrefix}-variation`}
-                className="block text-xs font-medium text-gray-600 mb-1"
-              >
-                {isEnglish ? "Variation:" : "规格:"}
-              </label>
-              <select
-                id={`${optionIdPrefix}-variation`}
-                className="w-full p-2 text-sm border rounded"
-                value={getValue(product.Variation) || variations[0]}
-                onChange={e => handleOptionChange("variation", e.target.value)}
-              >
-                {variations.map(v => (
-                  <option key={v} value={v}>
-                    {isEnglish ? v : products.find(p => p.Variation === v)?.Variation_CH || v}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : variations.length === 1 ? (
-            <div className="text-sm text-gray-600">
-              {isEnglish ? "Variation" : "规格"}:
-              <span className="ml-2 px-2 py-0.5 bg-gray-100 rounded">
-                {isEnglish ? variations[0] : products[0].Variation_CH || variations[0]}
-              </span>
-            </div>
-          ) : null}
+        onOptionChange(title, "variation", getValue(resolvedProduct?.Variation));
+        onOptionChange(title, "countryId", getValue(resolvedProduct?.Country));
+        onOptionChange(title, "weight", getValue(resolvedProduct?.weight));
+      },
+      [onOptionChange, products, selectedOptions, title, matchBySelection, getValue]
+    );
 
-          {/* Origin */}
-          {origins.length > 1 ? (
-            <div>
-              <label
-                htmlFor={`${optionIdPrefix}-origin`}
-                className="block text-xs font-medium text-gray-600 mb-1"
-              >
-                {isEnglish ? "Origin:" : "产地:"}
-              </label>
-              <select
-                id={`${optionIdPrefix}-origin`}
-                className="w-full p-2 text-sm border rounded"
-                value={getValue(product.Country) || origins[0]}
-                onChange={e => handleOptionChange("countryId", e.target.value)}
-              >
-                {origins.map(o => (
-                  <option key={o} value={o}>
-                    {isEnglish ? countryMap[o]?.name || o : countryMap[o]?.chineseName || o}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : origins.length === 1 ? (
-            <div className="text-sm text-gray-600">
-              {isEnglish ? "Origin" : "产地"}:
-              <span className="ml-2 px-2 py-0.5 bg-gray-100 rounded">
-                {isEnglish
-                  ? countryMap[origins[0]]?.name || origins[0]
-                  : countryMap[origins[0]]?.chineseName || origins[0]}
-              </span>
-            </div>
-          ) : null}
+    return (
+      <div
+        aria-label={isEnglish ? product.Product : product.Product_CH}
+        className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-shadow"
+        role="article"
+      >
+        {/* Image */}
+        <div className="relative h-24 sm:h-48 bg-gray-100">
+          <ProductImage
+            alt={isEnglish ? product.Product : product.Product_CH || product.Product}
+            className="w-full h-full object-cover"
+            src={
+              product.image_url ||
+              `/Img/${getCategoryName(product.Category)}/${product.Product}${
+                product.Variation ? ` (${product.Variation})` : ""
+              }.png`
+            }
+          />
 
-          {/* Weight */}
-          {weights.length > 1 ? (
-            <div>
-              <label
-                htmlFor={`${optionIdPrefix}-weight`}
-                className="block text-xs font-medium text-gray-600 mb-1"
-              >
-                {isEnglish ? "Weight:" : "重量:"}
-              </label>
-              <select
-                id={`${optionIdPrefix}-weight`}
-                className="w-full p-2 text-sm border rounded"
-                value={getValue(product.weight) || weights[0]}
-                onChange={e => handleOptionChange("weight", e.target.value)}
-              >
-                {weights.map(w => (
-                  <option key={w} value={w}>{w}</option>
-                ))}
-              </select>
-            </div>
-          ) : weights.length === 1 ? (
-            <div className="text-sm text-gray-600">
-              {isEnglish ? "Weight" : "重量"}:
-              <span className="ml-2 px-2 py-0.5 bg-gray-100 rounded">
-                {weights[0]}
-              </span>
-            </div>
-          ) : null}
+          {isSessionValid && userRole === "ADMIN" && (
+            <button
+              className="absolute top-2 right-2 bg-blue-500 text-white p-2 rounded-full"
+              onClick={() => onOpenPhotoEditor(product)}
+            >
+              <Camera size={14} />
+            </button>
+          )}
         </div>
 
-        {/* Price */}
-        {isSessionValid && (
-          <div className="text-xl font-bold mb-4">
-            ${product.price.toFixed(2)}
-            <span className="text-sm text-gray-500"> /{product.UOM}</span>
+        {/* Info */}
+        <div className="p-3 sm:p-4 flex flex-col flex-grow">
+          <h3 className="text-base sm:text-lg font-bold leading-snug line-clamp-2">
+            {isEnglish ? product.Product : product.Product_CH}
+          </h3>
+          <p className="text-xs text-gray-400 mb-3">{product["Item Code"]}</p>
+
+          {/* OPTIONS */}
+          <div className="space-y-2 mb-4">
+            {/* Variation */}
+            {variations.length > 1 ? (
+              <div>
+                <label
+                  className="block text-xs font-medium text-gray-600 mb-1"
+                  htmlFor={`${optionIdPrefix}-variation`}
+                >
+                  {isEnglish ? "Variation:" : "规格:"}
+                </label>
+                <select
+                  className="w-full p-2 text-sm border rounded"
+                  id={`${optionIdPrefix}-variation`}
+                  value={getValue(product.Variation) || variations[0]}
+                  onChange={(e) => handleOptionChange("variation", e.target.value)}
+                >
+                  {variations.map((v) => (
+                    <option key={v} value={v}>
+                      {isEnglish ? v : products.find((p) => p.Variation === v)?.Variation_CH || v}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : variations.length === 1 ? (
+              <div className="text-sm text-gray-600">
+                {isEnglish ? "Variation" : "规格"}:
+                <span className="ml-2 px-2 py-0.5 bg-gray-100 rounded">
+                  {isEnglish ? variations[0] : products[0].Variation_CH || variations[0]}
+                </span>
+              </div>
+            ) : null}
+
+            {/* Origin */}
+            {origins.length > 1 ? (
+              <div>
+                <label
+                  className="block text-xs font-medium text-gray-600 mb-1"
+                  htmlFor={`${optionIdPrefix}-origin`}
+                >
+                  {isEnglish ? "Origin:" : "产地:"}
+                </label>
+                <select
+                  className="w-full p-2 text-sm border rounded"
+                  id={`${optionIdPrefix}-origin`}
+                  value={getValue(product.Country) || origins[0]}
+                  onChange={(e) => handleOptionChange("countryId", e.target.value)}
+                >
+                  {origins.map((o) => (
+                    <option key={o} value={o}>
+                      {isEnglish ? countryMap[o]?.name || o : countryMap[o]?.chineseName || o}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : origins.length === 1 ? (
+              <div className="text-sm text-gray-600">
+                {isEnglish ? "Origin" : "产地"}:
+                <span className="ml-2 px-2 py-0.5 bg-gray-100 rounded">
+                  {isEnglish
+                    ? countryMap[origins[0]]?.name || origins[0]
+                    : countryMap[origins[0]]?.chineseName || origins[0]}
+                </span>
+              </div>
+            ) : null}
+
+            {/* Weight */}
+            {weights.length > 1 ? (
+              <div>
+                <label
+                  className="block text-xs font-medium text-gray-600 mb-1"
+                  htmlFor={`${optionIdPrefix}-weight`}
+                >
+                  {isEnglish ? "Weight:" : "重量:"}
+                </label>
+                <select
+                  className="w-full p-2 text-sm border rounded"
+                  id={`${optionIdPrefix}-weight`}
+                  value={getValue(product.weight) || weights[0]}
+                  onChange={(e) => handleOptionChange("weight", e.target.value)}
+                >
+                  {weights.map((w) => (
+                    <option key={w} value={w}>
+                      {w}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : weights.length === 1 ? (
+              <div className="text-sm text-gray-600">
+                {isEnglish ? "Weight" : "重量"}:
+                <span className="ml-2 px-2 py-0.5 bg-gray-100 rounded">{weights[0]}</span>
+              </div>
+            ) : null}
           </div>
-        )}
 
-        {/* Action Buttons */}
-<div className="mt-auto pt-4 border-t border-gray-100">
-  {!isSessionValid ? (
-    <button
-      className="w-full text-center text-blue-600 font-semibold hover:text-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      disabled={isLoggingIn}
-      onClick={onOpenSignupModal}
-    >
-      {isLoggingIn
-        ? isEnglish
-          ? "Logging in..."
-          : "登录中..."
-        : isEnglish
-          ? "Login to see price"
-          : "登录查看价格"}
-    </button>
-  ) : (
-    <div className="flex items-center justify-between w-full gap-2 py-3 px-1 sm:px-3 rounded-lg">
-    {/* Left: Quantity controls */}
-<div className="flex items-center gap-2 flex-1">
-  <div className="flex items-stretch flex-1 overflow-hidden rounded-md border bg-white">
-    {/* Minus */}
-    <button
-      className="shrink-0 w-10 h-10 bg-gray-100 hover:bg-gray-200 text-base font-semibold flex items-center justify-center"
-      onClick={() => {
-        if (currentQuantity > 1) onUpdateQuantity(product.id, currentQuantity - 1);
-        else if (currentQuantity === 1) onUpdateQuantity(product.id, 0);
-      }}
-    >
-      −
-    </button>
+          {/* Price */}
+          {isSessionValid && (
+            <div className="text-xl font-bold mb-4">
+              ${product.price.toFixed(2)}
+              <span className="text-sm text-gray-500"> /{product.UOM}</span>
+            </div>
+          )}
 
-    {/* Quantity */}
-    <input
-      type="number"
-      inputMode="numeric"
-      min={0}
-      className="w-16 sm:w-20 text-center text-base font-semibold outline-none border-x bg-white
+          {/* Action Buttons */}
+          <div className="mt-auto pt-4 border-t border-gray-100">
+            {!isSessionValid ? (
+              <button
+                className="w-full text-center text-blue-600 font-semibold hover:text-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isLoggingIn}
+                onClick={onOpenSignupModal}
+              >
+                {isLoggingIn
+                  ? isEnglish
+                    ? "Logging in..."
+                    : "登录中..."
+                  : isEnglish
+                    ? "Login to see price"
+                    : "登录查看价格"}
+              </button>
+            ) : (
+              <div className="flex items-center justify-between w-full gap-2 py-3 px-1 sm:px-3 rounded-lg">
+                {/* Left: Quantity controls */}
+                <div className="flex items-center gap-2 flex-1">
+                  <div className="flex items-stretch flex-1 overflow-hidden rounded-md border bg-white">
+                    {/* Minus */}
+                    <button
+                      className="shrink-0 w-10 h-10 bg-gray-100 hover:bg-gray-200 text-base font-semibold flex items-center justify-center"
+                      onClick={() => {
+                        if (currentQuantity > 1) onUpdateQuantity(product.id, currentQuantity - 1);
+                        else if (currentQuantity === 1) onUpdateQuantity(product.id, 0);
+                      }}
+                    >
+                      −
+                    </button>
+
+                    {/* Quantity */}
+                    <input
+                      className="w-16 sm:w-20 text-center text-base font-semibold outline-none border-x bg-white
                  [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-      value={currentQuantity}
-      onChange={(e) => {
-        const newQuantity = parseInt(e.target.value) || 0;
-        if (newQuantity > 0) {
-          if (currentQuantity === 0) onAddToOrder(product);
-          onUpdateQuantity(product.id, newQuantity);
-        } else {
-          onUpdateQuantity(product.id, 0);
-        }
-      }}
-    />
+                      inputMode="numeric"
+                      min={0}
+                      type="number"
+                      value={currentQuantity}
+                      onChange={(e) => {
+                        const newQuantity = parseInt(e.target.value) || 0;
+                        if (newQuantity > 0) {
+                          if (currentQuantity === 0) onAddToOrder(product);
+                          onUpdateQuantity(product.id, newQuantity);
+                        } else {
+                          onUpdateQuantity(product.id, 0);
+                        }
+                      }}
+                    />
 
-    {/* Plus */}
-    <button
-      className="shrink-0 w-10 h-10 bg-gray-100 hover:bg-gray-200 text-base font-semibold flex items-center justify-center"
-      onClick={() => {
-        if (currentQuantity > 0) onUpdateQuantity(product.id, currentQuantity + 1);
-        else onAddToOrder(product);
-      }}
-    >
-      +
-    </button>
-  </div>
-</div>
+                    {/* Plus */}
+                    <button
+                      className="shrink-0 w-10 h-10 bg-gray-100 hover:bg-gray-200 text-base font-semibold flex items-center justify-center"
+                      onClick={() => {
+                        if (currentQuantity > 0) onUpdateQuantity(product.id, currentQuantity + 1);
+                        else onAddToOrder(product);
+                      }}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
 
-      {/* Right: WhatsApp */}
-      <button
-        className="flex-shrink-0 bg-gray-100 text-gray-600 w-9 h-9 sm:w-10 sm:h-10 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center"
-        title={isEnglish ? "Inquire via WhatsApp" : "通过WhatsApp询价"}
-        onClick={() =>
-          onCustomerService({
-            productName: isEnglish ? product.Product : product.Product_CH || product.Product,
-            variation: getValue(isEnglish ? product.Variation : product.Variation_CH || product.Variation),
-            origin: originDisplayName,
-            weight: getValue(product.weight),
-          })
-        }
-      >
-        <WhatsAppIcon className="w-4 h-4" />
-      </button>
-    </div>
-  )}
-</div>
-
+                {/* Right: WhatsApp */}
+                <button
+                  className="flex-shrink-0 bg-gray-100 text-gray-600 w-9 h-9 sm:w-10 sm:h-10 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center"
+                  title={isEnglish ? "Inquire via WhatsApp" : "通过WhatsApp询价"}
+                  onClick={() =>
+                    onCustomerService({
+                      productName: isEnglish
+                        ? product.Product
+                        : product.Product_CH || product.Product,
+                      variation: getValue(
+                        isEnglish ? product.Variation : product.Variation_CH || product.Variation
+                      ),
+                      origin: originDisplayName,
+                      weight: getValue(product.weight),
+                    })
+                  }
+                >
+                  <WhatsAppIcon className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-    </div>
-  );
-});
+    );
+  }
+);
 
 ProductCard.displayName = "ProductCard";

@@ -47,15 +47,15 @@ export default function ProductImage({
       )}
 
       <CldImage
+        unoptimized
         alt={alt}
         className={`${className} ${isLoading ? "opacity-0" : "opacity-100"} transition-opacity duration-200`}
-        src={imageSrc}
-        width={800}
-        height={800}
-        unoptimized
-        loading="lazy"
         decoding="async"
         fetchPriority="low"
+        height={800}
+        loading="lazy"
+        src={imageSrc}
+        width={800}
         onError={handleError}
         onLoad={handleLoad}
       />

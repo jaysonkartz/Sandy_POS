@@ -26,14 +26,14 @@ export default function ProductCategory({
   const [products, setProducts] = useState<Product[]>(initialProducts || []);
   const [loading, setLoading] = useState(true);
 
-  console.log("categoryId", categoryId);
-  console.log("name", name);
-  console.log("products", products);
+  console.warn("categoryId", categoryId);
+  console.warn("name", name);
+  console.warn("products", products);
 
   useEffect(() => {
     async function fetchProducts() {
       if (!categoryId) {
-        console.log("Category ID is undefined");
+        console.warn("Category ID is undefined");
         setLoading(false);
         return;
       }
@@ -49,7 +49,7 @@ export default function ProductCategory({
           return;
         }
 
-        console.log("Fetched products:", data);
+        console.warn("Fetched products:", data);
         setProducts(data || []);
       } catch (error) {
         console.error("Error:", error);

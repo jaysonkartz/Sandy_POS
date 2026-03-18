@@ -17,13 +17,13 @@ export const FloatingOrderButton: React.FC<FloatingOrderButtonProps> = ({
 }) => {
   return (
     <motion.button
-      type="button"
-      initial={{ scale: 0 }}
       animate={{ scale: 1 }}
+      aria-label={isEnglish ? "View Order" : "查看订单"}
+      className="relative flex items-center gap-2 px-4 py-3 rounded-full bg-blue-600 text-white shadow-xl hover:bg-blue-700 transition"
+      initial={{ scale: 0 }}
+      type="button"
       whileTap={{ scale: 0.95 }}
       onClick={onClick}
-      className="relative flex items-center gap-2 px-4 py-3 rounded-full bg-blue-600 text-white shadow-xl hover:bg-blue-700 transition"
-      aria-label={isEnglish ? "View Order" : "查看订单"}
     >
       <ShoppingCart size={20} />
 

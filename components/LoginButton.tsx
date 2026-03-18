@@ -54,8 +54,8 @@ export default function LoginButton() {
         )}
       </button>
 
-      <CustomerLoginModal 
-        isOpen={isModalOpen} 
+      <CustomerLoginModal
+        isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onLoginSuccess={() => {
           setIsModalOpen(false);

@@ -83,9 +83,9 @@ export default function CategoryPage({ params }: { params: { id: string } }) {
             <CldImage
               alt={category.name}
               className="w-full h-full object-cover"
+              height={200}
               src={category.imageUrl}
               width={100}
-              height={200}
             />
           </div>
           <h1 className="text-3xl font-bold mb-4">{category.name}</h1>
@@ -99,9 +99,9 @@ export default function CategoryPage({ params }: { params: { id: string } }) {
               <CldImage
                 alt={product.title}
                 className="w-full h-full object-cover"
+                height={150}
                 src={product.imageUrl}
                 width={600}
-                height={150}
               />
             </div>
             <div className="p-4">

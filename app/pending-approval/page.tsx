@@ -61,18 +61,18 @@ export default function PendingApprovalPage() {
 
         <div className="mt-6 flex flex-col gap-3">
           <button
+            className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-white font-medium hover:bg-blue-700 disabled:opacity-60"
+            disabled={checking}
             type="button"
             onClick={refreshStatus}
-            disabled={checking}
-            className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-white font-medium hover:bg-blue-700 disabled:opacity-60"
           >
             {checking ? "Checking..." : "Check approval status"}
           </button>
 
           <button
+            className="w-full rounded-lg bg-gray-100 px-4 py-2.5 text-gray-900 font-medium hover:bg-gray-200"
             type="button"
             onClick={handleSignOut}
-            className="w-full rounded-lg bg-gray-100 px-4 py-2.5 text-gray-900 font-medium hover:bg-gray-200"
           >
             Sign out
           </button>

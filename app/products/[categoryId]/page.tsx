@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
 import { CldImage } from "next-cloudinary";
@@ -36,56 +36,40 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
   const [globalVariation, setGlobalVariation] = useState<string>("All");
   const [globalOrigin, setGlobalOrigin] = useState<string>("All");
 
-  useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event: string) => {
-      if (event === "SIGNED_OUT") {
-        router.push("/");
-      }
-    });
-
-    fetchProducts();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  async function fetchProducts() {
+  const fetchProducts = useCallback(async () => {
     try {
-      console.log("Starting fetchProducts...");
+      console.warn("Starting fetchProducts...");
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
-      console.log("Session:", session);
+      console.warn("Session:", session);
 
       if (!session) {
-        console.log("No session, redirecting to login...");
+        console.warn("No session, redirecting to login...");
         localStorage.setItem("intendedCategory", params.categoryId);
         router.push("/login");
         return;
       }
 
-      console.log("Fetching products for category:", params.categoryId);
+      console.warn("Fetching products for category:", params.categoryId);
       const { data, error } = await supabase
         .from("products")
         .select("*")
         .eq("category", params.categoryId);
 
-      console.log("Supabase response:", { data, error });
+      console.warn("Supabase response:", { data, error });
 
       if (error) throw error;
       setProducts(data || []);
 
       // Debug: Log the products data
-      console.log("Loaded products:", data);
-      console.log(
+      console.warn("Loaded products:", data);
+      console.warn(
         "Products with variations:",
         data?.filter((p) => p.Variation)
       );
-      console.log(
+      console.warn(
         "Products with origins:",
         data?.filter((p) => p.Country_of_origin)
       );
@@ -104,7 +88,23 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [params.categoryId, router]);
+
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event: string) => {
+      if (event === "SIGNED_OUT") {
+        router.push("/");
+      }
+    });
+
+    fetchProducts();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [fetchProducts, router]);
 
   // Group products by title
   const productGroups: ProductGroup[] = useMemo(() => {
@@ -158,7 +158,7 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
           .filter(Boolean)
       ),
     ];
-    console.log(`Variations for ${group.title}:`, variations); // Debug log
+    console.warn(`Variations for ${group.title}:`, variations);
     return variations;
   };
 
@@ -171,7 +171,7 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
           .filter(Boolean)
       ),
     ];
-    console.log(`Origins for ${group.title}:`, origins); // Debug log
+    console.warn(`Origins for ${group.title}:`, origins);
     return origins;
   };
 
@@ -305,9 +305,9 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
                   <CldImage
                     alt={selectedProduct.title}
                     className="w-full h-48 object-cover rounded"
+                    height={384}
                     src={selectedProduct.heroImage}
                     width={640}
-                    height={384}
                   />
                 </div>
               )}

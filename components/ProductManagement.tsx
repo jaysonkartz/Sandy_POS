@@ -51,8 +51,6 @@ export default function ProductManagement() {
   const [showImages, setShowImages] = useState(true);
   const latestFetchIdRef = useRef(0);
 
-
-
   // Fetch products
   const fetchProducts = useCallback(async () => {
     const fetchId = ++latestFetchIdRef.current;
@@ -64,7 +62,7 @@ export default function ProductManagement() {
       let query = supabase
         .from("products")
         .select(
-          "id, Product, Product_CH, Category, \"Item Code\", price, UOM, Country, Variation, weight, stock_quantity, image_url, created_at, updated_at"
+          'id, Product, Product_CH, Category, "Item Code", price, UOM, Country, Variation, weight, stock_quantity, image_url, created_at, updated_at'
         )
         .order("created_at", { ascending: false });
 
@@ -91,7 +89,10 @@ export default function ProductManagement() {
         const safeVariants = variantsData || [];
 
         variantsByProductId = safeVariants.reduce(
-          (acc: Record<number, ProductVariant[]>, variant: ProductVariant & { product_id: number }) => {
+          (
+            acc: Record<number, ProductVariant[]>,
+            variant: ProductVariant & { product_id: number }
+          ) => {
             if (!acc[variant.product_id]) {
               acc[variant.product_id] = [];
             }
@@ -115,8 +116,9 @@ export default function ProductManagement() {
       console.error("Error fetching products:", err);
       setError(err instanceof Error ? err.message : "Failed to load products");
     } finally {
-      if (fetchId !== latestFetchIdRef.current) return;
-      setLoading(false);
+      if (fetchId == latestFetchIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [selectedCategory]);
 
@@ -155,51 +157,42 @@ export default function ProductManagement() {
   // Handle product update
   const handleProductUpdate = useCallback(
     async (productId: number, updatedData: Partial<Product>) => {
-      try {
-        const { error } = await supabase
-          .from("products")
-          .update({
-            ...updatedData,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", productId);
+      const { error } = await supabase
+        .from("products")
+        .update({
+          ...updatedData,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", productId);
 
-        if (error) throw error;
+      if (error) throw error;
 
-        // Update local state
-        setProducts((prev) =>
-          prev.map((product) =>
-            product.id === productId ? { ...product, ...updatedData } : product
-          )
-        );
+      // Update local state
+      setProducts((prev) =>
+        prev.map((product) => (product.id === productId ? { ...product, ...updatedData } : product))
+      );
 
-        setEditingProduct(null);
-        setIsEditModalOpen(false);
-      } catch (err) {
-        throw err;
-      }
+      setEditingProduct(null);
+      setIsEditModalOpen(false);
     },
-    [supabase]
+    []
   );
 
   // Handle product deletion
-  const handleProductDelete = useCallback(
-    async (productId: number) => {
-      if (!confirm("Are you sure you want to delete this product?")) return;
+  const handleProductDelete = useCallback(async (productId: number) => {
+    if (!confirm("Are you sure you want to delete this product?")) return;
 
-      try {
-        const { error } = await supabase.from("products").delete().eq("id", productId);
+    try {
+      const { error } = await supabase.from("products").delete().eq("id", productId);
 
-        if (error) throw error;
+      if (error) throw error;
 
-        setProducts((prev) => prev.filter((product) => product.id !== productId));
-      } catch (err) {
-        console.error("Error deleting product:", err);
-        alert("Failed to delete product");
-      }
-    },
-    [supabase]
-  );
+      setProducts((prev) => prev.filter((product) => product.id !== productId));
+    } catch (err) {
+      console.error("Error deleting product:", err);
+      alert("Failed to delete product");
+    }
+  }, []);
 
   // Handle photo editor
   const handlePhotoEditor = useCallback((product: Product) => {

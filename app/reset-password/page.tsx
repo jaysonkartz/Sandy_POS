@@ -28,23 +28,16 @@ export default function ResetPasswordPage() {
 
     const isAbortError = (err: any) =>
       err?.name === "AbortError" ||
-      (typeof err?.message === "string" &&
-        err.message.toLowerCase().includes("signal is aborted"));
+      (typeof err?.message === "string" && err.message.toLowerCase().includes("signal is aborted"));
 
     const getErrorParams = (url: URL) => {
-      const hashParams = new URLSearchParams(
-        url.hash.startsWith("#") ? url.hash.slice(1) : ""
-      );
+      const hashParams = new URLSearchParams(url.hash.startsWith("#") ? url.hash.slice(1) : "");
 
       return {
-        error:
-          url.searchParams.get("error") || hashParams.get("error") || null,
+        error: url.searchParams.get("error") || hashParams.get("error") || null,
         error_description:
-          url.searchParams.get("error_description") ||
-          hashParams.get("error_description") ||
-          null,
-        error_code:
-          url.searchParams.get("error_code") || hashParams.get("error_code") || null,
+          url.searchParams.get("error_description") || hashParams.get("error_description") || null,
+        error_code: url.searchParams.get("error_code") || hashParams.get("error_code") || null,
         code: url.searchParams.get("code") || null,
         access_token: hashParams.get("access_token"),
         refresh_token: hashParams.get("refresh_token"),
@@ -61,10 +54,7 @@ export default function ResetPasswordPage() {
           .replace(/\+/g, " ")
           .trim();
 
-        setError(
-          message ||
-            "Invalid or expired reset link. Please request a new password reset."
-        );
+        setError(message || "Invalid or expired reset link. Please request a new password reset.");
         return;
       }
 
@@ -94,11 +84,7 @@ export default function ResetPasswordPage() {
 
         // clean hash
         if (url.hash) {
-          window.history.replaceState(
-            null,
-            "",
-            `${url.origin}${url.pathname}${url.search}`
-          );
+          window.history.replaceState(null, "", `${url.origin}${url.pathname}${url.search}`);
         }
         return;
       }
@@ -182,8 +168,8 @@ export default function ResetPasswordPage() {
         isAbort
           ? "Network was interrupted. Please try again."
           : err instanceof Error
-          ? err.message
-          : "An error occurred while resetting your password"
+            ? err.message
+            : "An error occurred while resetting your password"
       );
     } finally {
       setIsLoading(false);
@@ -231,7 +217,10 @@ export default function ResetPasswordPage() {
           >
             <p className="text-center mb-4">{error}</p>
             <div className="text-center">
-              <Link className="text-blue-600 hover:text-blue-500 font-medium" href="/forgot-password">
+              <Link
+                className="text-blue-600 hover:text-blue-500 font-medium"
+                href="/forgot-password"
+              >
                 Request New Reset Link
               </Link>
             </div>
@@ -257,10 +246,10 @@ export default function ResetPasswordPage() {
                     onChange={(e) => setPassword(e.target.value)}
                   />
                   <button
-                    type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 z-10 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded p-1"
-                    onClick={() => setShowPassword(!showPassword)}
                     aria-label={showPassword ? "Hide password" : "Show password"}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 z-10 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded p-1"
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
@@ -268,7 +257,10 @@ export default function ResetPasswordPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="confirm-password">
+                <label
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                  htmlFor="confirm-password"
+                >
                   Confirm New Password
                 </label>
                 <div className="relative">
@@ -285,12 +277,16 @@ export default function ResetPasswordPage() {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                   />
                   <button
-                    type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 z-10 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded p-1"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 z-10 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded p-1"
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   >
-                    {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-5 w-5" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
                   </button>
                 </div>
               </div>

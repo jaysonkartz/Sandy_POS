@@ -79,10 +79,7 @@ export default function CustomerDetails() {
         phone: editedCustomer.phone,
       };
 
-      const { error } = await supabase
-        .from("customers")
-        .update(updates)
-        .eq("user_id", user?.id);
+      const { error } = await supabase.from("customers").update(updates).eq("user_id", user?.id);
 
       if (error) throw error;
 

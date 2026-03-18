@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ShoppingBag } from "lucide-react";
 import { supabase } from "@/app/lib/supabaseClient";
@@ -35,13 +35,12 @@ export default function OrderHistory() {
       // Convert orderId to both string and number for comparison (order_id might be stored as either)
       const orderIdStr = String(orderId);
       const orderIdNum = Number(orderId);
-      
+
       // Get items for this specific order from itemsData
       const items = itemsData.filter((item: any) => {
         const itemOrderId = String(item.order_id);
         return itemOrderId === orderIdStr || item.order_id === orderIdNum;
       });
-      
 
       if (!items || items.length === 0) {
         alert("No items found for this order. Please try refreshing the page.");
@@ -86,67 +85,68 @@ export default function OrderHistory() {
       setReorderingId(null);
     }
   };
-  const fetchOrders = async (page: number, isLoadMore = false) => {
-    try {
-      const loadingState = isLoadMore ? setLoadingMore : setLoading;
-      loadingState(true);
+  const fetchOrders = useCallback(
+    async (page: number, isLoadMore = false) => {
+      try {
+        const loadingState = isLoadMore ? setLoadingMore : setLoading;
+        loadingState(true);
 
-      if (!userIdRef.current) {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        if (!userIdRef.current) {
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
 
-        if (!user) {
-          router.push("/");
-          return;
+          if (!user) {
+            router.push("/");
+            return;
+          }
+
+          userIdRef.current = user.id;
         }
 
-        userIdRef.current = user.id;
+        // Calculate pagination range
+        const from = (page - 1) * ordersPerPage;
+        const to = from + ordersPerPage - 1;
+
+        // Fetch orders with count
+        const { data: ordersData = [], count } = await (supabase.from("orders") as any)
+          .select(
+            "id, created_at, total_amount, status, customer_name, customer_phone, customer_address",
+            { count: "planned" }
+          )
+          .eq("user_id", userIdRef.current)
+          .order("created_at", { ascending: false })
+          .range(from, to);
+
+        const orderIds = (ordersData as any[])?.map((o: any) => o.id) || [];
+
+        let itemsDataResult: any[] = [];
+        if (orderIds.length > 0) {
+          const { data = [] } = await (supabase.from("order_items") as any)
+            .select("order_id, product_id, quantity, price, product_name, image_url")
+            .in("order_id", orderIds);
+          itemsDataResult = data;
+        }
+
+        if (isLoadMore) {
+          setOrders((prev) => [...prev, ...(ordersData || [])]);
+          setItemsData((prev) => [...prev, ...(itemsDataResult || [])]);
+        } else {
+          setOrders(ordersData || []);
+          setItemsData(itemsDataResult || []);
+        }
+
+        // Update hasMore based on count
+        setHasMore(count ? from + ordersPerPage < count : false);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        const loadingState = isLoadMore ? setLoadingMore : setLoading;
+        loadingState(false);
       }
-
-      // Calculate pagination range
-      const from = (page - 1) * ordersPerPage;
-      const to = from + ordersPerPage - 1;
-
-      // Fetch orders with count
-      const { data: ordersData = [], count } = await (supabase
-        .from("orders") as any)
-        .select(
-          "id, created_at, total_amount, status, customer_name, customer_phone, customer_address",
-          { count: "planned" }
-        )
-        .eq("user_id", userIdRef.current)
-        .order("created_at", { ascending: false })
-        .range(from, to);
-
-      const orderIds = (ordersData as any[])?.map((o: any) => o.id) || [];
-
-      let itemsDataResult: any[] = [];
-      if (orderIds.length > 0) {
-        const { data = [] } = await (supabase
-          .from("order_items") as any)
-          .select("order_id, product_id, quantity, price, product_name, image_url")
-          .in("order_id", orderIds);
-        itemsDataResult = data;
-      }
-
-      if (isLoadMore) {
-        setOrders((prev) => [...prev, ...(ordersData || [])]);
-        setItemsData((prev) => [...prev, ...(itemsDataResult || [])]);
-      } else {
-        setOrders(ordersData || []);
-        setItemsData(itemsDataResult || []);
-      }
-
-      // Update hasMore based on count
-      setHasMore(count ? from + ordersPerPage < count : false);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      const loadingState = isLoadMore ? setLoadingMore : setLoading;
-      loadingState(false);
-    }
-  };
+    },
+    [ordersPerPage, router]
+  );
 
   const loadMore = () => {
     if (!loadingMore && hasMore) {
@@ -158,7 +158,7 @@ export default function OrderHistory() {
 
   useEffect(() => {
     fetchOrders(1);
-  }, []);
+  }, [fetchOrders]);
 
   const orderItems = useMemo(
     () =>
@@ -250,13 +250,13 @@ export default function OrderHistory() {
                         ${Number(order.total_amount || 0).toFixed(2)}
                       </span>
                       <button
-                        onClick={() => handleReorder(order.id)}
-                        disabled={reorderingId === order.id}
                         className={`ml-4 inline-flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                           reorderingId === order.id
                             ? "bg-gray-200 text-gray-500 cursor-not-allowed"
                             : "bg-green-500 text-white hover:bg-green-600"
                         }`}
+                        disabled={reorderingId === order.id}
+                        onClick={() => handleReorder(order.id)}
                       >
                         <ShoppingBag className="w-4 h-4 mr-2" />
                         {reorderingId === order.id ? "Adding to Cart..." : "Reorder"}
@@ -295,13 +295,13 @@ export default function OrderHistory() {
         {hasMore && (
           <div className="flex justify-center mt-8">
             <button
-              onClick={loadMore}
-              disabled={loadingMore}
               className={`px-6 py-3 text-sm font-medium rounded-md transition-colors ${
                 loadingMore
                   ? "bg-gray-200 text-gray-500 cursor-not-allowed"
                   : "bg-blue-500 text-white hover:bg-blue-600"
               }`}
+              disabled={loadingMore}
+              onClick={loadMore}
             >
               {loadingMore ? (
                 <div className="flex items-center">

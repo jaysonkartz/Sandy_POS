@@ -1,24 +1,24 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import SignInHistory from '@/app/components/SignInHistory';
-import SignInStats from '@/app/components/SignInStats';
-import { SignInLogger } from '@/app/lib/signin-logger';
-import { Database } from '@/types/supabase';
+import { useState, useEffect } from "react";
+import SignInHistory from "@/app/components/SignInHistory";
+import SignInStats from "@/app/components/SignInStats";
+import { SignInLogger } from "@/app/lib/signin-logger";
+import { Database } from "@/types/supabase";
 
-type SignInRecord = Database['public']['Tables']['sign_in_records']['Row'];
+type SignInRecord = Database["public"]["Tables"]["sign_in_records"]["Row"];
 
 export default function SignInRecordsPage() {
-  const [selectedTab, setSelectedTab] = useState<'stats' | 'history' | 'recent'>('stats');
+  const [selectedTab, setSelectedTab] = useState<"stats" | "history" | "recent">("stats");
   const [dateRange, setDateRange] = useState({
-    startDate: '',
-    endDate: ''
+    startDate: "",
+    endDate: "",
   });
   const [recentRecords, setRecentRecords] = useState<SignInRecord[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (selectedTab === 'recent') {
+    if (selectedTab === "recent") {
       fetchRecentRecords();
     }
   }, [selectedTab]);
@@ -29,31 +29,35 @@ export default function SignInRecordsPage() {
       const records = await SignInLogger.getRecentSignIns(100);
       setRecentRecords(records);
     } catch (error) {
-      console.error('Error fetching recent records:', error);
+      console.error("Error fetching recent records:", error);
     } finally {
       setLoading(false);
     }
   };
 
   const exportToCSV = () => {
-    const headers = ['Email', 'Status', 'Date', 'IP Address', 'Device', 'Failure Reason'];
+    const headers = ["Email", "Status", "Date", "IP Address", "Device", "Failure Reason"];
     const csvContent = [
-      headers.join(','),
-      ...recentRecords.map(record => [
-        record.email,
-        record.success ? 'Success' : 'Failed',
-        new Date(record.sign_in_at).toLocaleString(),
-        record.ip_address || 'N/A',
-        record.device_info ? `${(record.device_info as any)?.browser || 'Unknown'} (${(record.device_info as any)?.os || 'Unknown'})` : 'N/A',
-        record.failure_reason || ''
-      ].join(','))
-    ].join('\n');
+      headers.join(","),
+      ...recentRecords.map((record) =>
+        [
+          record.email,
+          record.success ? "Success" : "Failed",
+          new Date(record.sign_in_at).toLocaleString(),
+          record.ip_address || "N/A",
+          record.device_info
+            ? `${(record.device_info as any)?.browser || "Unknown"} (${(record.device_info as any)?.os || "Unknown"})`
+            : "N/A",
+          record.failure_reason || "",
+        ].join(",")
+      ),
+    ].join("\n");
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const blob = new Blob([csvContent], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `signin-records-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `signin-records-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -70,32 +74,32 @@ export default function SignInRecordsPage() {
         <div className="mb-6">
           <nav className="flex space-x-8">
             <button
-              onClick={() => setSelectedTab('stats')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                selectedTab === 'stats'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                selectedTab === "stats"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
+              onClick={() => setSelectedTab("stats")}
             >
               Statistics
             </button>
             <button
-              onClick={() => setSelectedTab('history')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                selectedTab === 'history'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                selectedTab === "history"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
+              onClick={() => setSelectedTab("history")}
             >
               Sign-in History
             </button>
             <button
-              onClick={() => setSelectedTab('recent')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                selectedTab === 'recent'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                selectedTab === "recent"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
+              onClick={() => setSelectedTab("recent")}
             >
               Recent Records
             </button>
@@ -108,25 +112,25 @@ export default function SignInRecordsPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700">Start Date</label>
               <input
+                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 type="date"
                 value={dateRange.startDate}
-                onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                onChange={(e) => setDateRange((prev) => ({ ...prev, startDate: e.target.value }))}
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">End Date</label>
               <input
+                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 type="date"
                 value={dateRange.endDate}
-                onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                onChange={(e) => setDateRange((prev) => ({ ...prev, endDate: e.target.value }))}
               />
             </div>
             <div className="flex items-end">
               <button
-                onClick={() => setDateRange({ startDate: '', endDate: '' })}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                onClick={() => setDateRange({ startDate: "", endDate: "" })}
               >
                 Clear
               </button>
@@ -135,23 +139,23 @@ export default function SignInRecordsPage() {
         </div>
 
         {/* Content */}
-        {selectedTab === 'stats' && (
+        {selectedTab === "stats" && (
           <div className="space-y-6">
-            <SignInStats 
-              startDate={dateRange.startDate || undefined}
+            <SignInStats
               endDate={dateRange.endDate || undefined}
+              startDate={dateRange.startDate || undefined}
               title="Sign-in Statistics"
             />
           </div>
         )}
 
-        {selectedTab === 'history' && (
+        {selectedTab === "history" && (
           <div className="space-y-6">
-            <SignInHistory showAll={true} limit={50} />
+            <SignInHistory limit={50} showAll={true} />
           </div>
         )}
 
-        {selectedTab === 'recent' && (
+        {selectedTab === "recent" && (
           <div className="space-y-6">
             <div className="bg-white shadow rounded-lg">
               <div className="px-4 py-5 sm:p-6">
@@ -161,14 +165,14 @@ export default function SignInRecordsPage() {
                   </h3>
                   <div className="flex space-x-2">
                     <button
-                      onClick={exportToCSV}
                       className="px-4 py-2 text-sm font-medium text-green-700 bg-green-100 rounded-md hover:bg-green-200"
+                      onClick={exportToCSV}
                     >
                       Export CSV
                     </button>
                   </div>
                 </div>
-                
+
                 {loading ? (
                   <div className="flex items-center justify-center p-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -205,12 +209,14 @@ export default function SignInRecordsPage() {
                               {record.email}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                record.success 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : 'bg-red-100 text-red-800'
-                              }`}>
-                                {record.success ? 'Success' : 'Failed'}
+                              <span
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  record.success
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-red-100 text-red-800"
+                                }`}
+                              >
+                                {record.success ? "Success" : "Failed"}
                               </span>
                               {record.failure_reason && (
                                 <div className="text-xs text-red-600 mt-1 max-w-xs truncate">
@@ -222,17 +228,17 @@ export default function SignInRecordsPage() {
                               {new Date(record.sign_in_at).toLocaleString()}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
-                              {record.ip_address || 'N/A'}
+                              {record.ip_address || "N/A"}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {record.device_info ? (
-                    <div className="text-xs">
-                      <div>{(record.device_info as any)?.browser || 'Unknown'}</div>
-                      <div>{(record.device_info as any)?.os || 'Unknown'}</div>
-                    </div>
-                  ) : (
-                    'N/A'
-                  )}
+                              {record.device_info ? (
+                                <div className="text-xs">
+                                  <div>{(record.device_info as any)?.browser || "Unknown"}</div>
+                                  <div>{(record.device_info as any)?.os || "Unknown"}</div>
+                                </div>
+                              ) : (
+                                "N/A"
+                              )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
                               {record.user_id.substring(0, 8)}...
@@ -241,11 +247,9 @@ export default function SignInRecordsPage() {
                         ))}
                       </tbody>
                     </table>
-                    
+
                     {recentRecords.length === 0 && (
-                      <div className="text-center py-8 text-gray-500">
-                        No sign-in records found
-                      </div>
+                      <div className="text-center py-8 text-gray-500">No sign-in records found</div>
                     )}
                   </div>
                 )}

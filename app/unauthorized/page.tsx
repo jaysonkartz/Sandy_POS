@@ -12,14 +12,14 @@ export default function UnauthorizedPage() {
 
         <div className="flex flex-wrap gap-3">
           <Link
-            href="/"
             className="inline-flex items-center rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+            href="/"
           >
             Back to Home
           </Link>
           <Link
-            href="/login"
             className="inline-flex items-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            href="/login"
           >
             Sign in with another account
           </Link>

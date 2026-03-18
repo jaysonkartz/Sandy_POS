@@ -76,9 +76,9 @@ const clearStored = () => {
 export const useOrder = (): UseOrderReturn => {
   const stored = readStored();
 
-  const [selectedProducts, setSelectedProducts] = useState<{ product: Product; quantity: number }[]>(
-    stored?.selectedProducts ?? []
-  );
+  const [selectedProducts, setSelectedProducts] = useState<
+    { product: Product; quantity: number }[]
+  >(stored?.selectedProducts ?? []);
   const [customerName, setCustomerName] = useState(stored?.customerName ?? "");
   const [customerPhone, setCustomerPhone] = useState(stored?.customerPhone ?? "");
   const [customerAddress, setCustomerAddress] = useState(stored?.customerAddress ?? "");
@@ -143,7 +143,9 @@ export const useOrder = (): UseOrderReturn => {
       }
 
       if (selectedProducts.length === 0) {
-        alert(isEnglish ? "Please add at least one product to the order" : "请至少添加一个产品到订单");
+        alert(
+          isEnglish ? "Please add at least one product to the order" : "请至少添加一个产品到订单"
+        );
         return false;
       }
 

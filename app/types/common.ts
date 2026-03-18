@@ -10,7 +10,9 @@ export type AuthenticatedSession = Session & {
 /**
  * Type guard to check if session is authenticated
  */
-export const isAuthenticatedSession = (session: Session | null): session is AuthenticatedSession => {
+export const isAuthenticatedSession = (
+  session: Session | null
+): session is AuthenticatedSession => {
   return !!(session?.user?.id && session?.user?.email);
 };
 
@@ -36,4 +38,3 @@ export interface OrderReviewData {
   purchaseOrder: string;
   uploadedFiles: File[];
 }
-

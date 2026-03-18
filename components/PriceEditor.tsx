@@ -14,7 +14,6 @@ export default function PriceEditor({ productId, currentPrice, onPriceUpdate }: 
   const [price, setPrice] = useState(currentPrice);
   const [isLoading, setIsLoading] = useState(false);
 
-
   const handleSubmit = async () => {
     setIsLoading(true);
     try {

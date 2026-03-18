@@ -132,17 +132,21 @@ export default function ManagementDashboard() {
   }>({});
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [isNavOpen, setIsNavOpen] = useState(false);
-  const [topSellingProductsByQuantity, setTopSellingProductsByQuantity] = useState<Array<{
-    category: string;
-    product: string;
-    variation: string;
-    quantity: number;
-  }>>([]);
-  const [topSellingProductsByPrice, setTopSellingProductsByPrice] = useState<Array<{
-    product: string;
-    variation: string;
-    value: number;
-  }>>([]);
+  const [topSellingProductsByQuantity, setTopSellingProductsByQuantity] = useState<
+    Array<{
+      category: string;
+      product: string;
+      variation: string;
+      quantity: number;
+    }>
+  >([]);
+  const [topSellingProductsByPrice, setTopSellingProductsByPrice] = useState<
+    Array<{
+      product: string;
+      variation: string;
+      value: number;
+    }>
+  >([]);
   const [isLoadingTopProducts, setIsLoadingTopProducts] = useState(true);
   const [salesChartData, setSalesChartData] = useState<{
     labels: string[];
@@ -161,7 +165,9 @@ export default function ManagementDashboard() {
   });
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
   const [monthYearMap, setMonthYearMap] = useState<Map<string, number>>(new Map());
-  const [countryMap, setCountryMap] = useState<{ [key: string]: { name: string; chineseName?: string } }>({});
+  const [countryMap, setCountryMap] = useState<{
+    [key: string]: { name: string; chineseName?: string };
+  }>({});
   const [recentOrders, setRecentOrders] = useState<
     Array<{
       id: number;
@@ -176,23 +182,30 @@ export default function ManagementDashboard() {
   const [showVariantManager, setShowVariantManager] = useState<number | null>(null);
   const [useNewVariantSystem, setUseNewVariantSystem] = useState(false);
   const [selectedProductForVariants, setSelectedProductForVariants] = useState<number | null>(null);
-  const [orderItems, setOrderItems] = useState<Record<string, Array<{
-    id: number;
-    order_id: number;
-    product_id: number;
-    quantity: number;
-    price: number;
-    total_price: number;
-    product_name: string;
-    product_code: string;
-  }>>>({});
+  const [orderItems, setOrderItems] = useState<
+    Record<
+      string,
+      Array<{
+        id: number;
+        order_id: number;
+        product_id: number;
+        quantity: number;
+        price: number;
+        total_price: number;
+        product_name: string;
+        product_code: string;
+      }>
+    >
+  >({});
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
-  const [allCustomers, setAllCustomers] = useState<Array<{
-    id: string | number;
-    name: string;
-    phone?: string | null;
-    email?: string | null;
-  }>>([]);
+  const [allCustomers, setAllCustomers] = useState<
+    Array<{
+      id: string | number;
+      name: string;
+      phone?: string | null;
+      email?: string | null;
+    }>
+  >([]);
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
   const [selectedCustomerForOffer, setSelectedCustomerForOffer] = useState<{
     [productId: number]: string | null;
@@ -252,18 +265,21 @@ export default function ManagementDashboard() {
     }
   }, []);
 
-  const applyVariantsToCategories = useCallback((variantsByProductId: Record<number, ProductVariant[]>) => {
-    setCategories((prev) =>
-      prev.map((category) => ({
-        ...category,
-        products: category.products.map((product) =>
-          Object.prototype.hasOwnProperty.call(variantsByProductId, product.id)
-            ? { ...product, variants: variantsByProductId[product.id] || [] }
-            : product
-        ),
-      }))
-    );
-  }, []);
+  const applyVariantsToCategories = useCallback(
+    (variantsByProductId: Record<number, ProductVariant[]>) => {
+      setCategories((prev) =>
+        prev.map((category) => ({
+          ...category,
+          products: category.products.map((product) =>
+            Object.prototype.hasOwnProperty.call(variantsByProductId, product.id)
+              ? { ...product, variants: variantsByProductId[product.id] || [] }
+              : product
+          ),
+        }))
+      );
+    },
+    []
+  );
 
   const ensureVariantsLoaded = useCallback(
     async (productIds: number[]) => {
@@ -312,7 +328,9 @@ export default function ManagementDashboard() {
         .order("name", { ascending: true });
 
       if (error) {
-        toast.error(`Failed to load customers: ${error.message}${error.details ? ` (${error.details})` : ""}`);
+        toast.error(
+          `Failed to load customers: ${error.message}${error.details ? ` (${error.details})` : ""}`
+        );
         setIsLoadingCustomers(false);
         return;
       }
@@ -320,14 +338,24 @@ export default function ManagementDashboard() {
       if (data && Array.isArray(data)) {
         // Convert id to string for consistency and filter out any invalid entries
         const formattedCustomers = data
-          .filter((customer: { id?: string | number; name?: string }) => customer && customer.id && customer.name)
-          .map((customer: { id: string | number; name: string; phone?: string | null; email?: string | null }) => ({
-            id: String(customer.id),
-            name: customer.name || "Unnamed Customer",
-            phone: customer.phone || null,
-            email: customer.email || null,
-          }));
-        
+          .filter(
+            (customer: { id?: string | number; name?: string }) =>
+              customer && customer.id && customer.name
+          )
+          .map(
+            (customer: {
+              id: string | number;
+              name: string;
+              phone?: string | null;
+              email?: string | null;
+            }) => ({
+              id: String(customer.id),
+              name: customer.name || "Unnamed Customer",
+              phone: customer.phone || null,
+              email: customer.email || null,
+            })
+          );
+
         setAllCustomers(formattedCustomers);
       } else {
         setAllCustomers([]);
@@ -365,7 +393,12 @@ export default function ManagementDashboard() {
 
   // Also fetch customers when a product is selected (in case they weren't loaded yet)
   useEffect(() => {
-    if (selectedProduct && activeSection === "pricing" && allCustomers.length === 0 && !isLoadingCustomers) {
+    if (
+      selectedProduct &&
+      activeSection === "pricing" &&
+      allCustomers.length === 0 &&
+      !isLoadingCustomers
+    ) {
       fetchAllCustomers();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -378,7 +411,11 @@ export default function ManagementDashboard() {
       const to = from + usersPerPage - 1;
 
       // Fetch users with pagination
-      const { data: usersData, error: usersError, count } = await supabase
+      const {
+        data: usersData,
+        error: usersError,
+        count,
+      } = await supabase
         .from("users")
         .select("*", { count: "exact" })
         .order("created_at", { ascending: false })
@@ -387,9 +424,7 @@ export default function ManagementDashboard() {
       if (usersError) throw usersError;
 
       // Fetch customers to get names
-      const { data: customersData } = await supabase
-        .from("customers")
-        .select("user_id, name");
+      const { data: customersData } = await supabase.from("customers").select("user_id, name");
 
       // Create a map of user_id to customer name
       const customerNameMap = new Map<string, string>();
@@ -432,18 +467,20 @@ export default function ManagementDashboard() {
         const { data: countriesData } = await supabase
           .from("countries")
           .select("id, country, chineseName");
-        
+
         if (countriesData && countriesData.length > 0) {
-          countriesData.forEach((country: { id: number | string; country: string; chineseName?: string }) => {
-            // Map country ID to country name (country is the column name in countries table)
-            if (country.id != null && country.country) {
-              const idKey = String(country.id);
-              countryMapping[idKey] = {
-                name: country.country,
-                chineseName: country.chineseName || undefined,
-              };
+          countriesData.forEach(
+            (country: { id: number | string; country: string; chineseName?: string }) => {
+              // Map country ID to country name (country is the column name in countries table)
+              if (country.id != null && country.country) {
+                const idKey = String(country.id);
+                countryMapping[idKey] = {
+                  name: country.country,
+                  chineseName: country.chineseName || undefined,
+                };
+              }
             }
-          });
+          );
           setCountryMap(countryMapping);
         }
       } catch (countriesError) {
@@ -493,7 +530,7 @@ export default function ManagementDashboard() {
         original_price: number;
         last_price_update: string;
       }
-      
+
       const priceHistoryMap: { [key: number | string]: PriceHistoryEntry[] } = {};
       (priceHistories || []).forEach((ph: PriceHistoryEntry) => {
         const productId = Number(ph.product_id);
@@ -507,29 +544,29 @@ export default function ManagementDashboard() {
           priceHistoryMap[productId].push(ph);
         }
       });
-      
+
       const uniqueHistoryProductIds = (priceHistories || [])
         .map((ph: PriceHistoryEntry) => ph.product_id)
         .filter((v: number, i: number, a: number[]) => a.indexOf(v) === i);
 
       const productsWithVariants = (products || []).map((product: any) => {
+        // Resolve country name from the mapping
+        const countryId = product.Country != null ? String(product.Country) : null;
+        const countryInfo = countryId ? countryMapping[countryId] : null;
+        const countryName = countryInfo?.name || null;
 
-          // Resolve country name from the mapping
-          const countryId = product.Country != null ? String(product.Country) : null;
-          const countryInfo = countryId ? countryMapping[countryId] : null;
-          const countryName = countryInfo?.name || null;
-          
-          // Ensure product.id is a number when accessing priceHistoryMap
-          // Try both string and number keys to handle any type mismatches
-          const productId = Number(product.id);
-          const productIdStr = String(product.id);
-          
-          // Try multiple ways to match
-          let history = priceHistoryMap[productId] || 
-                       priceHistoryMap[productIdStr] || 
-                       priceHistoryMap[String(productId)] ||
-                       priceHistoryMap[Number(productIdStr)] ||
-                       [];
+        // Ensure product.id is a number when accessing priceHistoryMap
+        // Try both string and number keys to handle any type mismatches
+        const productId = Number(product.id);
+        const productIdStr = String(product.id);
+
+        // Try multiple ways to match
+        let history =
+          priceHistoryMap[productId] ||
+          priceHistoryMap[productIdStr] ||
+          priceHistoryMap[String(productId)] ||
+          priceHistoryMap[Number(productIdStr)] ||
+          [];
 
         return {
           ...product,
@@ -580,7 +617,7 @@ export default function ManagementDashboard() {
       if (error) {
         throw error;
       }
-      
+
       setRecentOrders(data || []);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to fetch recent orders";
@@ -652,7 +689,7 @@ export default function ManagementDashboard() {
       // If no month specified, use the current month
       const currentMonth = new Date().toLocaleString("default", { month: "long" });
       const currentMonthYear = `${currentMonth} ${currentYear}`;
-      
+
       const targetMonth = month || currentMonthYear;
       if (type === "quantity") {
         setSelectedMonthQuantity(targetMonth);
@@ -680,8 +717,10 @@ export default function ManagementDashboard() {
       const endDate = new Date(targetYear, monthNumber, 0, 23, 59, 59).toISOString();
 
       // Try the filtered query first
-      let { data: orderItems, error } = await supabase.from("order_items").select(
-        `
+      let { data: orderItems, error } = await supabase
+        .from("order_items")
+        .select(
+          `
           id,
           order_id,
           product_id,
@@ -692,7 +731,9 @@ export default function ManagementDashboard() {
           product_code,
           created_at
         `
-      ).gte('created_at', startDate).lte('created_at', endDate);
+        )
+        .gte("created_at", startDate)
+        .lte("created_at", endDate);
 
       if (error) {
         throw error;
@@ -718,46 +759,54 @@ export default function ManagementDashboard() {
         }
       >();
 
-      orderItems?.forEach((item: { product_name?: string; product_code?: string; quantity?: number; total_price?: number; category?: string }) => {
-        const productName = item.product_name || "Unknown Product";
-        const productCode = item.product_code || "N/A";
-        const quantity = item.quantity || 0;
-        const totalPrice = item.total_price || 0;
+      orderItems?.forEach(
+        (item: {
+          product_name?: string;
+          product_code?: string;
+          quantity?: number;
+          total_price?: number;
+          category?: string;
+        }) => {
+          const productName = item.product_name || "Unknown Product";
+          const productCode = item.product_code || "N/A";
+          const quantity = item.quantity || 0;
+          const totalPrice = item.total_price || 0;
 
-        // Determine category from product name
-        let category = "Other";
-        if (productName.toLowerCase().includes("chilli")) {
-          category = "Chilli";
-        }
-        // Add more category logic here if needed
+          // Determine category from product name
+          let category = "Other";
+          if (productName.toLowerCase().includes("chilli")) {
+            category = "Chilli";
+          }
+          // Add more category logic here if needed
 
-        // Group by product name for quantity
-        const quantityKey = productName;
-        if (productQuantityMap.has(quantityKey)) {
-          const existing = productQuantityMap.get(quantityKey)!;
-          existing.quantity += quantity;
-        } else {
-          productQuantityMap.set(quantityKey, {
-            category,
-            product: productName,
-            variation: productCode,
-            quantity,
-          });
-        }
+          // Group by product name for quantity
+          const quantityKey = productName;
+          if (productQuantityMap.has(quantityKey)) {
+            const existing = productQuantityMap.get(quantityKey)!;
+            existing.quantity += quantity;
+          } else {
+            productQuantityMap.set(quantityKey, {
+              category,
+              product: productName,
+              variation: productCode,
+              quantity,
+            });
+          }
 
-        // Group by product name for value
-        const valueKey = productName;
-        if (productValueMap.has(valueKey)) {
-          const existing = productValueMap.get(valueKey)!;
-          existing.value += totalPrice;
-        } else {
-          productValueMap.set(valueKey, {
-            product: productName,
-            variation: productCode,
-            value: totalPrice,
-          });
+          // Group by product name for value
+          const valueKey = productName;
+          if (productValueMap.has(valueKey)) {
+            const existing = productValueMap.get(valueKey)!;
+            existing.value += totalPrice;
+          } else {
+            productValueMap.set(valueKey, {
+              product: productName,
+              variation: productCode,
+              value: totalPrice,
+            });
+          }
         }
-      });
+      );
 
       // Sort and get top 3 for each category
       const topByQuantity = Array.from(productQuantityMap.values())
@@ -779,7 +828,8 @@ export default function ManagementDashboard() {
         setTopSellingProductsByPrice(topByValue);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to fetch top selling products";
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to fetch top selling products";
       toast.error(errorMessage);
       // Set empty data on error
       if (type === "quantity") {
@@ -817,12 +867,14 @@ export default function ManagementDashboard() {
         // Error fetching sales - continue with default value
       }
 
-      const totalSales = completedOrders?.reduce((sum: number, order: { total_amount?: string | number | null }) => {
-        const amount = typeof order.total_amount === 'string' 
-          ? parseFloat(order.total_amount) 
-          : order.total_amount || 0;
-        return sum + amount;
-      }, 0) || 0;
+      const totalSales =
+        completedOrders?.reduce((sum: number, order: { total_amount?: string | number | null }) => {
+          const amount =
+            typeof order.total_amount === "string"
+              ? parseFloat(order.total_amount)
+              : order.total_amount || 0;
+          return sum + amount;
+        }, 0) || 0;
 
       // Fetch active customers (unique customers from orders)
       const { data: ordersData, error: customersError } = await supabase
@@ -835,7 +887,9 @@ export default function ManagementDashboard() {
 
       // Count unique customers by mobile number
       const uniqueCustomers = new Set(
-        ordersData?.map((order: { customer_phone?: string | null }) => order.customer_phone).filter(Boolean) || []
+        ordersData
+          ?.map((order: { customer_phone?: string | null }) => order.customer_phone)
+          .filter(Boolean) || []
       );
       const activeCustomers = uniqueCustomers.size;
 
@@ -856,7 +910,8 @@ export default function ManagementDashboard() {
         pendingOrders: pendingCount || 0,
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to fetch dashboard stats";
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to fetch dashboard stats";
       toast.error(errorMessage);
     }
   };
@@ -889,7 +944,7 @@ export default function ManagementDashboard() {
 
       orderItems.forEach((item: { created_at?: string; total_price?: number }) => {
         if (!item.created_at) return;
-        
+
         const date = new Date(item.created_at);
         const monthName = date.toLocaleString("default", { month: "long" });
         const year = date.getFullYear();
@@ -897,37 +952,34 @@ export default function ManagementDashboard() {
         const sales = parseFloat(item.total_price?.toString() || "0") || 0;
 
         if (monthSalesMap.has(monthKey)) {
-          monthSalesMap.set(
-            monthKey,
-            monthSalesMap.get(monthKey)! + sales
-          );
+          monthSalesMap.set(monthKey, monthSalesMap.get(monthKey)! + sales);
         } else {
           monthSalesMap.set(monthKey, sales);
         }
       });
 
       // Convert map to arrays and sort chronologically (oldest to newest)
-      const sortedMonths = Array.from(monthSalesMap.entries())
-        .sort((a, b) => {
-          // Parse month strings (format: "Month Year") to dates for proper chronological sorting
-          const parseMonthYear = (monthYear: string): Date => {
-            const parts = monthYear.split(" ");
-            const monthName = parts[0];
-            const year = parseInt(parts[1]);
-            return new Date(`${monthName} 1, ${year}`);
-          };
-          
-          const dateA = parseMonthYear(a[0]);
-          const dateB = parseMonthYear(b[0]);
-          return dateA.getTime() - dateB.getTime();
-        });
+      const sortedMonths = Array.from(monthSalesMap.entries()).sort((a, b) => {
+        // Parse month strings (format: "Month Year") to dates for proper chronological sorting
+        const parseMonthYear = (monthYear: string): Date => {
+          const parts = monthYear.split(" ");
+          const monthName = parts[0];
+          const year = parseInt(parts[1]);
+          return new Date(`${monthName} 1, ${year}`);
+        };
+
+        const dateA = parseMonthYear(a[0]);
+        const dateB = parseMonthYear(b[0]);
+        return dateA.getTime() - dateB.getTime();
+      });
 
       const labels = sortedMonths.map(([monthKey]) => monthKey);
       const sales = sortedMonths.map(([, salesAmount]) => salesAmount);
 
       setSalesChartData({ labels, sales });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to fetch sales chart data";
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to fetch sales chart data";
       toast.error(errorMessage);
       setSalesChartData({ labels: [], sales: [] });
     } finally {
@@ -959,7 +1011,9 @@ export default function ManagementDashboard() {
         const orderIds = data.map((order: { id: string | number }) => parseInt(String(order.id)));
         const { data: itemsData, error: itemsError } = await supabase
           .from("order_items")
-          .select("id, order_id, product_id, quantity, price, total_price, product_name, product_code")
+          .select(
+            "id, order_id, product_id, quantity, price, total_price, product_name, product_code"
+          )
           .in("order_id", orderIds);
 
         if (itemsError) {
@@ -976,33 +1030,38 @@ export default function ManagementDashboard() {
             product_name: string;
             product_code: string;
           }
-          
+
           const itemsByOrder: Record<string, OrderItem[]> = {};
-          (itemsData || []).forEach((item: {
-            id: number;
-            order_id: number;
-            product_id: number;
-            quantity: number;
-            price: string | number;
-            total_price: string | number;
-            product_name: string;
-            product_code?: string;
-          }) => {
-            const orderId = String(item.order_id);
-            if (!itemsByOrder[orderId]) {
-              itemsByOrder[orderId] = [];
+          (itemsData || []).forEach(
+            (item: {
+              id: number;
+              order_id: number;
+              product_id: number;
+              quantity: number;
+              price: string | number;
+              total_price: string | number;
+              product_name: string;
+              product_code?: string;
+            }) => {
+              const orderId = String(item.order_id);
+              if (!itemsByOrder[orderId]) {
+                itemsByOrder[orderId] = [];
+              }
+              itemsByOrder[orderId].push({
+                id: item.id,
+                order_id: item.order_id,
+                product_id: item.product_id,
+                quantity: item.quantity,
+                price: typeof item.price === "string" ? parseFloat(item.price) : item.price || 0,
+                total_price:
+                  typeof item.total_price === "string"
+                    ? parseFloat(item.total_price)
+                    : item.total_price || 0,
+                product_name: item.product_name,
+                product_code: item.product_code || "",
+              });
             }
-            itemsByOrder[orderId].push({
-              id: item.id,
-              order_id: item.order_id,
-              product_id: item.product_id,
-              quantity: item.quantity,
-              price: typeof item.price === 'string' ? parseFloat(item.price) : item.price || 0,
-              total_price: typeof item.total_price === 'string' ? parseFloat(item.total_price) : item.total_price || 0,
-              product_name: item.product_name,
-              product_code: item.product_code || "",
-            });
-          });
+          );
           setOrderItems(itemsByOrder);
         }
       } else {
@@ -1153,15 +1212,11 @@ export default function ManagementDashboard() {
 
   const renderOverview = () => {
     const salesData = {
-      labels: salesChartData.labels.length > 0 
-        ? salesChartData.labels 
-        : ["No data available"],
+      labels: salesChartData.labels.length > 0 ? salesChartData.labels : ["No data available"],
       datasets: [
         {
           label: "Total Sales",
-          data: salesChartData.sales.length > 0 
-            ? salesChartData.sales 
-            : [0],
+          data: salesChartData.sales.length > 0 ? salesChartData.sales : [0],
           backgroundColor: "rgba(54, 162, 235, 0.5)",
           borderColor: "rgba(54, 162, 235, 1)",
           borderWidth: 1,
@@ -1178,10 +1233,26 @@ export default function ManagementDashboard() {
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[
-            { title: "Total Products", value: dashboardStats.totalProducts.toLocaleString(), change: "" },
-            { title: "Total Sales", value: `$${dashboardStats.totalSales.toLocaleString()}`, change: "" },
-            { title: "Active Customers", value: dashboardStats.activeCustomers.toLocaleString(), change: "" },
-            { title: "Pending Orders", value: dashboardStats.pendingOrders.toLocaleString(), change: "" },
+            {
+              title: "Total Products",
+              value: dashboardStats.totalProducts.toLocaleString(),
+              change: "",
+            },
+            {
+              title: "Total Sales",
+              value: `$${dashboardStats.totalSales.toLocaleString()}`,
+              change: "",
+            },
+            {
+              title: "Active Customers",
+              value: dashboardStats.activeCustomers.toLocaleString(),
+              change: "",
+            },
+            {
+              title: "Pending Orders",
+              value: dashboardStats.pendingOrders.toLocaleString(),
+              change: "",
+            },
           ].map((stat, index) => (
             <div key={index} className="bg-white p-4 rounded-lg shadow-sm">
               <h3 className="text-gray-500 text-sm">{stat.title}</h3>
@@ -1216,53 +1287,53 @@ export default function ManagementDashboard() {
                 <div className="text-gray-500">No sales data available</div>
               </div>
             ) : (
-              <Bar 
-                data={salesData} 
-                options={{ 
+              <Bar
+                data={salesData}
+                options={{
                   responsive: true,
                   maintainAspectRatio: true,
                   plugins: {
                     legend: {
                       display: true,
-                      position: 'top' as const,
+                      position: "top" as const,
                     },
                     tooltip: {
                       callbacks: {
-                        label: function(context: { parsed: { y: number | null } }) {
+                        label: function (context: { parsed: { y: number | null } }) {
                           const value = context.parsed.y;
-                          return `Sales: $${value !== null ? value.toFixed(2) : '0.00'}`;
-                        }
-                      }
-                    }
+                          return `Sales: $${value !== null ? value.toFixed(2) : "0.00"}`;
+                        },
+                      },
+                    },
                   },
                   scales: {
                     y: {
                       beginAtZero: true,
                       ticks: {
-                        callback: function(value: number | string) {
-                          if (typeof value === 'number') {
+                        callback: function (value: number | string) {
+                          if (typeof value === "number") {
                             return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                           }
                           return value;
-                        }
+                        },
                       },
                       title: {
                         display: true,
-                        text: 'Total Sales ($)'
-                      }
+                        text: "Total Sales ($)",
+                      },
                     },
                     x: {
                       ticks: {
                         maxRotation: 45,
-                        minRotation: 45
+                        minRotation: 45,
                       },
                       title: {
                         display: true,
-                        text: 'Month'
-                      }
-                    }
-                  }
-                }} 
+                        text: "Month",
+                      },
+                    },
+                  },
+                }}
               />
             )}
           </div>
@@ -1275,12 +1346,12 @@ export default function ManagementDashboard() {
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Top Selling Products (by Qty)</h3>
               <select
+                className="px-3 py-1 pr-8 bg-blue-100 text-blue-600 rounded text-sm font-medium border-0 focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none bg-no-repeat bg-right bg-[length:16px] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQgNkw4IDEwTDEyIDYiIHN0cm9rZT0iIzM3NDE1MSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+')]"
                 value={selectedMonthQuantity}
                 onChange={(e) => {
                   setSelectedMonthQuantity(e.target.value);
                   fetchTopSellingProducts(e.target.value, "quantity");
                 }}
-                className="px-3 py-1 pr-8 bg-blue-100 text-blue-600 rounded text-sm font-medium border-0 focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none bg-no-repeat bg-right bg-[length:16px] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQgNkw4IDEwTDEyIDYiIHN0cm9rZT0iIzM3NDE1MSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+')]"
               >
                 {availableMonths.map((month) => (
                   <option key={month} value={month}>
@@ -1310,7 +1381,7 @@ export default function ManagementDashboard() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {isLoadingTopProducts ? (
                     <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                      <td className="px-4 py-8 text-center text-gray-500" colSpan={4}>
                         Loading top selling products...
                       </td>
                     </tr>
@@ -1333,7 +1404,7 @@ export default function ManagementDashboard() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                      <td className="px-4 py-8 text-center text-gray-500" colSpan={4}>
                         No sales data available for {selectedMonthQuantity}
                       </td>
                     </tr>
@@ -1348,12 +1419,12 @@ export default function ManagementDashboard() {
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Top Selling Products (by Price)</h3>
               <select
+                className="px-3 py-1 pr-8 bg-blue-100 text-blue-600 rounded text-sm font-medium border-0 focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none bg-no-repeat bg-right bg-[length:16px] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQgNkw4IDEwTDEyIDYiIHN0cm9rZT0iIzM3NDE1MSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+')]"
                 value={selectedMonthPrice}
                 onChange={(e) => {
                   setSelectedMonthPrice(e.target.value);
                   fetchTopSellingProducts(e.target.value, "price");
                 }}
-                className="px-3 py-1 pr-8 bg-blue-100 text-blue-600 rounded text-sm font-medium border-0 focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none bg-no-repeat bg-right bg-[length:16px] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQgNkw4IDEwTDEyIDYiIHN0cm9rZT0iIzM3NDE1MSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+')]"
               >
                 {availableMonths.map((month) => (
                   <option key={month} value={month}>
@@ -1380,7 +1451,7 @@ export default function ManagementDashboard() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {isLoadingTopProducts ? (
                     <tr>
-                      <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
+                      <td className="px-4 py-8 text-center text-gray-500" colSpan={3}>
                         Loading top selling products...
                       </td>
                     </tr>
@@ -1400,7 +1471,7 @@ export default function ManagementDashboard() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
+                      <td className="px-4 py-8 text-center text-gray-500" colSpan={3}>
                         No sales data available for {selectedMonthPrice}
                       </td>
                     </tr>
@@ -1437,7 +1508,7 @@ export default function ManagementDashboard() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {isLoadingRecentOrders ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                    <td className="px-6 py-8 text-center text-gray-500" colSpan={4}>
                       Loading recent orders...
                     </td>
                   </tr>
@@ -1451,7 +1522,8 @@ export default function ManagementDashboard() {
                         {new Date(order.created_at).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {order.customer_name} - ${order.total_amount ? order.total_amount.toFixed(2) : '0.00'}
+                        {order.customer_name} - $
+                        {order.total_amount ? order.total_amount.toFixed(2) : "0.00"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
@@ -1472,7 +1544,7 @@ export default function ManagementDashboard() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                    <td className="px-6 py-8 text-center text-gray-500" colSpan={4}>
                       No recent orders found
                     </td>
                   </tr>
@@ -1530,17 +1602,19 @@ export default function ManagementDashboard() {
                         <div className="flex items-center">
                           {user.avatar_url ? (
                             <CldImage
-                              src={user.avatar_url}
                               alt={user.name || "User avatar"}
-                              width={32}
-                              height={32}
                               className="h-8 w-8 rounded-full object-cover"
+                              height={32}
+                              src={user.avatar_url}
+                              width={32}
                             />
                           ) : (
                             <div className="h-8 w-8 rounded-full bg-gray-200" />
                           )}
                           <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">{user.name || "N/A"}</div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {user.name || "N/A"}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -1593,16 +1667,20 @@ export default function ManagementDashboard() {
           <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
             <div className="flex-1 flex justify-between sm:hidden">
               <button
-                onClick={() => setCurrentUserPage(prev => Math.max(1, prev - 1))}
-                disabled={currentUserPage === 1}
                 className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={currentUserPage === 1}
+                onClick={() => setCurrentUserPage((prev) => Math.max(1, prev - 1))}
               >
                 Previous
               </button>
               <button
-                onClick={() => setCurrentUserPage(prev => Math.min(Math.ceil(totalUsers / usersPerPage), prev + 1))}
-                disabled={currentUserPage >= Math.ceil(totalUsers / usersPerPage)}
                 className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={currentUserPage >= Math.ceil(totalUsers / usersPerPage)}
+                onClick={() =>
+                  setCurrentUserPage((prev) =>
+                    Math.min(Math.ceil(totalUsers / usersPerPage), prev + 1)
+                  )
+                }
               >
                 Next
               </button>
@@ -1610,32 +1688,41 @@ export default function ManagementDashboard() {
             <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm text-gray-700">
-                  Showing{' '}
-                  <span className="font-medium">
-                    {(currentUserPage - 1) * usersPerPage + 1}
-                  </span>{' '}
-                  to{' '}
+                  Showing{" "}
+                  <span className="font-medium">{(currentUserPage - 1) * usersPerPage + 1}</span> to{" "}
                   <span className="font-medium">
                     {Math.min(currentUserPage * usersPerPage, totalUsers)}
-                  </span>{' '}
-                  of{' '}
-                  <span className="font-medium">{totalUsers}</span> results
+                  </span>{" "}
+                  of <span className="font-medium">{totalUsers}</span> results
                 </p>
               </div>
               <div>
-                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                <nav
+                  aria-label="Pagination"
+                  className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
+                >
                   <button
-                    onClick={() => setCurrentUserPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentUserPage === 1}
                     className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={currentUserPage === 1}
+                    onClick={() => setCurrentUserPage((prev) => Math.max(1, prev - 1))}
                   >
                     <span className="sr-only">Previous</span>
-                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                    <svg
+                      aria-hidden="true"
+                      className="h-5 w-5"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        clipRule="evenodd"
+                        d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+                        fillRule="evenodd"
+                      />
                     </svg>
                   </button>
                   {Array.from({ length: Math.ceil(totalUsers / usersPerPage) }, (_, i) => i + 1)
-                    .filter(page => {
+                    .filter((page) => {
                       const totalPages = Math.ceil(totalUsers / usersPerPage);
                       if (totalPages <= 7) return true;
                       if (page === 1 || page === totalPages) return true;
@@ -1645,8 +1732,9 @@ export default function ManagementDashboard() {
                     .map((page, index, array) => {
                       const totalPages = Math.ceil(totalUsers / usersPerPage);
                       const showEllipsisBefore = index > 0 && array[index - 1] !== page - 1;
-                      const showEllipsisAfter = index < array.length - 1 && array[index + 1] !== page + 1;
-                      
+                      const showEllipsisAfter =
+                        index < array.length - 1 && array[index + 1] !== page + 1;
+
                       return (
                         <div key={page} className="flex items-center">
                           {showEllipsisBefore && (
@@ -1655,12 +1743,12 @@ export default function ManagementDashboard() {
                             </span>
                           )}
                           <button
-                            onClick={() => setCurrentUserPage(page)}
                             className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
                               currentUserPage === page
-                                ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                                : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                                ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
+                                : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
                             }`}
+                            onClick={() => setCurrentUserPage(page)}
                           >
                             {page}
                           </button>
@@ -1673,13 +1761,27 @@ export default function ManagementDashboard() {
                       );
                     })}
                   <button
-                    onClick={() => setCurrentUserPage(prev => Math.min(Math.ceil(totalUsers / usersPerPage), prev + 1))}
-                    disabled={currentUserPage >= Math.ceil(totalUsers / usersPerPage)}
                     className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={currentUserPage >= Math.ceil(totalUsers / usersPerPage)}
+                    onClick={() =>
+                      setCurrentUserPage((prev) =>
+                        Math.min(Math.ceil(totalUsers / usersPerPage), prev + 1)
+                      )
+                    }
                   >
                     <span className="sr-only">Next</span>
-                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                    <svg
+                      aria-hidden="true"
+                      className="h-5 w-5"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        clipRule="evenodd"
+                        d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                        fillRule="evenodd"
+                      />
                     </svg>
                   </button>
                 </nav>
@@ -1722,15 +1824,13 @@ export default function ManagementDashboard() {
             {/* Product Variants Management Section */}
             <div className="bg-white rounded-lg shadow p-6 mb-6">
               <div className="flex justify-between items-center mb-4">
-                <h4 className="font-medium text-gray-700 text-lg">
-                  Product Variants:
-                </h4>
+                <h4 className="font-medium text-gray-700 text-lg">Product Variants:</h4>
                 <div className="flex items-center gap-2">
                   <label className="hidden items-center text-sm">
                     <input
-                      type="checkbox"
-                      className="mr-2"
                       checked={useNewVariantSystem}
+                      className="mr-2"
+                      type="checkbox"
                       onChange={(e) => setUseNewVariantSystem(e.target.checked)}
                     />
                     Use New Variant System
@@ -1739,7 +1839,11 @@ export default function ManagementDashboard() {
                     className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
                     onClick={() => {
                       // If no product selected for variants, use the first product or null
-                      const productIdForVariants = selectedProductForVariants || (categories.length > 0 && categories[0].products.length > 0 ? categories[0].products[0].id : null);
+                      const productIdForVariants =
+                        selectedProductForVariants ||
+                        (categories.length > 0 && categories[0].products.length > 0
+                          ? categories[0].products[0].id
+                          : null);
                       if (productIdForVariants) {
                         setShowVariantManager(
                           showVariantManager === productIdForVariants ? null : productIdForVariants
@@ -1750,11 +1854,13 @@ export default function ManagementDashboard() {
                       }
                     }}
                   >
-                    {showVariantManager === selectedProductForVariants ? 'Hide Variants' : 'Manage Variants'}
+                    {showVariantManager === selectedProductForVariants
+                      ? "Hide Variants"
+                      : "Manage Variants"}
                   </button>
                 </div>
               </div>
-              
+
               {/* Product Selector Dropdown */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1762,7 +1868,7 @@ export default function ManagementDashboard() {
                 </label>
                 <select
                   className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={selectedProductForVariants || ''}
+                  value={selectedProductForVariants || ""}
                   onChange={(e) => {
                     const newProductId = Number(e.target.value);
                     setSelectedProductForVariants(newProductId);
@@ -1773,26 +1879,28 @@ export default function ManagementDashboard() {
                   }}
                 >
                   <option value="">-- Select a Product --</option>
-                  {categories.flatMap(category => 
-                    category.products.map(p => (
+                  {categories.flatMap((category) =>
+                    category.products.map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.Product} {category.name ? `(${category.name})` : ''}
+                        {p.Product} {category.name ? `(${category.name})` : ""}
                       </option>
                     ))
                   )}
                 </select>
               </div>
-              
+
               {(() => {
                 if (!selectedProductForVariants) return null;
-                
+
                 const selectedProductData = categories
                   .flatMap((c: Category) => c.products)
-                  .find(p => p.id === selectedProductForVariants);
-                const isLoadingSelectedVariants = loadingVariantProductIds.has(selectedProductForVariants);
-                
+                  .find((p) => p.id === selectedProductForVariants);
+                const isLoadingSelectedVariants = loadingVariantProductIds.has(
+                  selectedProductForVariants
+                );
+
                 if (!selectedProductData) return null;
-                
+
                 return (
                   <>
                     {isLoadingSelectedVariants && (
@@ -1803,63 +1911,74 @@ export default function ManagementDashboard() {
                     )}
 
                     {/* Show current variants list when manager is NOT open */}
-                    {selectedProductData.variants && selectedProductData.variants.length > 0 && showVariantManager !== selectedProductForVariants && (
-                      <div className="mt-2">
-                        <div className="text-sm text-gray-600 mb-2">
-                          Current variants ({selectedProductData.variants.length}):
-                        </div>
-                        <div className="space-y-1">
-                          {selectedProductData.variants.map((variant: ProductVariant) => (
-                            <div key={variant.id} className="flex items-center justify-between bg-white p-2 rounded border">
-                              <div className="flex items-center space-x-3">
-                                {variant.image_url && (
-                                  <CldImage
-                                    src={variant.image_url}
-                                    alt={variant.variation_name}
-                                    width={64}
-                                    height={64}
-                                    className="w-8 h-8 object-cover rounded"
-                                  />
-                                )}
-                                <div>
-                                  <span className="font-medium">{variant.variation_name}</span>
-                                  {variant.variation_name_ch && (
-                                    <span className="text-gray-500 ml-2">({variant.variation_name_ch})</span>
+                    {selectedProductData.variants &&
+                      selectedProductData.variants.length > 0 &&
+                      showVariantManager !== selectedProductForVariants && (
+                        <div className="mt-2">
+                          <div className="text-sm text-gray-600 mb-2">
+                            Current variants ({selectedProductData.variants.length}):
+                          </div>
+                          <div className="space-y-1">
+                            {selectedProductData.variants.map((variant: ProductVariant) => (
+                              <div
+                                key={variant.id}
+                                className="flex items-center justify-between bg-white p-2 rounded border"
+                              >
+                                <div className="flex items-center space-x-3">
+                                  {variant.image_url && (
+                                    <CldImage
+                                      alt={variant.variation_name}
+                                      className="w-8 h-8 object-cover rounded"
+                                      height={64}
+                                      src={variant.image_url}
+                                      width={64}
+                                    />
                                   )}
-                                  {variant.is_default && (
-                                    <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">Default</span>
-                                  )}
+                                  <div>
+                                    <span className="font-medium">{variant.variation_name}</span>
+                                    {variant.variation_name_ch && (
+                                      <span className="text-gray-500 ml-2">
+                                        ({variant.variation_name_ch})
+                                      </span>
+                                    )}
+                                    {variant.is_default && (
+                                      <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">
+                                        Default
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="text-sm text-gray-600">
+                                  ${variant.price.toFixed(2)} | Stock: {variant.stock_quantity}
+                                  {variant.weight && ` | ${variant.weight}`}
                                 </div>
                               </div>
-                              <div className="text-sm text-gray-600">
-                                ${variant.price.toFixed(2)} | Stock: {variant.stock_quantity}
-                                {variant.weight && ` | ${variant.weight}`}
-                              </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                    
+                      )}
+
                     {/* Show variant manager when opened */}
                     {showVariantManager === selectedProductForVariants && (
                       <div className="mt-4">
                         {useNewVariantSystem ? (
                           <VariantManager
                             productId={selectedProductForVariants}
-                            variants={Array.isArray(selectedProductData.variants) 
-                              ? selectedProductData.variants 
-                              : []}
+                            variants={
+                              Array.isArray(selectedProductData.variants)
+                                ? selectedProductData.variants
+                                : []
+                            }
                             onVariantsChange={(newVariants) => {
                               // Update the product in the categories state
-                              setCategories(prevCategories => 
-                                prevCategories.map(category => ({
+                              setCategories((prevCategories) =>
+                                prevCategories.map((category) => ({
                                   ...category,
-                                  products: category.products.map(p => 
-                                    p.id === selectedProductForVariants 
+                                  products: category.products.map((p) =>
+                                    p.id === selectedProductForVariants
                                       ? { ...p, variants: newVariants }
                                       : p
-                                  )
+                                  ),
                                 }))
                               );
                             }}
@@ -1875,13 +1994,14 @@ export default function ManagementDashboard() {
                         )}
                       </div>
                     )}
-                    
+
                     {/* Show message when no variants and manager is NOT open */}
-                    {(!selectedProductData.variants || selectedProductData.variants.length === 0) && showVariantManager !== selectedProductForVariants && (
-                      <div className="text-gray-500 text-sm">
-                        No variants configured. Click "Manage Variants" to add product variations.
-                      </div>
-                    )}
+                    {(!selectedProductData.variants || selectedProductData.variants.length === 0) &&
+                      showVariantManager !== selectedProductForVariants && (
+                        <div className="text-gray-500 text-sm">
+                          No variants configured. Click "Manage Variants" to add product variations.
+                        </div>
+                      )}
                   </>
                 );
               })()}
@@ -1952,146 +2072,145 @@ export default function ManagementDashboard() {
                                 .map((product) => {
                                   return (
                                     <React.Fragment key={product.id}>
-                                    <tr>
-                                      <td className="px-4 py-2">
-                                        <div className="flex items-center space-x-2">
-                                          <button
-                                            className="text-blue-600 hover:text-blue-800 text-left"
-                                            onClick={() =>
-                                              setSelectedProduct(
-                                                selectedProduct === product.id ? null : product.id
-                                              )
-                                            }
-                                          >
-                                            <div className="flex flex-col">
-                                              <div className="flex items-center">
-                                                <span>{selectedProduct === product.id ? "▼" : "▶"}</span>
-                                                <span className="ml-1 font-medium">{product.Product}</span>
-                                              </div>
-                                              {(product["Item Code"] || product.Variation || product.UOM || product.Country) && (
-                                                <div className="ml-5 mt-1 space-y-1">
-                                                  <div className="flex flex-wrap items-center gap-2 text-xs">
-                                                    {product.Variation && (
-                                                      <span className="inline-flex items-center px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-medium">
-                                                        <span className="mr-1">📦</span>
-                                                        {product.Variation}
-                                                      </span>
-                                                    )}
-                                                    {(() => {
-                                                      // Use the resolved countryName if available, otherwise try to look it up from state
-                                                      const countryName = product.countryName || 
-                                                        (product.Country && countryMap[String(product.Country)]?.name);
-                                                      
-                                                      // Only show if we have a valid country name
-                                                      if (countryName) {
-                                                        return (
-                                                          <span className="inline-flex items-center px-2 py-0.5 rounded bg-green-50 text-green-700 font-medium">
-                                                            <span className="mr-1">🌍</span>
-                                                            {countryName}
-                                                          </span>
-                                                        );
-                                                      }
-                                                      
-                                                      // Don't show anything if country name not found
-                                                      return null;
-                                                    })()}
-                                                    {product["Item Code"] && (
-                                                      <span className="inline-flex items-center px-2 py-0.5 rounded bg-gray-100 text-gray-600">
-                                                        <span className="mr-1">#</span>
-                                                        {product["Item Code"]}
-                                                      </span>
-                                                    )}
-                                                    {product.UOM && (
-                                                      <span className="inline-flex items-center px-2 py-0.5 rounded bg-purple-50 text-purple-700">
-                                                        <span className="mr-1">⚖️</span>
-                                                        {product.UOM}
-                                                      </span>
-                                                    )}
-                                                  </div>
-                                                </div>
-                                              )}
-                                            </div>
-                                          </button>
-                                        </div>
-                                      </td>
-                                      <td className="px-4 py-2 flex items-center space-x-2">
-                                        {(() => {
-                                          const isEditing = editingProductId === product.id;
-                                          if (isEditing) {
-                                            // Editing mode - no additional logic needed
-                                          }
-                                          return isEditing;
-                                        })() ? (
-                                          <>
-                                            <input
-                                              className="border rounded px-2 py-1 w-20"
-                                              type="number"
-                                              value={editingPrice ?? product.price}
-                                              onChange={(e) =>
-                                                setEditingPrice(Number(e.target.value))
-                                              }
-                                            />
+                                      <tr>
+                                        <td className="px-4 py-2">
+                                          <div className="flex items-center space-x-2">
                                             <button
-                                              className="text-green-600 font-bold"
-                                              title="Save"
-                                              onClick={async () => {
-                                                if (editingPrice === null || isNaN(editingPrice)) {
-                                                  toast.error("Please enter a valid price.");
-                                                  return;
-                                                }
-                                                setIsLoading(true);
+                                              className="text-blue-600 hover:text-blue-800 text-left"
+                                              onClick={() =>
+                                                setSelectedProduct(
+                                                  selectedProduct === product.id ? null : product.id
+                                                )
+                                              }
+                                            >
+                                              <div className="flex flex-col">
+                                                <div className="flex items-center">
+                                                  <span>
+                                                    {selectedProduct === product.id ? "▼" : "▶"}
+                                                  </span>
+                                                  <span className="ml-1 font-medium">
+                                                    {product.Product}
+                                                  </span>
+                                                </div>
+                                                {(product["Item Code"] ||
+                                                  product.Variation ||
+                                                  product.UOM ||
+                                                  product.Country) && (
+                                                  <div className="ml-5 mt-1 space-y-1">
+                                                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                                                      {product.Variation && (
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-medium">
+                                                          <span className="mr-1">📦</span>
+                                                          {product.Variation}
+                                                        </span>
+                                                      )}
+                                                      {(() => {
+                                                        // Use the resolved countryName if available, otherwise try to look it up from state
+                                                        const countryName =
+                                                          product.countryName ||
+                                                          (product.Country &&
+                                                            countryMap[String(product.Country)]
+                                                              ?.name);
 
-                                                const { data: orderItems, error: orderItemsError } =
-                                                  await supabase
+                                                        // Only show if we have a valid country name
+                                                        if (countryName) {
+                                                          return (
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded bg-green-50 text-green-700 font-medium">
+                                                              <span className="mr-1">🌍</span>
+                                                              {countryName}
+                                                            </span>
+                                                          );
+                                                        }
+
+                                                        // Don't show anything if country name not found
+                                                        return null;
+                                                      })()}
+                                                      {product["Item Code"] && (
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded bg-gray-100 text-gray-600">
+                                                          <span className="mr-1">#</span>
+                                                          {product["Item Code"]}
+                                                        </span>
+                                                      )}
+                                                      {product.UOM && (
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded bg-purple-50 text-purple-700">
+                                                          <span className="mr-1">⚖️</span>
+                                                          {product.UOM}
+                                                        </span>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            </button>
+                                          </div>
+                                        </td>
+                                        <td className="px-4 py-2 flex items-center space-x-2">
+                                          {(() => {
+                                            const isEditing = editingProductId === product.id;
+                                            if (isEditing) {
+                                              // Editing mode - no additional logic needed
+                                            }
+                                            return isEditing;
+                                          })() ? (
+                                            <>
+                                              <input
+                                                className="border rounded px-2 py-1 w-20"
+                                                type="number"
+                                                value={editingPrice ?? product.price}
+                                                onChange={(e) =>
+                                                  setEditingPrice(Number(e.target.value))
+                                                }
+                                              />
+                                              <button
+                                                className="text-green-600 font-bold"
+                                                title="Save"
+                                                onClick={async () => {
+                                                  if (
+                                                    editingPrice === null ||
+                                                    isNaN(editingPrice)
+                                                  ) {
+                                                    toast.error("Please enter a valid price.");
+                                                    return;
+                                                  }
+                                                  setIsLoading(true);
+
+                                                  const {
+                                                    data: orderItems,
+                                                    error: orderItemsError,
+                                                  } = await supabase
                                                     .from("order_items")
                                                     .select("order_id, orders(customer_id)")
                                                     .eq("product_id", product.id);
 
-                                                if (orderItemsError) {
-                                                  toast.error(`Failed to fetch order items: ${orderItemsError.message}`);
-                                                  setIsLoading(false);
-                                                  return;
-                                                }
+                                                  if (orderItemsError) {
+                                                    toast.error(
+                                                      `Failed to fetch order items: ${orderItemsError.message}`
+                                                    );
+                                                    setIsLoading(false);
+                                                    return;
+                                                  }
 
-                                                const uniqueCustomerIds = [
-                                                  ...new Set(
-                                                    (orderItems || [])
-                                                      .map((oi: any) => {
-                                                        const orders = oi.orders as
-                                                          | { customer_id?: string }
-                                                          | { customer_id?: string }[]
-                                                          | undefined;
-                                                        if (!orders) return null;
-                                                        if (Array.isArray(orders)) {
-                                                          return orders[0]?.customer_id ?? null;
-                                                        }
-                                                        return orders.customer_id ?? null;
-                                                      })
-                                                      .filter((cid: any) => !!cid)
-                                                  ),
-                                                ];
+                                                  const uniqueCustomerIds = [
+                                                    ...new Set(
+                                                      (orderItems || [])
+                                                        .map((oi: any) => {
+                                                          const orders = oi.orders as
+                                                            | { customer_id?: string }
+                                                            | { customer_id?: string }[]
+                                                            | undefined;
+                                                          if (!orders) return null;
+                                                          if (Array.isArray(orders)) {
+                                                            return orders[0]?.customer_id ?? null;
+                                                          }
+                                                          return orders.customer_id ?? null;
+                                                        })
+                                                        .filter((cid: any) => !!cid)
+                                                    ),
+                                                  ];
 
-                                                // Always create a global price history entry
-                                                const { error: globalHistoryError } = await supabase
-                                                  .from("product_price_history")
-                                                  .insert([
-                                                    {
-                                                      product_id: product.id,
-                                                      previous_price: product.price,
-                                                      original_price: editingPrice,
-                                                      last_price_update: new Date().toISOString(),
-                                                      customer_id: null,
-                                                    },
-                                                  ]);
-
-                                                if (globalHistoryError) {
-                                                  toast.error(`Failed to insert global price history: ${globalHistoryError.message}`);
-                                                }
-
-                                                // Also create customer-specific entries if there are customers
-                                                if (uniqueCustomerIds.length > 0) {
-                                                  for (const customerId of uniqueCustomerIds) {
-                                                    const { error: insertError } = await supabase
+                                                  // Always create a global price history entry
+                                                  const { error: globalHistoryError } =
+                                                    await supabase
                                                       .from("product_price_history")
                                                       .insert([
                                                         {
@@ -2100,501 +2219,1103 @@ export default function ManagementDashboard() {
                                                           original_price: editingPrice,
                                                           last_price_update:
                                                             new Date().toISOString(),
-                                                          customer_id: customerId,
+                                                          customer_id: null,
                                                         },
                                                       ]);
-                                                    if (insertError) {
-                                                      toast.error(`Failed to insert customer price history: ${insertError.message}`);
+
+                                                  if (globalHistoryError) {
+                                                    toast.error(
+                                                      `Failed to insert global price history: ${globalHistoryError.message}`
+                                                    );
+                                                  }
+
+                                                  // Also create customer-specific entries if there are customers
+                                                  if (uniqueCustomerIds.length > 0) {
+                                                    for (const customerId of uniqueCustomerIds) {
+                                                      const { error: insertError } = await supabase
+                                                        .from("product_price_history")
+                                                        .insert([
+                                                          {
+                                                            product_id: product.id,
+                                                            previous_price: product.price,
+                                                            original_price: editingPrice,
+                                                            last_price_update:
+                                                              new Date().toISOString(),
+                                                            customer_id: customerId,
+                                                          },
+                                                        ]);
+                                                      if (insertError) {
+                                                        toast.error(
+                                                          `Failed to insert customer price history: ${insertError.message}`
+                                                        );
+                                                      }
                                                     }
                                                   }
-                                                }
 
-                                                // Now update the product price
-                                                const { error: updateError } = await supabase
-                                                  .from("products")
-                                                  .update({ price: editingPrice })
-                                                  .eq("id", product.id);
+                                                  // Now update the product price
+                                                  const { error: updateError } = await supabase
+                                                    .from("products")
+                                                    .update({ price: editingPrice })
+                                                    .eq("id", product.id);
 
-                                                if (updateError) {
-                                                  toast.error(`Failed to update product price: ${updateError.message}`);
-                                                  setIsLoading(false);
-                                                  return;
-                                                }
+                                                  if (updateError) {
+                                                    toast.error(
+                                                      `Failed to update product price: ${updateError.message}`
+                                                    );
+                                                    setIsLoading(false);
+                                                    return;
+                                                  }
 
-                                                setEditingProductId(null);
-                                                setEditingPrice(null);
-                                                setIsLoading(false);
-                                                fetchCategories();
-                                              }}
-                                            >
-                                              ✔
-                                            </button>
-                                            <button
-                                              className="text-gray-400 font-bold"
-                                              title="Cancel"
-                                              onClick={() => {
-                                                setEditingProductId(null);
-                                                setEditingPrice(null);
-                                              }}
-                                            >
-                                              ✖
-                                            </button>
-                                          </>
-                                        ) : (
-                                          <>
-                                            <span>${product.price.toFixed(2)}</span>
-                                            <button
-                                              className="ml-2 text-blue-600 underline"
-                                              title="Edit Price"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                // Ensure only one product can be edited at a time
-                                                if (editingProductId !== product.id) {
                                                   setEditingProductId(null);
                                                   setEditingPrice(null);
-                                                }
-                                                setEditingProductId(product.id);
-                                                setEditingPrice(product.price);
-                                              }}
-                                            >
-                                              Edit
-                                            </button>
-                                            {(() => {
-                                              // Find all customers for this product
-                                              const allCustomers = product.order_items
-                                                ?.flatMap((oiRaw) => {
-                                                  const oi = oiRaw as {
-                                                    price?: number;
-                                                    orders?: {
-                                                      customer_name: string;
-                                                      customer_phone: string;
-                                                    }[];
-                                                  };
-                                                  return Array.isArray(oi.orders)
-                                                    ? oi.orders
-                                                    : oi.orders
-                                                      ? [oi.orders]
-                                                      : [];
-                                                })
-                                                .filter((order) => order.customer_phone);
-                                              const hasCustomers =
-                                                allCustomers && allCustomers.length > 0;
-                                              const waText = hasCustomers
-                                                ? allCustomers
-                                                    .map(
-                                                      (order) =>
-                                                        `Hi ${order.customer_name}, the price for ${product.Product} has changed. Please check the latest update!`
-                                                    )
-                                                    .join("%0A")
-                                                : "";
+                                                  setIsLoading(false);
+                                                  fetchCategories();
+                                                }}
+                                              >
+                                                ✔
+                                              </button>
+                                              <button
+                                                className="text-gray-400 font-bold"
+                                                title="Cancel"
+                                                onClick={() => {
+                                                  setEditingProductId(null);
+                                                  setEditingPrice(null);
+                                                }}
+                                              >
+                                                ✖
+                                              </button>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <span>${product.price.toFixed(2)}</span>
+                                              <button
+                                                className="ml-2 text-blue-600 underline"
+                                                title="Edit Price"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  // Ensure only one product can be edited at a time
+                                                  if (editingProductId !== product.id) {
+                                                    setEditingProductId(null);
+                                                    setEditingPrice(null);
+                                                  }
+                                                  setEditingProductId(product.id);
+                                                  setEditingPrice(product.price);
+                                                }}
+                                              >
+                                                Edit
+                                              </button>
+                                              {(() => {
+                                                // Find all customers for this product
+                                                const allCustomers = product.order_items
+                                                  ?.flatMap((oiRaw) => {
+                                                    const oi = oiRaw as {
+                                                      price?: number;
+                                                      orders?: {
+                                                        customer_name: string;
+                                                        customer_phone: string;
+                                                      }[];
+                                                    };
+                                                    return Array.isArray(oi.orders)
+                                                      ? oi.orders
+                                                      : oi.orders
+                                                        ? [oi.orders]
+                                                        : [];
+                                                  })
+                                                  .filter((order) => order.customer_phone);
+                                                const hasCustomers =
+                                                  allCustomers && allCustomers.length > 0;
+                                                const waText = hasCustomers
+                                                  ? allCustomers
+                                                      .map(
+                                                        (order) =>
+                                                          `Hi ${order.customer_name}, the price for ${product.Product} has changed. Please check the latest update!`
+                                                      )
+                                                      .join("%0A")
+                                                  : "";
+                                                return (
+                                                  <a
+                                                    aria-disabled={!hasCustomers}
+                                                    className={`inline-flex items-center px-2 py-1 ${
+                                                      hasCustomers
+                                                        ? "bg-green-500 hover:bg-green-600 cursor-pointer"
+                                                        : "bg-gray-400 cursor-not-allowed opacity-60"
+                                                    } text-white rounded transition ml-2`}
+                                                    href={
+                                                      hasCustomers
+                                                        ? `https://wa.me/?text=${waText}`
+                                                        : undefined
+                                                    }
+                                                    rel="noopener noreferrer"
+                                                    tabIndex={hasCustomers ? 0 : -1}
+                                                    target="_blank"
+                                                    title={
+                                                      hasCustomers
+                                                        ? "Notify all customers via WhatsApp"
+                                                        : "No customer to notify"
+                                                    }
+                                                  >
+                                                    <svg
+                                                      className="w-4 h-4 mr-1"
+                                                      fill="currentColor"
+                                                      viewBox="0 0 24 24"
+                                                    >
+                                                      <path d="M20.52 3.48A12.07 12.07 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.16 1.6 5.97L0 24l6.18-1.62A11.94 11.94 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.19-1.24-6.19-3.48-8.52zM12 22c-1.85 0-3.68-.5-5.26-1.44l-.38-.22-3.67.96.98-3.58-.25-.37A9.94 9.94 0 0 1 2 12c0-5.52 4.48-10 10-10s10 4.48 10 10-4.48 10-10 10zm5.2-7.8c-.28-.14-1.65-.81-1.9-.9-.25-.09-.43-.14-.61.14-.18.28-.7.9-.86 1.08-.16.18-.32.2-.6.07-.28-.14-1.18-.44-2.25-1.4-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.12-.12.28-.32.42-.48.14-.16.18-.28.28-.46.09-.18.05-.34-.02-.48-.07-.14-.61-1.47-.84-2.01-.22-.53-.45-.46-.61-.47-.16-.01-.34-.01-.52-.01-.18 0-.48.07-.73.34-.25.28-.97.95-.97 2.3 0 1.35.99 2.65 1.13 2.83.14.18 1.95 2.98 4.74 4.06.66.28 1.18.45 1.58.58.66.21 1.26.18 1.73.11.53-.08 1.65-.67 1.88-1.32.23-.65.23-1.21.16-1.32-.07-.11-.25-.18-.53-.32z" />
+                                                    </svg>
+                                                    Notify all
+                                                  </a>
+                                                );
+                                              })()}
+                                            </>
+                                          )}
+                                        </td>
+                                        <td className="px-4 py-2">
+                                          {(() => {
+                                            if (
+                                              product.priceHistory &&
+                                              product.priceHistory.length > 0
+                                            ) {
                                               return (
-                                                <a
-                                                  aria-disabled={!hasCustomers}
-                                                  className={`inline-flex items-center px-2 py-1 ${
-                                                    hasCustomers
-                                                      ? "bg-green-500 hover:bg-green-600 cursor-pointer"
-                                                      : "bg-gray-400 cursor-not-allowed opacity-60"
-                                                  } text-white rounded transition ml-2`}
-                                                  href={
-                                                    hasCustomers
-                                                      ? `https://wa.me/?text=${waText}`
-                                                      : undefined
-                                                  }
-                                                  rel="noopener noreferrer"
-                                                  tabIndex={hasCustomers ? 0 : -1}
-                                                  target="_blank"
-                                                  title={
-                                                    hasCustomers
-                                                      ? "Notify all customers via WhatsApp"
-                                                      : "No customer to notify"
-                                                  }
-                                                >
+                                                <div className="flex flex-col space-y-1">
+                                                  {product.priceHistory.map((ph, idx) => (
+                                                    <span
+                                                      key={idx}
+                                                      className="text-xs text-gray-500"
+                                                    >
+                                                      ${ph.previous_price?.toFixed(2)}{" "}
+                                                      <span className="text-gray-400">
+                                                        (
+                                                        {ph.last_price_update
+                                                          ? new Date(
+                                                              ph.last_price_update
+                                                            ).toLocaleDateString()
+                                                          : "No date"}
+                                                        )
+                                                      </span>
+                                                    </span>
+                                                  ))}
+                                                </div>
+                                              );
+                                            } else {
+                                              return (
+                                                <span className="text-xs text-gray-400">
+                                                  No history
+                                                </span>
+                                              );
+                                            }
+                                          })()}
+                                        </td>
+                                      </tr>
+                                      {selectedProduct === product.id && (
+                                        <tr>
+                                          <td className="px-4 py-2 bg-gray-50" colSpan={3}>
+                                            <div className="pl-8">
+                                              {/* Previous Customers Section */}
+                                              <div className="flex justify-between items-center mb-4">
+                                                <div className="flex items-center space-x-2">
                                                   <svg
-                                                    className="w-4 h-4 mr-1"
-                                                    fill="currentColor"
+                                                    className="w-5 h-5 text-gray-600"
+                                                    fill="none"
+                                                    stroke="currentColor"
                                                     viewBox="0 0 24 24"
                                                   >
-                                                    <path d="M20.52 3.48A12.07 12.07 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.16 1.6 5.97L0 24l6.18-1.62A11.94 11.94 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.19-1.24-6.19-3.48-8.52zM12 22c-1.85 0-3.68-.5-5.26-1.44l-.38-.22-3.67.96.98-3.58-.25-.37A9.94 9.94 0 0 1 2 12c0-5.52 4.48-10 10-10s10 4.48 10 10-4.48 10-10 10zm5.2-7.8c-.28-.14-1.65-.81-1.9-.9-.25-.09-.43-.14-.61.14-.18.28-.7.9-.86 1.08-.16.18-.32.2-.6.07-.28-.14-1.18-.44-2.25-1.4-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.12-.12.28-.32.42-.48.14-.16.18-.28.28-.46.09-.18.05-.34-.02-.48-.07-.14-.61-1.47-.84-2.01-.22-.53-.45-.46-.61-.47-.16-.01-.34-.01-.52-.01-.18 0-.48.07-.73.34-.25.28-.97.95-.97 2.3 0 1.35.99 2.65 1.13 2.83.14.18 1.95 2.98 4.74 4.06.66.28 1.18.45 1.58.58.66.21 1.26.18 1.73.11.53-.08 1.65-.67 1.88-1.32.23-.65.23-1.21.16-1.32-.07-.11-.25-.18-.53-.32z" />
+                                                    <path
+                                                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                                                      strokeLinecap="round"
+                                                      strokeLinejoin="round"
+                                                      strokeWidth={2}
+                                                    />
                                                   </svg>
-                                                  Notify all
-                                                </a>
-                                              );
-                                            })()}
-                                          </>
-                                        )}
-                                      </td>
-                                      <td className="px-4 py-2">
-                                        {(() => {
-                                          if (product.priceHistory && product.priceHistory.length > 0) {
-                                            return (
-                                              <div className="flex flex-col space-y-1">
-                                                {product.priceHistory.map((ph, idx) => (
-                                                  <span key={idx} className="text-xs text-gray-500">
-                                                    ${ph.previous_price?.toFixed(2)}{" "}
-                                                    <span className="text-gray-400">
-                                                      (
-                                                      {ph.last_price_update
-                                                        ? new Date(
-                                                            ph.last_price_update
-                                                          ).toLocaleDateString()
-                                                        : "No date"}
-                                                      )
-                                                    </span>
-                                                  </span>
-                                                ))}
-                                              </div>
-                                            );
-                                          } else {
-                                            return <span className="text-xs text-gray-400">No history</span>;
-                                          }
-                                        })()}
-                                      </td>
-                                    </tr>
-                                    {selectedProduct === product.id && (
-                                      <tr>
-                                        <td className="px-4 py-2 bg-gray-50" colSpan={3}>
-                                          <div className="pl-8">
-                                            {/* Previous Customers Section */}
-                                            <div className="flex justify-between items-center mb-4">
-                                              <div className="flex items-center space-x-2">
-                                                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                                                </svg>
-                                                <h4 className="text-base font-semibold text-gray-800">
-                                                  Previous Customers
-                                                </h4>
-                                                {product.order_items && product.order_items.length > 0 && (
-                                                  <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-full">
-                                                    {product.order_items.length} customer{product.order_items.length !== 1 ? 's' : ''}
-                                                  </span>
+                                                  <h4 className="text-base font-semibold text-gray-800">
+                                                    Previous Customers
+                                                  </h4>
+                                                  {product.order_items &&
+                                                    product.order_items.length > 0 && (
+                                                      <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-full">
+                                                        {product.order_items.length} customer
+                                                        {product.order_items.length !== 1
+                                                          ? "s"
+                                                          : ""}
+                                                      </span>
+                                                    )}
+                                                </div>
+                                                {Object.keys(offerPrices).some((key) =>
+                                                  key.startsWith(`${product.id}-`)
+                                                ) && (
+                                                  <button
+                                                    className="px-3 py-1.5 text-xs font-medium text-red-600 bg-white border border-red-300 rounded-lg hover:bg-red-50 hover:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 transition-all"
+                                                    title="Clear all offer prices for this product"
+                                                    type="button"
+                                                    onClick={() => {
+                                                      const keysToClear = Object.keys(
+                                                        offerPrices
+                                                      ).filter((key) =>
+                                                        key.startsWith(`${product.id}-`)
+                                                      );
+                                                      const newOfferPrices = { ...offerPrices };
+                                                      keysToClear.forEach((key) => {
+                                                        delete newOfferPrices[key];
+                                                      });
+                                                      setOfferPrices(newOfferPrices);
+                                                    }}
+                                                  >
+                                                    <svg
+                                                      className="w-3.5 h-3.5 inline mr-1"
+                                                      fill="none"
+                                                      stroke="currentColor"
+                                                      viewBox="0 0 24 24"
+                                                    >
+                                                      <path
+                                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                      />
+                                                    </svg>
+                                                    Clear All
+                                                  </button>
                                                 )}
                                               </div>
-                                              {Object.keys(offerPrices).some((key) =>
-                                                key.startsWith(`${product.id}-`)
-                                              ) && (
-                                                <button
-                                                  className="px-3 py-1.5 text-xs font-medium text-red-600 bg-white border border-red-300 rounded-lg hover:bg-red-50 hover:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 transition-all"
-                                                  title="Clear all offer prices for this product"
-                                                  type="button"
-                                                  onClick={() => {
-                                                    const keysToClear = Object.keys(
-                                                      offerPrices
-                                                    ).filter((key) =>
-                                                      key.startsWith(`${product.id}-`)
-                                                    );
-                                                    const newOfferPrices = { ...offerPrices };
-                                                    keysToClear.forEach((key) => {
-                                                      delete newOfferPrices[key];
-                                                    });
-                                                    setOfferPrices(newOfferPrices);
-                                                  }}
-                                                >
-                                                  <svg className="w-3.5 h-3.5 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                  </svg>
-                                                  Clear All
-                                                </button>
-                                              )}
-                                            </div>
-                                            {/* Customer Selector for Custom Price */}
-                                            <div className="mb-4 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 shadow-sm">
-                                              <div className="flex justify-between items-center mb-3">
-                                                <div className="flex items-center space-x-2">
-                                                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                                  </svg>
-                                                  <h5 className="text-sm font-semibold text-gray-800">
-                                                    Send Custom Price Offer
-                                                  </h5>
-                                                  {allCustomers.length > 0 && (
-                                                    <button
-                                                      type="button"
-                                                      className="ml-2 px-3 py-1 text-xs font-medium text-purple-700 bg-purple-100 border border-purple-300 rounded-lg hover:bg-purple-200 hover:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-1 transition-all"
-                                                      onClick={() => {
-                                                        // Clear customer selection to enable "Select All & Send"
-                                                        setSelectedCustomerForOffer((prev) => ({
-                                                          ...prev,
-                                                          [product.id]: null,
-                                                        }));
-                                                        // Clear any customer-specific price
-                                                        const customerId = selectedCustomerForOffer[product.id];
-                                                        if (customerId) {
-                                                          const key = `custom-${product.id}-${customerId}`;
-                                                          setCustomPriceForSelectedCustomer((prev) => {
-                                                            const newState = { ...prev };
-                                                            delete newState[key];
-                                                            return newState;
-                                                          });
-                                                        }
-                                                      }}
-                                                      title="Select all customers"
+                                              {/* Customer Selector for Custom Price */}
+                                              <div className="mb-4 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 shadow-sm">
+                                                <div className="flex justify-between items-center mb-3">
+                                                  <div className="flex items-center space-x-2">
+                                                    <svg
+                                                      className="w-5 h-5 text-blue-600"
+                                                      fill="none"
+                                                      stroke="currentColor"
+                                                      viewBox="0 0 24 24"
                                                     >
-                                                      <svg className="w-3.5 h-3.5 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                      </svg>
-                                                      Select All
-                                                    </button>
+                                                      <path
+                                                        d="M12 4v16m8-8H4"
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                      />
+                                                    </svg>
+                                                    <h5 className="text-sm font-semibold text-gray-800">
+                                                      Send Custom Price Offer
+                                                    </h5>
+                                                    {allCustomers.length > 0 && (
+                                                      <button
+                                                        className="ml-2 px-3 py-1 text-xs font-medium text-purple-700 bg-purple-100 border border-purple-300 rounded-lg hover:bg-purple-200 hover:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-1 transition-all"
+                                                        title="Select all customers"
+                                                        type="button"
+                                                        onClick={() => {
+                                                          // Clear customer selection to enable "Select All & Send"
+                                                          setSelectedCustomerForOffer((prev) => ({
+                                                            ...prev,
+                                                            [product.id]: null,
+                                                          }));
+                                                          // Clear any customer-specific price
+                                                          const customerId =
+                                                            selectedCustomerForOffer[product.id];
+                                                          if (customerId) {
+                                                            const key = `custom-${product.id}-${customerId}`;
+                                                            setCustomPriceForSelectedCustomer(
+                                                              (prev) => {
+                                                                const newState = { ...prev };
+                                                                delete newState[key];
+                                                                return newState;
+                                                              }
+                                                            );
+                                                          }
+                                                        }}
+                                                      >
+                                                        <svg
+                                                          className="w-3.5 h-3.5 inline mr-1"
+                                                          fill="none"
+                                                          stroke="currentColor"
+                                                          viewBox="0 0 24 24"
+                                                        >
+                                                          <path
+                                                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                          />
+                                                        </svg>
+                                                        Select All
+                                                      </button>
+                                                    )}
+                                                  </div>
+                                                  {allCustomers.length > 0 && (
+                                                    <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
+                                                      {allCustomers.length} customer
+                                                      {allCustomers.length !== 1 ? "s" : ""}{" "}
+                                                      available
+                                                    </span>
                                                   )}
                                                 </div>
-                                                {allCustomers.length > 0 && (
-                                                  <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
-                                                    {allCustomers.length} customer{allCustomers.length !== 1 ? 's' : ''} available
-                                                  </span>
-                                                )}
-                                              </div>
-                                              
-                                              <div className="space-y-3">
-                                                {/* Customer Selection Row */}
-                                                <div className="flex items-center gap-2">
-                                                  <div className="flex-1 relative customer-dropdown-container">
-                                                    <button
-                                                      type="button"
-                                                      className="w-full pl-10 pr-10 py-2.5 text-left text-sm border border-gray-300 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all flex items-center justify-between"
-                                                      onClick={() => {
-                                                        setIsCustomerDropdownOpen((prev) => ({
-                                                          ...prev,
-                                                          [product.id]: !prev[product.id],
-                                                        }));
-                                                      }}
-                                                      disabled={isLoadingCustomers}
-                                                    >
-                                                      <div className="flex items-center space-x-2 min-w-0 flex-1">
-                                                        <div className="absolute left-3 flex items-center pointer-events-none">
-                                                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                                          </svg>
-                                                        </div>
-                                                        <span className="pl-6 truncate text-gray-700">
-                                                          {isLoadingCustomers 
-                                                            ? "⏳ Loading customers..." 
-                                                            : selectedCustomerForOffer[product.id]
-                                                              ? (() => {
-                                                                  const selected = allCustomers.find(c => String(c.id) === String(selectedCustomerForOffer[product.id]));
-                                                                  return selected 
-                                                                    ? `${selected.name}${selected.phone ? ` (${selected.phone})` : ""}${selected.email ? ` - ${selected.email}` : ""}`
-                                                                    : "Select a customer...";
-                                                                })()
-                                                              : allCustomers.length === 0 
-                                                                ? "⚠️ No customers found - Click refresh" 
-                                                                : "👤 Select a customer..."}
-                                                        </span>
-                                                      </div>
-                                                      <svg 
-                                                        className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${isCustomerDropdownOpen[product.id] ? 'transform rotate-180' : ''}`}
-                                                        fill="none" 
-                                                        stroke="currentColor" 
-                                                        viewBox="0 0 24 24"
+
+                                                <div className="space-y-3">
+                                                  {/* Customer Selection Row */}
+                                                  <div className="flex items-center gap-2">
+                                                    <div className="flex-1 relative customer-dropdown-container">
+                                                      <button
+                                                        className="w-full pl-10 pr-10 py-2.5 text-left text-sm border border-gray-300 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all flex items-center justify-between"
+                                                        disabled={isLoadingCustomers}
+                                                        type="button"
+                                                        onClick={() => {
+                                                          setIsCustomerDropdownOpen((prev) => ({
+                                                            ...prev,
+                                                            [product.id]: !prev[product.id],
+                                                          }));
+                                                        }}
                                                       >
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                                      </svg>
-                                                    </button>
-                                                    
-                                                    {/* Custom Dropdown List */}
-                                                    {isCustomerDropdownOpen[product.id] && !isLoadingCustomers && (
-                                                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-80 overflow-auto">
-                                                        {allCustomers.length === 0 ? (
-                                                          <div className="px-4 py-3 text-sm text-gray-500 text-center">
-                                                            No customers found
-                                                          </div>
-                                                        ) : (
-                                                          <div className="py-1">
-                                                            {/* Select All Option */}
-                                                            <button
-                                                              type="button"
-                                                              className="w-full px-4 py-2.5 text-left hover:bg-purple-50 transition-colors border-b border-gray-200 bg-purple-50"
-                                                              onClick={() => {
-                                                                // Clear customer selection to enable "Select All & Send"
-                                                                setSelectedCustomerForOffer((prev) => ({
-                                                                  ...prev,
-                                                                  [product.id]: null,
-                                                                }));
-                                                                // Clear any customer-specific price
-                                                                const customerId = selectedCustomerForOffer[product.id];
-                                                                if (customerId) {
-                                                                  const key = `custom-${product.id}-${customerId}`;
-                                                                  setCustomPriceForSelectedCustomer((prev) => {
-                                                                    const newState = { ...prev };
-                                                                    delete newState[key];
-                                                                    return newState;
-                                                                  });
-                                                                }
-                                                                setIsCustomerDropdownOpen((prev) => ({
-                                                                  ...prev,
-                                                                  [product.id]: false,
-                                                                }));
-                                                              }}
+                                                        <div className="flex items-center space-x-2 min-w-0 flex-1">
+                                                          <div className="absolute left-3 flex items-center pointer-events-none">
+                                                            <svg
+                                                              className="w-4 h-4 text-gray-400"
+                                                              fill="none"
+                                                              stroke="currentColor"
+                                                              viewBox="0 0 24 24"
                                                             >
-                                                              <div className="flex items-center space-x-3">
-                                                                <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-purple-500">
-                                                                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                                  </svg>
-                                                                </div>
-                                                                <div className="flex-1 min-w-0">
-                                                                  <div className="font-semibold text-purple-700">
-                                                                    Select All Customers
-                                                                  </div>
-                                                                  <div className="text-xs text-purple-600 mt-0.5">
-                                                                    Send to all {allCustomers.length} customer{allCustomers.length !== 1 ? 's' : ''}
-                                                                  </div>
-                                                                </div>
+                                                              <path
+                                                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                strokeWidth={2}
+                                                              />
+                                                            </svg>
+                                                          </div>
+                                                          <span className="pl-6 truncate text-gray-700">
+                                                            {isLoadingCustomers
+                                                              ? "⏳ Loading customers..."
+                                                              : selectedCustomerForOffer[product.id]
+                                                                ? (() => {
+                                                                    const selected =
+                                                                      allCustomers.find(
+                                                                        (c) =>
+                                                                          String(c.id) ===
+                                                                          String(
+                                                                            selectedCustomerForOffer[
+                                                                              product.id
+                                                                            ]
+                                                                          )
+                                                                      );
+                                                                    return selected
+                                                                      ? `${selected.name}${selected.phone ? ` (${selected.phone})` : ""}${selected.email ? ` - ${selected.email}` : ""}`
+                                                                      : "Select a customer...";
+                                                                  })()
+                                                                : allCustomers.length === 0
+                                                                  ? "⚠️ No customers found - Click refresh"
+                                                                  : "👤 Select a customer..."}
+                                                          </span>
+                                                        </div>
+                                                        <svg
+                                                          className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${isCustomerDropdownOpen[product.id] ? "transform rotate-180" : ""}`}
+                                                          fill="none"
+                                                          stroke="currentColor"
+                                                          viewBox="0 0 24 24"
+                                                        >
+                                                          <path
+                                                            d="M19 9l-7 7-7-7"
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                          />
+                                                        </svg>
+                                                      </button>
+
+                                                      {/* Custom Dropdown List */}
+                                                      {isCustomerDropdownOpen[product.id] &&
+                                                        !isLoadingCustomers && (
+                                                          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-80 overflow-auto">
+                                                            {allCustomers.length === 0 ? (
+                                                              <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                                                                No customers found
                                                               </div>
-                                                            </button>
-                                                            {allCustomers.map((customer) => {
-                                                              const isSelected = String(selectedCustomerForOffer[product.id]) === String(customer.id);
-                                                              return (
+                                                            ) : (
+                                                              <div className="py-1">
+                                                                {/* Select All Option */}
                                                                 <button
-                                                                  key={String(customer.id)}
+                                                                  className="w-full px-4 py-2.5 text-left hover:bg-purple-50 transition-colors border-b border-gray-200 bg-purple-50"
                                                                   type="button"
-                                                                  className={`w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors ${
-                                                                    isSelected ? 'bg-blue-100 border-l-4 border-blue-500' : ''
-                                                                  }`}
                                                                   onClick={() => {
-                                                                    setSelectedCustomerForOffer((prev) => ({
-                                                                      ...prev,
-                                                                      [product.id]: String(customer.id),
-                                                                    }));
-                                                                    // Clear custom price when customer changes
-                                                                    const key = `custom-${product.id}-${customer.id}`;
-                                                                    setCustomPriceForSelectedCustomer((prev) => {
-                                                                      const newState = { ...prev };
-                                                                      delete newState[key];
-                                                                      return newState;
-                                                                    });
-                                                                    setIsCustomerDropdownOpen((prev) => ({
-                                                                      ...prev,
-                                                                      [product.id]: false,
-                                                                    }));
+                                                                    // Clear customer selection to enable "Select All & Send"
+                                                                    setSelectedCustomerForOffer(
+                                                                      (prev) => ({
+                                                                        ...prev,
+                                                                        [product.id]: null,
+                                                                      })
+                                                                    );
+                                                                    // Clear any customer-specific price
+                                                                    const customerId =
+                                                                      selectedCustomerForOffer[
+                                                                        product.id
+                                                                      ];
+                                                                    if (customerId) {
+                                                                      const key = `custom-${product.id}-${customerId}`;
+                                                                      setCustomPriceForSelectedCustomer(
+                                                                        (prev) => {
+                                                                          const newState = {
+                                                                            ...prev,
+                                                                          };
+                                                                          delete newState[key];
+                                                                          return newState;
+                                                                        }
+                                                                      );
+                                                                    }
+                                                                    setIsCustomerDropdownOpen(
+                                                                      (prev) => ({
+                                                                        ...prev,
+                                                                        [product.id]: false,
+                                                                      })
+                                                                    );
                                                                   }}
                                                                 >
                                                                   <div className="flex items-center space-x-3">
-                                                                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                                                                      isSelected ? 'bg-blue-500' : 'bg-gray-200'
-                                                                    }`}>
-                                                                      <span className={`text-xs font-semibold ${
-                                                                        isSelected ? 'text-white' : 'text-gray-600'
-                                                                      }`}>
-                                                                        {(customer.name || "U").charAt(0).toUpperCase()}
-                                                                      </span>
+                                                                    <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-purple-500">
+                                                                      <svg
+                                                                        className="w-4 h-4 text-white"
+                                                                        fill="none"
+                                                                        stroke="currentColor"
+                                                                        viewBox="0 0 24 24"
+                                                                      >
+                                                                        <path
+                                                                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                                          strokeLinecap="round"
+                                                                          strokeLinejoin="round"
+                                                                          strokeWidth={2}
+                                                                        />
+                                                                      </svg>
                                                                     </div>
                                                                     <div className="flex-1 min-w-0">
-                                                                      <div className={`font-medium truncate ${
-                                                                        isSelected ? 'text-blue-700' : 'text-gray-900'
-                                                                      }`}>
-                                                                        {customer.name || "Unnamed Customer"}
+                                                                      <div className="font-semibold text-purple-700">
+                                                                        Select All Customers
                                                                       </div>
-                                                                      <div className="text-xs text-gray-500 truncate mt-0.5">
-                                                                        {customer.phone && <span>{customer.phone}</span>}
-                                                                        {customer.phone && customer.email && <span className="mx-1">•</span>}
-                                                                        {customer.email && <span>{customer.email}</span>}
+                                                                      <div className="text-xs text-purple-600 mt-0.5">
+                                                                        Send to all{" "}
+                                                                        {allCustomers.length}{" "}
+                                                                        customer
+                                                                        {allCustomers.length !== 1
+                                                                          ? "s"
+                                                                          : ""}
                                                                       </div>
                                                                     </div>
-                                                                    {isSelected && (
-                                                                      <svg className="w-5 h-5 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                                      </svg>
-                                                                    )}
                                                                   </div>
                                                                 </button>
-                                                              );
-                                                            })}
+                                                                {allCustomers.map((customer) => {
+                                                                  const isSelected =
+                                                                    String(
+                                                                      selectedCustomerForOffer[
+                                                                        product.id
+                                                                      ]
+                                                                    ) === String(customer.id);
+                                                                  return (
+                                                                    <button
+                                                                      key={String(customer.id)}
+                                                                      className={`w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors ${
+                                                                        isSelected
+                                                                          ? "bg-blue-100 border-l-4 border-blue-500"
+                                                                          : ""
+                                                                      }`}
+                                                                      type="button"
+                                                                      onClick={() => {
+                                                                        setSelectedCustomerForOffer(
+                                                                          (prev) => ({
+                                                                            ...prev,
+                                                                            [product.id]: String(
+                                                                              customer.id
+                                                                            ),
+                                                                          })
+                                                                        );
+                                                                        // Clear custom price when customer changes
+                                                                        const key = `custom-${product.id}-${customer.id}`;
+                                                                        setCustomPriceForSelectedCustomer(
+                                                                          (prev) => {
+                                                                            const newState = {
+                                                                              ...prev,
+                                                                            };
+                                                                            delete newState[key];
+                                                                            return newState;
+                                                                          }
+                                                                        );
+                                                                        setIsCustomerDropdownOpen(
+                                                                          (prev) => ({
+                                                                            ...prev,
+                                                                            [product.id]: false,
+                                                                          })
+                                                                        );
+                                                                      }}
+                                                                    >
+                                                                      <div className="flex items-center space-x-3">
+                                                                        <div
+                                                                          className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                                                                            isSelected
+                                                                              ? "bg-blue-500"
+                                                                              : "bg-gray-200"
+                                                                          }`}
+                                                                        >
+                                                                          <span
+                                                                            className={`text-xs font-semibold ${
+                                                                              isSelected
+                                                                                ? "text-white"
+                                                                                : "text-gray-600"
+                                                                            }`}
+                                                                          >
+                                                                            {(customer.name || "U")
+                                                                              .charAt(0)
+                                                                              .toUpperCase()}
+                                                                          </span>
+                                                                        </div>
+                                                                        <div className="flex-1 min-w-0">
+                                                                          <div
+                                                                            className={`font-medium truncate ${
+                                                                              isSelected
+                                                                                ? "text-blue-700"
+                                                                                : "text-gray-900"
+                                                                            }`}
+                                                                          >
+                                                                            {customer.name ||
+                                                                              "Unnamed Customer"}
+                                                                          </div>
+                                                                          <div className="text-xs text-gray-500 truncate mt-0.5">
+                                                                            {customer.phone && (
+                                                                              <span>
+                                                                                {customer.phone}
+                                                                              </span>
+                                                                            )}
+                                                                            {customer.phone &&
+                                                                              customer.email && (
+                                                                                <span className="mx-1">
+                                                                                  •
+                                                                                </span>
+                                                                              )}
+                                                                            {customer.email && (
+                                                                              <span>
+                                                                                {customer.email}
+                                                                              </span>
+                                                                            )}
+                                                                          </div>
+                                                                        </div>
+                                                                        {isSelected && (
+                                                                          <svg
+                                                                            className="w-5 h-5 text-blue-500 flex-shrink-0"
+                                                                            fill="none"
+                                                                            stroke="currentColor"
+                                                                            viewBox="0 0 24 24"
+                                                                          >
+                                                                            <path
+                                                                              d="M5 13l4 4L19 7"
+                                                                              strokeLinecap="round"
+                                                                              strokeLinejoin="round"
+                                                                              strokeWidth={2}
+                                                                            />
+                                                                          </svg>
+                                                                        )}
+                                                                      </div>
+                                                                    </button>
+                                                                  );
+                                                                })}
+                                                              </div>
+                                                            )}
                                                           </div>
                                                         )}
-                                                      </div>
+                                                    </div>
+                                                    {!isLoadingCustomers && (
+                                                      <button
+                                                        className="px-3 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-all shadow-sm"
+                                                        title="Refresh customer list"
+                                                        onClick={() => fetchAllCustomers()}
+                                                      >
+                                                        <svg
+                                                          className="w-4 h-4"
+                                                          fill="none"
+                                                          stroke="currentColor"
+                                                          viewBox="0 0 24 24"
+                                                        >
+                                                          <path
+                                                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                          />
+                                                        </svg>
+                                                      </button>
                                                     )}
                                                   </div>
-                                                  {!isLoadingCustomers && (
-                                                    <button
-                                                      className="px-3 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-all shadow-sm"
-                                                      title="Refresh customer list"
-                                                      onClick={() => fetchAllCustomers()}
-                                                    >
-                                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                                      </svg>
-                                                    </button>
-                                                  )}
-                                                </div>
 
-                                                {/* Price Input and Actions Row */}
-                                                <div className="flex items-center gap-2 p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
-                                                  <div className="flex-1 flex items-center gap-2">
-                                                    <div className="relative flex-1">
-                                                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                        <span className="text-gray-500 text-sm font-medium">$</span>
-                                                      </div>
-                                                      <input
-                                                        type="number"
-                                                        min="0"
-                                                        step="0.01"
-                                                        placeholder="0.00"
-                                                        className="w-full pl-7 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
-                                                        value={
-                                                          selectedCustomerForOffer[product.id]
-                                                            ? (customPriceForSelectedCustomer[
-                                                                `custom-${product.id}-${selectedCustomerForOffer[product.id]}`
-                                                              ] || "")
-                                                            : (customPriceForSelectedCustomer[
-                                                                `custom-all-${product.id}`
-                                                              ] || "")
-                                                        }
-                                                        onChange={(e) => {
-                                                          const value = e.target.value;
-                                                          if (selectedCustomerForOffer[product.id]) {
-                                                            const key = `custom-${product.id}-${selectedCustomerForOffer[product.id]}`;
-                                                            if (value === "" || value === null || value === undefined) {
-                                                              setCustomPriceForSelectedCustomer((prev) => {
-                                                                const newState = { ...prev };
-                                                                delete newState[key];
-                                                                return newState;
-                                                              });
-                                                            } else {
-                                                              const numValue = Number(value);
-                                                              if (!isNaN(numValue)) {
-                                                                setCustomPriceForSelectedCustomer((prev) => ({
-                                                                  ...prev,
-                                                                  [key]: numValue,
-                                                                }));
-                                                              }
-                                                            }
-                                                          } else {
-                                                            const key = `custom-all-${product.id}`;
-                                                            if (value === "" || value === null || value === undefined) {
-                                                              setCustomPriceForSelectedCustomer((prev) => {
-                                                                const newState = { ...prev };
-                                                                delete newState[key];
-                                                                return newState;
-                                                              });
-                                                            } else {
-                                                              const numValue = Number(value);
-                                                              if (!isNaN(numValue)) {
-                                                                setCustomPriceForSelectedCustomer((prev) => ({
-                                                                  ...prev,
-                                                                  [key]: numValue,
-                                                                }));
-                                                              }
-                                                            }
+                                                  {/* Price Input and Actions Row */}
+                                                  <div className="flex items-center gap-2 p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
+                                                    <div className="flex-1 flex items-center gap-2">
+                                                      <div className="relative flex-1">
+                                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                          <span className="text-gray-500 text-sm font-medium">
+                                                            $
+                                                          </span>
+                                                        </div>
+                                                        <input
+                                                          className="w-full pl-7 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
+                                                          min="0"
+                                                          placeholder="0.00"
+                                                          step="0.01"
+                                                          type="number"
+                                                          value={
+                                                            selectedCustomerForOffer[product.id]
+                                                              ? customPriceForSelectedCustomer[
+                                                                  `custom-${product.id}-${selectedCustomerForOffer[product.id]}`
+                                                                ] || ""
+                                                              : customPriceForSelectedCustomer[
+                                                                  `custom-all-${product.id}`
+                                                                ] || ""
                                                           }
-                                                        }}
-                                                        onFocus={(e) => {
-                                                          e.target.select();
-                                                        }}
-                                                      />
-                                                    </div>
-                                                    {selectedCustomerForOffer[product.id] ? (
-                                                      <>
+                                                          onChange={(e) => {
+                                                            const value = e.target.value;
+                                                            if (
+                                                              selectedCustomerForOffer[product.id]
+                                                            ) {
+                                                              const key = `custom-${product.id}-${selectedCustomerForOffer[product.id]}`;
+                                                              if (
+                                                                value === "" ||
+                                                                value === null ||
+                                                                value === undefined
+                                                              ) {
+                                                                setCustomPriceForSelectedCustomer(
+                                                                  (prev) => {
+                                                                    const newState = { ...prev };
+                                                                    delete newState[key];
+                                                                    return newState;
+                                                                  }
+                                                                );
+                                                              } else {
+                                                                const numValue = Number(value);
+                                                                if (!isNaN(numValue)) {
+                                                                  setCustomPriceForSelectedCustomer(
+                                                                    (prev) => ({
+                                                                      ...prev,
+                                                                      [key]: numValue,
+                                                                    })
+                                                                  );
+                                                                }
+                                                              }
+                                                            } else {
+                                                              const key = `custom-all-${product.id}`;
+                                                              if (
+                                                                value === "" ||
+                                                                value === null ||
+                                                                value === undefined
+                                                              ) {
+                                                                setCustomPriceForSelectedCustomer(
+                                                                  (prev) => {
+                                                                    const newState = { ...prev };
+                                                                    delete newState[key];
+                                                                    return newState;
+                                                                  }
+                                                                );
+                                                              } else {
+                                                                const numValue = Number(value);
+                                                                if (!isNaN(numValue)) {
+                                                                  setCustomPriceForSelectedCustomer(
+                                                                    (prev) => ({
+                                                                      ...prev,
+                                                                      [key]: numValue,
+                                                                    })
+                                                                  );
+                                                                }
+                                                              }
+                                                            }
+                                                          }}
+                                                          onFocus={(e) => {
+                                                            e.target.select();
+                                                          }}
+                                                        />
+                                                      </div>
+                                                      {selectedCustomerForOffer[product.id] ? (
+                                                        <>
+                                                          <button
+                                                            className="px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-green-500 to-green-600 rounded-lg hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+                                                            onClick={async () => {
+                                                              const customerId =
+                                                                selectedCustomerForOffer[
+                                                                  product.id
+                                                                ];
+                                                              if (!customerId) {
+                                                                toast.error(
+                                                                  "Please select a customer"
+                                                                );
+                                                                return;
+                                                              }
+                                                              const key = `custom-${product.id}-${customerId}`;
+                                                              const price =
+                                                                customPriceForSelectedCustomer[key];
+                                                              if (!price || price <= 0) {
+                                                                toast.error(
+                                                                  "Please enter a valid price"
+                                                                );
+                                                                return;
+                                                              }
+                                                              try {
+                                                                const { error } = await supabase
+                                                                  .from("price_offers")
+                                                                  .insert([
+                                                                    {
+                                                                      customer_id: customerId,
+                                                                      product_id: product.id,
+                                                                      offered_price: price,
+                                                                      status: "pending",
+                                                                      created_at:
+                                                                        new Date().toISOString(),
+                                                                    },
+                                                                  ]);
+
+                                                                if (error) {
+                                                                  toast.error(
+                                                                    `Failed to send offer: ${error.message}`
+                                                                  );
+                                                                  return;
+                                                                }
+
+                                                                // Clear the inputs after successful send
+                                                                setSelectedCustomerForOffer(
+                                                                  (prev) => ({
+                                                                    ...prev,
+                                                                    [product.id]: null,
+                                                                  })
+                                                                );
+                                                                setCustomPriceForSelectedCustomer(
+                                                                  (prev) => {
+                                                                    const newState = { ...prev };
+                                                                    delete newState[key];
+                                                                    return newState;
+                                                                  }
+                                                                );
+
+                                                                const customer = allCustomers.find(
+                                                                  (c) =>
+                                                                    String(c.id) ===
+                                                                    String(customerId)
+                                                                );
+                                                                toast.success(
+                                                                  `Offer sent successfully to ${customer?.name || "customer"} for $${price.toFixed(2)}`
+                                                                );
+                                                              } catch (err) {
+                                                                toast.error(
+                                                                  "Failed to send offer. Please try again."
+                                                                );
+                                                              }
+                                                            }}
+                                                          >
+                                                            <svg
+                                                              className="w-4 h-4"
+                                                              fill="none"
+                                                              stroke="currentColor"
+                                                              viewBox="0 0 24 24"
+                                                            >
+                                                              <path
+                                                                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                strokeWidth={2}
+                                                              />
+                                                            </svg>
+                                                            Send Offer
+                                                          </button>
+                                                          <button
+                                                            className="px-3 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-800 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1 transition-all"
+                                                            title="Clear selection"
+                                                            onClick={() => {
+                                                              const customerId =
+                                                                selectedCustomerForOffer[
+                                                                  product.id
+                                                                ];
+                                                              if (customerId) {
+                                                                const key = `custom-${product.id}-${customerId}`;
+                                                                setCustomPriceForSelectedCustomer(
+                                                                  (prev) => {
+                                                                    const newState = { ...prev };
+                                                                    delete newState[key];
+                                                                    return newState;
+                                                                  }
+                                                                );
+                                                              }
+                                                              setSelectedCustomerForOffer(
+                                                                (prev) => ({
+                                                                  ...prev,
+                                                                  [product.id]: null,
+                                                                })
+                                                              );
+                                                            }}
+                                                          >
+                                                            <svg
+                                                              className="w-4 h-4"
+                                                              fill="none"
+                                                              stroke="currentColor"
+                                                              viewBox="0 0 24 24"
+                                                            >
+                                                              <path
+                                                                d="M6 18L18 6M6 6l12 12"
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                strokeWidth={2}
+                                                              />
+                                                            </svg>
+                                                          </button>
+                                                        </>
+                                                      ) : (
                                                         <button
-                                                          className="px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-green-500 to-green-600 rounded-lg hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+                                                          className="px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg hover:from-purple-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+                                                          disabled={allCustomers.length === 0}
                                                           onClick={async () => {
-                                                            const customerId = selectedCustomerForOffer[product.id];
-                                                            if (!customerId) {
-                                                              toast.error("Please select a customer");
+                                                            const key = `custom-all-${product.id}`;
+                                                            const price =
+                                                              customPriceForSelectedCustomer[key];
+                                                            if (!price || price <= 0) {
+                                                              toast.error(
+                                                                "Please enter a valid price"
+                                                              );
                                                               return;
                                                             }
-                                                            const key = `custom-${product.id}-${customerId}`;
-                                                            const price = customPriceForSelectedCustomer[key];
-                                                            if (!price || price <= 0) {
-                                                              toast.error("Please enter a valid price");
+                                                            if (allCustomers.length === 0) {
+                                                              toast.error("No customers available");
+                                                              return;
+                                                            }
+                                                            try {
+                                                              const offers = allCustomers.map(
+                                                                (customer) => ({
+                                                                  customer_id: String(customer.id),
+                                                                  product_id: product.id,
+                                                                  offered_price: price,
+                                                                  status: "pending",
+                                                                  created_at:
+                                                                    new Date().toISOString(),
+                                                                })
+                                                              );
+
+                                                              const { error } = await supabase
+                                                                .from("price_offers")
+                                                                .insert(offers);
+
+                                                              if (error) {
+                                                                toast.error(
+                                                                  `Failed to send offers: ${error.message}`
+                                                                );
+                                                                return;
+                                                              }
+
+                                                              // Clear the price input after successful send
+                                                              setCustomPriceForSelectedCustomer(
+                                                                (prev) => {
+                                                                  const newState = { ...prev };
+                                                                  delete newState[key];
+                                                                  return newState;
+                                                                }
+                                                              );
+
+                                                              toast.success(
+                                                                `Offer sent successfully to all ${allCustomers.length} customer${allCustomers.length !== 1 ? "s" : ""} for $${price.toFixed(2)}`
+                                                              );
+                                                            } catch (err) {
+                                                              toast.error(
+                                                                "Failed to send offers. Please try again."
+                                                              );
+                                                            }
+                                                          }}
+                                                        >
+                                                          <svg
+                                                            className="w-4 h-4"
+                                                            fill="none"
+                                                            stroke="currentColor"
+                                                            viewBox="0 0 24 24"
+                                                          >
+                                                            <path
+                                                              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                              strokeLinecap="round"
+                                                              strokeLinejoin="round"
+                                                              strokeWidth={2}
+                                                            />
+                                                          </svg>
+                                                          Select All & Send
+                                                        </button>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                              {product.order_items?.map((oiRaw, idx) => {
+                                                const oi = oiRaw as {
+                                                  order_id: number;
+                                                  price?: number;
+                                                  orders?: {
+                                                    customer_name: string;
+                                                    customer_phone: string;
+                                                    customer_id?: string;
+                                                  }[];
+                                                };
+                                                return (
+                                                  Array.isArray(oi.orders)
+                                                    ? oi.orders
+                                                    : oi.orders
+                                                      ? [oi.orders]
+                                                      : []
+                                                ).map((order, oidx) => {
+                                                  // Use oi.price as the past price for this customer
+                                                  return (
+                                                    <div
+                                                      key={`${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`}
+                                                      className="mb-3 p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                                                    >
+                                                      <div className="flex items-start justify-between mb-3">
+                                                        <div className="flex items-center space-x-3">
+                                                          <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center">
+                                                            <svg
+                                                              className="w-5 h-5 text-blue-600"
+                                                              fill="none"
+                                                              stroke="currentColor"
+                                                              viewBox="0 0 24 24"
+                                                            >
+                                                              <path
+                                                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                strokeWidth={2}
+                                                              />
+                                                            </svg>
+                                                          </div>
+                                                          <div>
+                                                            <div className="flex items-center space-x-2">
+                                                              <span className="font-semibold text-gray-800">
+                                                                {order.customer_name}
+                                                              </span>
+                                                              {order.customer_phone && (
+                                                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                                                                  {order.customer_phone}
+                                                                </span>
+                                                              )}
+                                                            </div>
+                                                            {oi.price !== undefined && (
+                                                              <div className="mt-1 flex items-center space-x-2">
+                                                                <span className="text-xs text-gray-500">
+                                                                  Previous price:
+                                                                </span>
+                                                                <span className="text-sm font-medium text-gray-700">
+                                                                  ${oi.price?.toFixed(2)}
+                                                                </span>
+                                                              </div>
+                                                            )}
+                                                          </div>
+                                                        </div>
+                                                        {order.customer_id && (
+                                                          <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded">
+                                                            ID: {order.customer_id}
+                                                          </span>
+                                                        )}
+                                                      </div>
+                                                      <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+                                                        <div className="relative flex-1">
+                                                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                            <span className="text-gray-500 text-sm font-medium">
+                                                              $
+                                                            </span>
+                                                          </div>
+                                                          <input
+                                                            className="w-full pl-7 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
+                                                            min="0"
+                                                            placeholder="Enter offer price"
+                                                            step="0.01"
+                                                            type="number"
+                                                            value={
+                                                              offerPrices[
+                                                                `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`
+                                                              ] || ""
+                                                            }
+                                                            onBlur={(e) => {
+                                                              // Validate and clean up on blur
+                                                              const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
+                                                              const value = e.target.value;
+                                                              if (
+                                                                value === "" ||
+                                                                value === "0" ||
+                                                                isNaN(Number(value))
+                                                              ) {
+                                                                setOfferPrices((prev) => {
+                                                                  const newState = { ...prev };
+                                                                  delete newState[key];
+                                                                  return newState;
+                                                                });
+                                                              }
+                                                            }}
+                                                            onChange={(e) => {
+                                                              const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
+                                                              const value = e.target.value;
+
+                                                              if (
+                                                                value === "" ||
+                                                                value === null ||
+                                                                value === undefined
+                                                              ) {
+                                                                // Clear the value when input is empty
+                                                                setOfferPrices((prev) => {
+                                                                  const newState = { ...prev };
+                                                                  delete newState[key];
+                                                                  return newState;
+                                                                });
+                                                              } else {
+                                                                const numValue = Number(value);
+                                                                if (!isNaN(numValue)) {
+                                                                  setOfferPrices((prev) => ({
+                                                                    ...prev,
+                                                                    [key]: numValue,
+                                                                  }));
+                                                                }
+                                                              }
+                                                            }}
+                                                            onFocus={(e) => {
+                                                              // Select all text when focused
+                                                              e.target.select();
+                                                            }}
+                                                          />
+                                                        </div>
+                                                        {offerPrices[
+                                                          `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`
+                                                        ] && (
+                                                          <button
+                                                            className="px-3 py-2 text-sm font-medium text-red-600 bg-white border border-red-300 rounded-lg hover:bg-red-50 hover:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 transition-all"
+                                                            title="Clear offer price"
+                                                            type="button"
+                                                            onClick={() => {
+                                                              const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
+                                                              setOfferPrices((prev) => {
+                                                                const newState = { ...prev };
+                                                                delete newState[key];
+                                                                return newState;
+                                                              });
+                                                            }}
+                                                          >
+                                                            <svg
+                                                              className="w-4 h-4"
+                                                              fill="none"
+                                                              stroke="currentColor"
+                                                              viewBox="0 0 24 24"
+                                                            >
+                                                              <path
+                                                                d="M6 18L18 6M6 6l12 12"
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                strokeWidth={2}
+                                                              />
+                                                            </svg>
+                                                          </button>
+                                                        )}
+                                                        <button
+                                                          className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-green-500 to-green-600 rounded-lg hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all shadow-md hover:shadow-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                          disabled={
+                                                            !offerPrices[
+                                                              `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`
+                                                            ]
+                                                          }
+                                                          onClick={async () => {
+                                                            if (!order.customer_id) {
+                                                              toast.error("Customer ID not found!");
+                                                              return;
+                                                            }
+                                                            const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
+                                                            const currentOfferPrice =
+                                                              offerPrices[key];
+                                                            if (!currentOfferPrice) {
+                                                              toast.error(
+                                                                "Please enter an offer price"
+                                                              );
                                                               return;
                                                             }
                                                             try {
@@ -2602,338 +3323,89 @@ export default function ManagementDashboard() {
                                                                 .from("price_offers")
                                                                 .insert([
                                                                   {
-                                                                    customer_id: customerId,
+                                                                    customer_id: order.customer_id,
                                                                     product_id: product.id,
-                                                                    offered_price: price,
+                                                                    offered_price:
+                                                                      currentOfferPrice,
                                                                     status: "pending",
-                                                                    created_at: new Date().toISOString(),
+                                                                    created_at:
+                                                                      new Date().toISOString(),
                                                                   },
                                                                 ]);
 
                                                               if (error) {
-                                                                toast.error(`Failed to send offer: ${error.message}`);
+                                                                toast.error(
+                                                                  `Failed to send offer: ${error.message}`
+                                                                );
                                                                 return;
                                                               }
 
-                                                              // Clear the inputs after successful send
-                                                              setSelectedCustomerForOffer((prev) => ({
-                                                                ...prev,
-                                                                [product.id]: null,
-                                                              }));
-                                                              setCustomPriceForSelectedCustomer((prev) => {
+                                                              // Clear the offer price after sending successfully
+                                                              setOfferPrices((prev) => {
                                                                 const newState = { ...prev };
                                                                 delete newState[key];
                                                                 return newState;
                                                               });
 
-                                                              const customer = allCustomers.find((c) => String(c.id) === String(customerId));
-                                                              toast.success(`Offer sent successfully to ${customer?.name || "customer"} for $${price.toFixed(2)}`);
+                                                              toast.success(
+                                                                `Offer sent successfully to ${order.customer_name} for $${currentOfferPrice.toFixed(2)}`
+                                                              );
                                                             } catch (err) {
-                                                              toast.error("Failed to send offer. Please try again.");
+                                                              toast.error(
+                                                                "Failed to send offer. Please try again."
+                                                              );
                                                             }
                                                           }}
                                                         >
-                                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                                          <svg
+                                                            className="w-4 h-4"
+                                                            fill="none"
+                                                            stroke="currentColor"
+                                                            viewBox="0 0 24 24"
+                                                          >
+                                                            <path
+                                                              d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                                                              strokeLinecap="round"
+                                                              strokeLinejoin="round"
+                                                              strokeWidth={2}
+                                                            />
                                                           </svg>
                                                           Send Offer
                                                         </button>
-                                                        <button
-                                                          className="px-3 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-800 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1 transition-all"
-                                                          title="Clear selection"
-                                                          onClick={() => {
-                                                            const customerId = selectedCustomerForOffer[product.id];
-                                                            if (customerId) {
-                                                              const key = `custom-${product.id}-${customerId}`;
-                                                              setCustomPriceForSelectedCustomer((prev) => {
-                                                                const newState = { ...prev };
-                                                                delete newState[key];
-                                                                return newState;
-                                                              });
-                                                            }
-                                                            setSelectedCustomerForOffer((prev) => ({
-                                                              ...prev,
-                                                              [product.id]: null,
-                                                            }));
-                                                          }}
-                                                        >
-                                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                          </svg>
-                                                        </button>
-                                                      </>
-                                                    ) : (
-                                                      <button
-                                                        className="px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg hover:from-purple-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
-                                                        onClick={async () => {
-                                                          const key = `custom-all-${product.id}`;
-                                                          const price = customPriceForSelectedCustomer[key];
-                                                          if (!price || price <= 0) {
-                                                            toast.error("Please enter a valid price");
-                                                            return;
-                                                          }
-                                                          if (allCustomers.length === 0) {
-                                                            toast.error("No customers available");
-                                                            return;
-                                                          }
-                                                          try {
-                                                            const offers = allCustomers.map((customer) => ({
-                                                              customer_id: String(customer.id),
-                                                              product_id: product.id,
-                                                              offered_price: price,
-                                                              status: "pending",
-                                                              created_at: new Date().toISOString(),
-                                                            }));
-
-                                                            const { error } = await supabase
-                                                              .from("price_offers")
-                                                              .insert(offers);
-
-                                                            if (error) {
-                                                              toast.error(`Failed to send offers: ${error.message}`);
-                                                              return;
-                                                            }
-
-                                                            // Clear the price input after successful send
-                                                            setCustomPriceForSelectedCustomer((prev) => {
-                                                              const newState = { ...prev };
-                                                              delete newState[key];
-                                                              return newState;
-                                                            });
-
-                                                            toast.success(`Offer sent successfully to all ${allCustomers.length} customer${allCustomers.length !== 1 ? 's' : ''} for $${price.toFixed(2)}`);
-                                                          } catch (err) {
-                                                            toast.error("Failed to send offers. Please try again.");
-                                                          }
-                                                        }}
-                                                        disabled={allCustomers.length === 0}
-                                                      >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                        </svg>
-                                                        Select All & Send
-                                                      </button>
-                                                    )}
-                                                  </div>
-                                                </div>
-                                              </div>
-                                            </div>
-                                            {product.order_items?.map((oiRaw, idx) => {
-                                              const oi = oiRaw as {
-                                                order_id: number;
-                                                price?: number;
-                                                orders?: {
-                                                  customer_name: string;
-                                                  customer_phone: string;
-                                                  customer_id?: string;
-                                                }[];
-                                              };
-                                              return (
-                                                Array.isArray(oi.orders)
-                                                  ? oi.orders
-                                                  : oi.orders
-                                                    ? [oi.orders]
-                                                    : []
-                                              ).map((order, oidx) => {
-                                                // Use oi.price as the past price for this customer
-                                                return (
-                                                  <div
-                                                    key={`${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`}
-                                                    className="mb-3 p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                                                      </div>
+                                                    </div>
+                                                  );
+                                                });
+                                              })}
+                                              {(!product.order_items ||
+                                                product.order_items.length === 0) && (
+                                                <div className="text-center py-8 px-4 bg-gray-50 rounded-lg border border-gray-200">
+                                                  <svg
+                                                    className="w-12 h-12 text-gray-400 mx-auto mb-3"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
                                                   >
-                                                    <div className="flex items-start justify-between mb-3">
-                                                      <div className="flex items-center space-x-3">
-                                                        <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center">
-                                                          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                                          </svg>
-                                                        </div>
-                                                        <div>
-                                                          <div className="flex items-center space-x-2">
-                                                            <span className="font-semibold text-gray-800">
-                                                              {order.customer_name}
-                                                            </span>
-                                                            {order.customer_phone && (
-                                                              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                                                                {order.customer_phone}
-                                                              </span>
-                                                            )}
-                                                          </div>
-                                                          {oi.price !== undefined && (
-                                                            <div className="mt-1 flex items-center space-x-2">
-                                                              <span className="text-xs text-gray-500">Previous price:</span>
-                                                              <span className="text-sm font-medium text-gray-700">
-                                                                ${oi.price?.toFixed(2)}
-                                                              </span>
-                                                            </div>
-                                                          )}
-                                                        </div>
-                                                      </div>
-                                                      {order.customer_id && (
-                                                        <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded">
-                                                          ID: {order.customer_id}
-                                                        </span>
-                                                      )}
-                                                    </div>
-                                                    <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
-                                                      <div className="relative flex-1">
-                                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                          <span className="text-gray-500 text-sm font-medium">$</span>
-                                                        </div>
-                                                        <input
-                                                          min="0"
-                                                          placeholder="Enter offer price"
-                                                          step="0.01"
-                                                          type="number"
-                                                          className="w-full pl-7 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
-                                                          value={
-                                                            offerPrices[
-                                                              `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`
-                                                            ] || ""
-                                                          }
-                                                          onBlur={(e) => {
-                                                            // Validate and clean up on blur
-                                                            const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
-                                                            const value = e.target.value;
-                                                            if (
-                                                              value === "" ||
-                                                              value === "0" ||
-                                                              isNaN(Number(value))
-                                                            ) {
-                                                              setOfferPrices((prev) => {
-                                                                const newState = { ...prev };
-                                                                delete newState[key];
-                                                                return newState;
-                                                              });
-                                                            }
-                                                          }}
-                                                          onChange={(e) => {
-                                                            const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
-                                                            const value = e.target.value;
-
-                                                            if (
-                                                              value === "" ||
-                                                              value === null ||
-                                                              value === undefined
-                                                            ) {
-                                                              // Clear the value when input is empty
-                                                              setOfferPrices((prev) => {
-                                                                const newState = { ...prev };
-                                                                delete newState[key];
-                                                                return newState;
-                                                              });
-                                                            } else {
-                                                              const numValue = Number(value);
-                                                              if (!isNaN(numValue)) {
-                                                                setOfferPrices((prev) => ({
-                                                                  ...prev,
-                                                                  [key]: numValue,
-                                                                }));
-                                                              }
-                                                            }
-                                                          }}
-                                                          onFocus={(e) => {
-                                                            // Select all text when focused
-                                                            e.target.select();
-                                                          }}
-                                                        />
-                                                      </div>
-                                                      {offerPrices[
-                                                        `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`
-                                                      ] && (
-                                                        <button
-                                                          className="px-3 py-2 text-sm font-medium text-red-600 bg-white border border-red-300 rounded-lg hover:bg-red-50 hover:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 transition-all"
-                                                          title="Clear offer price"
-                                                          type="button"
-                                                          onClick={() => {
-                                                            const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
-                                                            setOfferPrices((prev) => {
-                                                              const newState = { ...prev };
-                                                              delete newState[key];
-                                                              return newState;
-                                                            });
-                                                          }}
-                                                        >
-                                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                          </svg>
-                                                        </button>
-                                                      )}
-                                                      <button
-                                                        className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-green-500 to-green-600 rounded-lg hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all shadow-md hover:shadow-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                        disabled={!offerPrices[`${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`]}
-                                                        onClick={async () => {
-                                                          if (!order.customer_id) {
-                                                            toast.error("Customer ID not found!");
-                                                            return;
-                                                          }
-                                                          const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
-                                                          const currentOfferPrice =
-                                                            offerPrices[key];
-                                                          if (!currentOfferPrice) {
-                                                            toast.error("Please enter an offer price");
-                                                            return;
-                                                          }
-                                                          try {
-                                                            const { error } = await supabase
-                                                              .from("price_offers")
-                                                              .insert([
-                                                                {
-                                                                  customer_id: order.customer_id,
-                                                                  product_id: product.id,
-                                                                  offered_price: currentOfferPrice,
-                                                                  status: "pending",
-                                                                  created_at:
-                                                                    new Date().toISOString(),
-                                                                },
-                                                              ]);
-
-                                                            if (error) {
-                                                              toast.error(`Failed to send offer: ${error.message}`);
-                                                              return;
-                                                            }
-
-                                                            // Clear the offer price after sending successfully
-                                                            setOfferPrices((prev) => {
-                                                              const newState = { ...prev };
-                                                              delete newState[key];
-                                                              return newState;
-                                                            });
-
-                                                            toast.success(`Offer sent successfully to ${order.customer_name} for $${currentOfferPrice.toFixed(2)}`);
-                                                          } catch (err) {
-                                                            toast.error("Failed to send offer. Please try again.");
-                                                          }
-                                                        }}
-                                                      >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                                                        </svg>
-                                                        Send Offer
-                                                      </button>
-                                                    </div>
-                                                  </div>
-                                                );
-                                              });
-                                            })}
-                                            {(!product.order_items ||
-                                              product.order_items.length === 0) && (
-                                              <div className="text-center py-8 px-4 bg-gray-50 rounded-lg border border-gray-200">
-                                                <svg className="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                                                </svg>
-                                                <p className="text-sm text-gray-500 font-medium">
-                                                  No previous customers found
-                                                </p>
-                                                <p className="text-xs text-gray-400 mt-1">
-                                                  Use the selector above to send offers to any customer
-                                                </p>
-                                              </div>
-                                            )}
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    )}
+                                                    <path
+                                                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                                                      strokeLinecap="round"
+                                                      strokeLinejoin="round"
+                                                      strokeWidth={2}
+                                                    />
+                                                  </svg>
+                                                  <p className="text-sm text-gray-500 font-medium">
+                                                    No previous customers found
+                                                  </p>
+                                                  <p className="text-xs text-gray-400 mt-1">
+                                                    Use the selector above to send offers to any
+                                                    customer
+                                                  </p>
+                                                </div>
+                                              )}
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      )}
                                     </React.Fragment>
                                   );
                                 })}
@@ -2971,9 +3443,7 @@ export default function ManagementDashboard() {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
-                          
-                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12"></th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Order Number
                         </th>
@@ -2997,7 +3467,10 @@ export default function ManagementDashboard() {
                         const items = orderItems[order.id] || [];
                         return (
                           <React.Fragment key={order.id}>
-                            <tr className="hover:bg-gray-50 cursor-pointer" onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}>
+                            <tr
+                              className="hover:bg-gray-50 cursor-pointer"
+                              onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
+                            >
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <button
                                   className="text-gray-500 hover:text-gray-700 focus:outline-none"
@@ -3013,10 +3486,10 @@ export default function ManagementDashboard() {
                                     viewBox="0 0 24 24"
                                   >
                                     <path
+                                      d="M19 9l-7 7-7-7"
                                       strokeLinecap="round"
                                       strokeLinejoin="round"
                                       strokeWidth={2}
-                                      d="M19 9l-7 7-7-7"
                                     />
                                   </svg>
                                 </button>
@@ -3032,7 +3505,10 @@ export default function ManagementDashboard() {
                               <td className="px-6 py-4 whitespace-nowrap">
                                 ${order.total_amount?.toFixed(2)}
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                              <td
+                                className="px-6 py-4 whitespace-nowrap"
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 <select
                                   className={`px-2 py-1 rounded-full text-xs font-semibold ${
                                     order.status === "completed"
@@ -3056,26 +3532,30 @@ export default function ManagementDashboard() {
                             </tr>
                             {isExpanded && (
                               <tr>
-                                <td colSpan={6} className="px-6 py-4 bg-gray-50">
+                                <td className="px-6 py-4 bg-gray-50" colSpan={6}>
                                   <div className="mt-2">
                                     <div className="mb-4 pb-3 border-b border-gray-200">
                                       <div className="flex items-center space-x-4">
                                         <div>
-                                          <span className="text-xs font-medium text-gray-500 uppercase">Purchase Date:</span>
+                                          <span className="text-xs font-medium text-gray-500 uppercase">
+                                            Purchase Date:
+                                          </span>
                                           <p className="text-sm font-semibold text-gray-900 mt-1">
-                                            {new Date(order.created_at).toLocaleString('en-US', {
-                                              year: 'numeric',
-                                              month: 'long',
-                                              day: 'numeric',
-                                              hour: '2-digit',
-                                              minute: '2-digit',
-                                              hour12: true
+                                            {new Date(order.created_at).toLocaleString("en-US", {
+                                              year: "numeric",
+                                              month: "long",
+                                              day: "numeric",
+                                              hour: "2-digit",
+                                              minute: "2-digit",
+                                              hour12: true,
                                             })}
                                           </p>
                                         </div>
                                       </div>
                                     </div>
-                                    <h4 className="text-sm font-semibold text-gray-700 mb-3">Order Items</h4>
+                                    <h4 className="text-sm font-semibold text-gray-700 mb-3">
+                                      Order Items
+                                    </h4>
                                     {items.length > 0 ? (
                                       <div className="overflow-x-auto">
                                         <table className="min-w-full divide-y divide-gray-200">
@@ -3121,7 +3601,10 @@ export default function ManagementDashboard() {
                                           </tbody>
                                           <tfoot className="bg-gray-100">
                                             <tr>
-                                              <td colSpan={4} className="px-4 py-2 text-sm font-semibold text-gray-700 text-right">
+                                              <td
+                                                className="px-4 py-2 text-sm font-semibold text-gray-700 text-right"
+                                                colSpan={4}
+                                              >
                                                 Order Total:
                                               </td>
                                               <td className="px-4 py-2 text-sm font-bold text-gray-900">
@@ -3132,7 +3615,9 @@ export default function ManagementDashboard() {
                                         </table>
                                       </div>
                                     ) : (
-                                      <p className="text-sm text-gray-500">No items found for this order.</p>
+                                      <p className="text-sm text-gray-500">
+                                        No items found for this order.
+                                      </p>
                                     )}
                                   </div>
                                 </td>
@@ -3152,16 +3637,20 @@ export default function ManagementDashboard() {
               <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
                 <div className="flex-1 flex justify-between sm:hidden">
                   <button
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
                     className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                   >
                     Previous
                   </button>
                   <button
-                    onClick={() => setCurrentPage(prev => Math.min(Math.ceil(totalOrders / pageSize), prev + 1))}
-                    disabled={currentPage >= Math.ceil(totalOrders / pageSize)}
                     className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={currentPage >= Math.ceil(totalOrders / pageSize)}
+                    onClick={() =>
+                      setCurrentPage((prev) =>
+                        Math.min(Math.ceil(totalOrders / pageSize), prev + 1)
+                      )
+                    }
                   >
                     Next
                   </button>
@@ -3169,32 +3658,41 @@ export default function ManagementDashboard() {
                 <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                   <div>
                     <p className="text-sm text-gray-700">
-                      Showing{' '}
-                      <span className="font-medium">
-                        {(currentPage - 1) * pageSize + 1}
-                      </span>{' '}
-                      to{' '}
+                      Showing{" "}
+                      <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span> to{" "}
                       <span className="font-medium">
                         {Math.min(currentPage * pageSize, totalOrders)}
-                      </span>{' '}
-                      of{' '}
-                      <span className="font-medium">{totalOrders}</span> results
+                      </span>{" "}
+                      of <span className="font-medium">{totalOrders}</span> results
                     </p>
                   </div>
                   <div>
-                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    <nav
+                      aria-label="Pagination"
+                      className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
+                    >
                       <button
-                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                        disabled={currentPage === 1}
                         className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                       >
                         <span className="sr-only">Previous</span>
-                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                          <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                        <svg
+                          aria-hidden="true"
+                          className="h-5 w-5"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            clipRule="evenodd"
+                            d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+                            fillRule="evenodd"
+                          />
                         </svg>
                       </button>
                       {Array.from({ length: Math.ceil(totalOrders / pageSize) }, (_, i) => i + 1)
-                        .filter(page => {
+                        .filter((page) => {
                           const totalPages = Math.ceil(totalOrders / pageSize);
                           if (totalPages <= 7) return true;
                           if (page === 1 || page === totalPages) return true;
@@ -3204,8 +3702,9 @@ export default function ManagementDashboard() {
                         .map((page, index, array) => {
                           const totalPages = Math.ceil(totalOrders / pageSize);
                           const showEllipsisBefore = index > 0 && array[index - 1] !== page - 1;
-                          const showEllipsisAfter = index < array.length - 1 && array[index + 1] !== page + 1;
-                          
+                          const showEllipsisAfter =
+                            index < array.length - 1 && array[index + 1] !== page + 1;
+
                           return (
                             <div key={page} className="flex items-center">
                               {showEllipsisBefore && (
@@ -3214,12 +3713,12 @@ export default function ManagementDashboard() {
                                 </span>
                               )}
                               <button
-                                onClick={() => setCurrentPage(page)}
                                 className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
                                   currentPage === page
-                                    ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                                    : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                                    ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
+                                    : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
                                 }`}
+                                onClick={() => setCurrentPage(page)}
                               >
                                 {page}
                               </button>
@@ -3232,13 +3731,27 @@ export default function ManagementDashboard() {
                           );
                         })}
                       <button
-                        onClick={() => setCurrentPage(prev => Math.min(Math.ceil(totalOrders / pageSize), prev + 1))}
-                        disabled={currentPage >= Math.ceil(totalOrders / pageSize)}
                         className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={currentPage >= Math.ceil(totalOrders / pageSize)}
+                        onClick={() =>
+                          setCurrentPage((prev) =>
+                            Math.min(Math.ceil(totalOrders / pageSize), prev + 1)
+                          )
+                        }
                       >
                         <span className="sr-only">Next</span>
-                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                          <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                        <svg
+                          aria-hidden="true"
+                          className="h-5 w-5"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            clipRule="evenodd"
+                            d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                            fillRule="evenodd"
+                          />
                         </svg>
                       </button>
                     </nav>
@@ -3283,14 +3796,14 @@ export default function ManagementDashboard() {
                   <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
                   <div className="space-y-2">
                     <a
-                      href="/admin/signin-records"
                       className="block w-full px-4 py-2 text-left text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md"
+                      href="/admin/signin-records"
                     >
                       View Full Sign-in History
                     </a>
                     <button
-                      onClick={() => window.open("/admin/signin-records", "_blank")}
                       className="block w-full px-4 py-2 text-left text-sm text-green-600 hover:text-green-800 hover:bg-green-50 rounded-md"
+                      onClick={() => window.open("/admin/signin-records", "_blank")}
                     >
                       Export Sign-in Data
                     </button>

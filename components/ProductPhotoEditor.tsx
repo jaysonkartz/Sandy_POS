@@ -140,14 +140,17 @@ export default function ProductPhotoEditor({
     };
   }, []);
 
-  const clampCrop = useCallback((crop: CropRect, canvasWidth: number, canvasHeight: number): CropRect => {
-    const width = Math.max(MIN_CROP_SIZE, Math.min(crop.width, canvasWidth));
-    const height = Math.max(MIN_CROP_SIZE, Math.min(crop.height, canvasHeight));
-    const x = Math.max(0, Math.min(crop.x, canvasWidth - width));
-    const y = Math.max(0, Math.min(crop.y, canvasHeight - height));
+  const clampCrop = useCallback(
+    (crop: CropRect, canvasWidth: number, canvasHeight: number): CropRect => {
+      const width = Math.max(MIN_CROP_SIZE, Math.min(crop.width, canvasWidth));
+      const height = Math.max(MIN_CROP_SIZE, Math.min(crop.height, canvasHeight));
+      const x = Math.max(0, Math.min(crop.x, canvasWidth - width));
+      const y = Math.max(0, Math.min(crop.y, canvasHeight - height));
 
-    return { x, y, width, height };
-  }, []);
+      return { x, y, width, height };
+    },
+    []
+  );
 
   const startCropInteraction = useCallback(
     (mode: CropInteraction["mode"], event: React.PointerEvent, handle?: ResizeHandle) => {
@@ -414,7 +417,7 @@ export default function ProductPhotoEditor({
     formData.append("upload_preset", uploadPreset);
     formData.append("folder", "sandy-pos-products");
 
-    console.log("Uploading to Cloudinary:", {
+    console.warn("Uploading to Cloudinary:", {
       cloudName,
       uploadPreset,
       fileName: file.name,
@@ -470,7 +473,52 @@ export default function ProductPhotoEditor({
         throw error;
       }
     },
-    [supabase, productId]
+    [productId]
+  );
+
+  const processUpload = useCallback(
+    async (file: File) => {
+      try {
+        // Validate file
+        if (!file || file.size === 0) {
+          throw new Error("Invalid file: File is empty or undefined");
+        }
+
+        // Check file size (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+          throw new Error("File too large. Maximum size is 10MB.");
+        }
+
+        // Check file type
+        if (!file.type.startsWith("image/")) {
+          throw new Error("Invalid file type. Only images are allowed.");
+        }
+
+        // Upload to Cloudinary
+        const uploadResult = await uploadToCloudinary(file);
+
+        // Save to database
+        await saveImageToDatabase(uploadResult.secure_url);
+
+        // Update parent component
+        onImageUpdate(uploadResult.secure_url);
+
+        // Reset state
+        setPreviewUrl(null);
+        setIsEditing(false);
+        setCropData(null);
+        setUploadProgress(0);
+        setIsUploading(false);
+
+        // Close modal after successful upload
+        setTimeout(() => onClose(), 1000);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Upload failed");
+        setIsUploading(false);
+        setUploadProgress(0);
+      }
+    },
+    [onClose, onImageUpdate, saveImageToDatabase, uploadToCloudinary]
   );
 
   // Handle image upload
@@ -489,49 +537,7 @@ export default function ProductPhotoEditor({
       setIsUploading(false);
       setUploadProgress(0);
     }
-  }, [previewUrl, getEditedFile]);
-
-  const processUpload = async (file: File) => {
-    try {
-      // Validate file
-      if (!file || file.size === 0) {
-        throw new Error("Invalid file: File is empty or undefined");
-      }
-
-      // Check file size (max 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        throw new Error("File too large. Maximum size is 10MB.");
-      }
-
-      // Check file type
-      if (!file.type.startsWith("image/")) {
-        throw new Error("Invalid file type. Only images are allowed.");
-      }
-
-      // Upload to Cloudinary
-      const uploadResult = await uploadToCloudinary(file);
-
-      // Save to database
-      await saveImageToDatabase(uploadResult.secure_url);
-
-      // Update parent component
-      onImageUpdate(uploadResult.secure_url);
-
-      // Reset state
-      setPreviewUrl(null);
-      setIsEditing(false);
-      setCropData(null);
-      setUploadProgress(0);
-      setIsUploading(false);
-
-      // Close modal after successful upload
-      setTimeout(() => onClose(), 1000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
-      setIsUploading(false);
-      setUploadProgress(0);
-    }
-  };
+  }, [previewUrl, getEditedFile, processUpload]);
 
   // Handle crop
   const handleCrop = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -545,7 +551,10 @@ export default function ProductPhotoEditor({
     const scaleY = canvas.height / rect.height;
     const centerX = displayX * scaleX;
     const centerY = displayY * scaleY;
-    const side = Math.max(MIN_CROP_SIZE, Math.min(DEFAULT_CROP_SIZE, Math.min(canvas.width, canvas.height)));
+    const side = Math.max(
+      MIN_CROP_SIZE,
+      Math.min(DEFAULT_CROP_SIZE, Math.min(canvas.width, canvas.height))
+    );
 
     const x = Math.max(0, Math.min(centerX - side / 2, canvas.width - side));
     const y = Math.max(0, Math.min(centerY - side / 2, canvas.height - side));
@@ -680,9 +689,9 @@ export default function ProductPhotoEditor({
                   <div
                     ref={surfaceRef}
                     className="relative inline-block touch-none"
+                    onPointerCancel={endCropInteraction}
                     onPointerMove={handleSurfacePointerMove}
                     onPointerUp={endCropInteraction}
-                    onPointerCancel={endCropInteraction}
                   >
                     <canvas
                       ref={canvasRef}
@@ -705,13 +714,13 @@ export default function ProductPhotoEditor({
                         {cropHandles.map((handle) => (
                           <button
                             key={handle.key}
-                            type="button"
+                            aria-label={`Resize crop ${handle.key}`}
                             className={`absolute h-4 w-4 rounded-full border border-white bg-blue-500 ${handle.className}`}
                             style={{ cursor: handle.cursor }}
+                            type="button"
                             onPointerDown={(event) =>
                               startCropInteraction("resize", event, handle.key)
                             }
-                            aria-label={`Resize crop ${handle.key}`}
                           />
                         ))}
                       </div>

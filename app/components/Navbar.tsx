@@ -24,10 +24,10 @@ export default function Navbar() {
     try {
       // Reset local state first
       setIsLoggedIn(false);
-      
+
       // Perform comprehensive logout
       await performLogout();
-      
+
       // Navigate to home page
       router.push("/");
     } catch (error) {

@@ -28,12 +28,12 @@ export default function ProductCard({ product }: ProductCardProps) {
     <div className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col">
       <div className="relative aspect-square">
         <CldImage
+          unoptimized
           alt={product.name}
           className="w-full h-full object-cover"
+          height={600}
           src={product.image || "/placeholder-image.jpg"}
           width={600}
-          height={600}
-          unoptimized
         />
         <button
           className="absolute top-2 right-2 p-1.5 rounded-full bg-white/80 hover:bg-white transition-colors duration-200"

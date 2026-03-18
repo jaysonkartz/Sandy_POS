@@ -193,14 +193,17 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
   const formatOneMapAddress = (result: any): string => {
     const parts: string[] = [];
     if (result.BUILDING && result.BUILDING.toUpperCase() !== "NIL") parts.push(result.BUILDING);
-    else if (result.BLK_NO && result.BLK_NO.toUpperCase() !== "NIL") parts.push(`Blk ${result.BLK_NO}`);
+    else if (result.BLK_NO && result.BLK_NO.toUpperCase() !== "NIL")
+      parts.push(`Blk ${result.BLK_NO}`);
     if (result.ROAD_NAME && result.ROAD_NAME.toUpperCase() !== "NIL") parts.push(result.ROAD_NAME);
 
     const formatted = parts.filter(Boolean).join(", ");
     return (
       formatted ||
       (result.ADDRESS && result.ADDRESS.toUpperCase() !== "NIL"
-        ? result.ADDRESS.replace(/NIL,?\s*/gi, "").replace(/,\s*Singapore\s+\d{6}$/i, "").trim()
+        ? result.ADDRESS.replace(/NIL,?\s*/gi, "")
+            .replace(/,\s*Singapore\s+\d{6}$/i, "")
+            .trim()
         : "")
     );
   };
@@ -356,19 +359,24 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
     setError("");
     setIsLoading(true);
 
-    if (!formData.name?.trim()) return setError("Full name is required"), setIsLoading(false);
-    if (!formData.phone?.trim()) return setError("Mobile number is required"), setIsLoading(false);
-    if (!formData.address?.trim()) return setError("Address is required"), setIsLoading(false);
-    if (!formData.email?.trim()) return setError("Email address is required"), setIsLoading(false);
-    if (!formData.password?.trim()) return setError("Password is required"), setIsLoading(false);
+    if (!formData.name?.trim()) return (setError("Full name is required"), setIsLoading(false));
+    if (!formData.phone?.trim())
+      return (setError("Mobile number is required"), setIsLoading(false));
+    if (!formData.address?.trim()) return (setError("Address is required"), setIsLoading(false));
+    if (!formData.email?.trim())
+      return (setError("Email address is required"), setIsLoading(false));
+    if (!formData.password?.trim()) return (setError("Password is required"), setIsLoading(false));
     if (formData.password.length < 8)
-      return setError("Password must be at least 8 characters long"), setIsLoading(false);
+      return (setError("Password must be at least 8 characters long"), setIsLoading(false));
     if (postalCode && postalCode.length !== 6)
-      return setError("Postal code must be exactly 6 digits"), setIsLoading(false);
+      return (setError("Postal code must be exactly 6 digits"), setIsLoading(false));
     if (isSearchingPostalCode)
-      return setError("Wait for postal code validation to finish"), setIsLoading(false);
+      return (setError("Wait for postal code validation to finish"), setIsLoading(false));
     if (postalCode && resolvedPostalCode !== postalCode)
-      return setError(postalCodeError || "Enter a valid postal code to continue"), setIsLoading(false);
+      return (
+        setError(postalCodeError || "Enter a valid postal code to continue"),
+        setIsLoading(false)
+      );
 
     try {
       const { data: existingCustomer, error: customerCheckError } = await supabase
@@ -462,7 +470,7 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
   if (!isOpen || !mounted || !portalEl) return null;
 
   const modalUI = (
-    <div className="fixed inset-0 z-[9999]" role="dialog" aria-modal="true">
+    <div aria-modal="true" className="fixed inset-0 z-[9999]" role="dialog">
       {/* Overlay */}
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
@@ -482,10 +490,10 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
           </h1>
 
           <button
-            className="rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-            onClick={onClose}
             aria-label="Close"
+            className="rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
             type="button"
+            onClick={onClose}
           >
             ✕
           </button>
@@ -503,7 +511,10 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
             {isRegistering && (
               <>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="company_name">
+                  <label
+                    className="mb-1 block text-sm font-medium text-gray-700"
+                    htmlFor="company_name"
+                  >
                     Company Name
                   </label>
                   <input
@@ -549,15 +560,18 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="postal_code">
+                  <label
+                    className="mb-1 block text-sm font-medium text-gray-700"
+                    htmlFor="postal_code"
+                  >
                     Postal Code
                   </label>
                   <input
                     className="w-full rounded-md border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     id="postal_code"
+                    maxLength={6}
                     placeholder="Enter postal code (e.g., 640965)"
                     type="text"
-                    maxLength={6}
                     value={postalCode}
                     onChange={handlePostalCodeChange}
                   />
@@ -565,22 +579,30 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
                     <p className="mt-1 text-xs text-blue-600">Searching address...</p>
                   )}
                   {postalCode && postalCode.length > 0 && postalCode.length !== 6 && (
-                    <p className="mt-1 text-xs text-red-600">Postal code must be exactly 6 digits</p>
+                    <p className="mt-1 text-xs text-red-600">
+                      Postal code must be exactly 6 digits
+                    </p>
                   )}
                   {postalCodeError && (
                     <p className="mt-1 text-xs text-red-600">{postalCodeError}</p>
                   )}
-                  {postalCode && postalCode.length === 6 && !isSearchingPostalCode && !postalCodeError && (
-                    <p className="mt-1 text-xs text-gray-500">
-                      {resolvedPostalCode === postalCode
-                        ? "Address auto-filled from postal code"
-                        : "Address will be auto-filled when you enter 6 digits"}
-                    </p>
-                  )}
+                  {postalCode &&
+                    postalCode.length === 6 &&
+                    !isSearchingPostalCode &&
+                    !postalCodeError && (
+                      <p className="mt-1 text-xs text-gray-500">
+                        {resolvedPostalCode === postalCode
+                          ? "Address auto-filled from postal code"
+                          : "Address will be auto-filled when you enter 6 digits"}
+                      </p>
+                    )}
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="unit_number">
+                  <label
+                    className="mb-1 block text-sm font-medium text-gray-700"
+                    htmlFor="unit_number"
+                  >
                     Unit Number (Optional)
                   </label>
                   <input
@@ -599,10 +621,10 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
                       Address
                     </label>
                     <button
+                      className="rounded-md bg-green-600 px-3 py-1.5 text-xs text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-400"
+                      disabled={isGettingLocation}
                       type="button"
                       onClick={getCurrentLocation}
-                      disabled={isGettingLocation}
-                      className="rounded-md bg-green-600 px-3 py-1.5 text-xs text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-400"
                     >
                       {isGettingLocation ? "Getting..." : "Use My Location"}
                     </button>
@@ -673,19 +695,19 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
               <div className="relative">
                 <input
                   required
-                  minLength={8}
                   className="w-full rounded-md border border-gray-300 px-4 py-2 pr-11 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   id="password"
+                  minLength={8}
                   placeholder="Enter your password (min 8 chars)"
                   type={showPassword ? "text" : "password"}
                   value={formData.password}
                   onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
                 />
                 <button
-                  type="button"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-2 text-gray-600 hover:text-gray-900"
-                  onClick={() => setShowPassword((v) => !v)}
                   aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-2 text-gray-600 hover:text-gray-900"
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
                 >
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
@@ -699,8 +721,8 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
                         passwordStrength.strength === "weak"
                           ? "bg-red-500"
                           : passwordStrength.strength === "medium"
-                          ? "bg-yellow-500"
-                          : "bg-green-500"
+                            ? "bg-yellow-500"
+                            : "bg-green-500"
                       }`}
                       style={{ width: `${(passwordStrength.score / 6) * 100}%` }}
                     />
@@ -722,15 +744,15 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
             {isRegistering && (
               <div className="flex items-start gap-2">
                 <input
-                  type="checkbox"
-                  id="whatsapp_notifications"
                   checked={formData.whatsapp_notifications}
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  id="whatsapp_notifications"
+                  type="checkbox"
                   onChange={(e) =>
                     setFormData((prev) => ({ ...prev, whatsapp_notifications: e.target.checked }))
                   }
-                  className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
-                <label htmlFor="whatsapp_notifications" className="text-sm text-gray-700">
+                <label className="text-sm text-gray-700" htmlFor="whatsapp_notifications">
                   I want to receive WhatsApp notifications about my orders and updates
                 </label>
               </div>

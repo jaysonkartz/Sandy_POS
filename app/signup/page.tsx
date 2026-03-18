@@ -29,7 +29,9 @@ export default function SignupPage() {
   const [addressSource, setAddressSource] = useState<"manual" | "postal" | "geolocation">("manual");
 
   // Password strength calculation
-  const getPasswordStrength = (password: string): { strength: "weak" | "medium" | "strong"; score: number; feedback: string } => {
+  const getPasswordStrength = (
+    password: string
+  ): { strength: "weak" | "medium" | "strong"; score: number; feedback: string } => {
     if (!password) {
       return { strength: "weak", score: 0, feedback: "" };
     }
@@ -40,19 +42,19 @@ export default function SignupPage() {
     // Length checks
     if (password.length >= 8) score += 1;
     else feedback.push("At least 8 characters");
-    
+
     if (password.length >= 12) score += 1;
 
     // Character variety checks
     if (/[a-z]/.test(password)) score += 1;
     else feedback.push("lowercase letter");
-    
+
     if (/[A-Z]/.test(password)) score += 1;
     else feedback.push("uppercase letter");
-    
+
     if (/[0-9]/.test(password)) score += 1;
     else feedback.push("number");
-    
+
     if (/[^a-zA-Z0-9]/.test(password)) score += 1;
     else feedback.push("special character");
 
@@ -65,7 +67,11 @@ export default function SignupPage() {
       strength = "strong";
     }
 
-    return { strength, score, feedback: feedback.length > 0 ? `Add: ${feedback.slice(0, 2).join(", ")}` : "" };
+    return {
+      strength,
+      score,
+      feedback: feedback.length > 0 ? `Add: ${feedback.slice(0, 2).join(", ")}` : "",
+    };
   };
 
   const passwordStrength = useMemo(
@@ -87,15 +93,15 @@ export default function SignupPage() {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-        
+
         try {
           // Use OpenStreetMap Nominatim API for reverse geocoding (free, no API key needed)
           const response = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`,
             {
               headers: {
-                'User-Agent': 'SandyPOS/1.0' // Required by Nominatim
-              }
+                "User-Agent": "SandyPOS/1.0", // Required by Nominatim
+              },
             }
           );
 
@@ -104,7 +110,7 @@ export default function SignupPage() {
           }
 
           const data = await response.json();
-          
+
           if (data && data.display_name) {
             setFormData((prev) => ({
               ...prev,
@@ -153,25 +159,32 @@ export default function SignupPage() {
   // Function to format address from OneMap.sg data
   const formatOneMapAddress = (result: any): string => {
     const parts: string[] = [];
-    
+
     // Building name or block number (skip if NIL)
-    if (result.BUILDING && result.BUILDING.toUpperCase() !== 'NIL') {
+    if (result.BUILDING && result.BUILDING.toUpperCase() !== "NIL") {
       parts.push(result.BUILDING);
-    } else if (result.BLK_NO && result.BLK_NO.toUpperCase() !== 'NIL') {
+    } else if (result.BLK_NO && result.BLK_NO.toUpperCase() !== "NIL") {
       parts.push(`Blk ${result.BLK_NO}`);
     }
-    
+
     // Street name (skip if NIL)
-    if (result.ROAD_NAME && result.ROAD_NAME.toUpperCase() !== 'NIL') {
+    if (result.ROAD_NAME && result.ROAD_NAME.toUpperCase() !== "NIL") {
       parts.push(result.ROAD_NAME);
     }
-    
+
     // Don't include unit/floor from API - user will enter separately
     // Don't include Singapore/postal code here - we'll add it at the end
-    
+
     // Filter out NIL and empty values
-    const formatted = parts.filter(part => part && part.toUpperCase() !== 'NIL').join(', ');
-    return formatted || (result.ADDRESS && result.ADDRESS.toUpperCase() !== 'NIL' ? result.ADDRESS.replace(/NIL,?\s*/gi, '').replace(/,\s*Singapore\s+\d{6}$/i, '').trim() : '');
+    const formatted = parts.filter((part) => part && part.toUpperCase() !== "NIL").join(", ");
+    return (
+      formatted ||
+      (result.ADDRESS && result.ADDRESS.toUpperCase() !== "NIL"
+        ? result.ADDRESS.replace(/NIL,?\s*/gi, "")
+            .replace(/,\s*Singapore\s+\d{6}$/i, "")
+            .trim()
+        : "")
+    );
   };
 
   // Function to search address by postal code
@@ -192,27 +205,33 @@ export default function SignupPage() {
 
       if (oneMapResponse.ok) {
         const oneMapData = await oneMapResponse.json();
-        
+
         if (oneMapData.results && oneMapData.results.length > 0) {
           // Find the exact postal code match
           const exactMatch = oneMapData.results.find((r: any) => r.POSTAL === code);
           const result = exactMatch || oneMapData.results[0];
-          
+
           let formattedAddress = formatOneMapAddress(result);
-          
+
           // Remove NIL from address if present
-          formattedAddress = formattedAddress.replace(/NIL,?\s*/gi, '').replace(/,\s*,/g, ',').trim();
-          
+          formattedAddress = formattedAddress
+            .replace(/NIL,?\s*/gi, "")
+            .replace(/,\s*,/g, ",")
+            .trim();
+
           // Ensure Singapore and postal code are at the end
           if (formattedAddress) {
             // Remove existing "Singapore" and postal code if present
-            formattedAddress = formattedAddress.replace(/,\s*Singapore\s+\d{6}$/i, '').replace(/Singapore\s+\d{6}$/i, '').trim();
-            
+            formattedAddress = formattedAddress
+              .replace(/,\s*Singapore\s+\d{6}$/i, "")
+              .replace(/Singapore\s+\d{6}$/i, "")
+              .trim();
+
             // Add Singapore and postal code at the end
             if (code && code.length === 6) {
               formattedAddress = `${formattedAddress}, Singapore ${code}`;
             }
-            
+
             setFormData((prev) => ({
               ...prev,
               address: formattedAddress,
@@ -231,8 +250,8 @@ export default function SignupPage() {
         `https://nominatim.openstreetmap.org/search?format=json&postalcode=${encodeURIComponent(code)}&countrycodes=SG&addressdetails=1&limit=1`,
         {
           headers: {
-            'User-Agent': 'SandyPOS/1.0' // Required by Nominatim
-          }
+            "User-Agent": "SandyPOS/1.0", // Required by Nominatim
+          },
         }
       );
 
@@ -241,37 +260,47 @@ export default function SignupPage() {
       }
 
       const data = await response.json();
-      
+
       if (data && data.length > 0 && data[0].display_name) {
         // Format Nominatim address better
         const addr = data[0].address || {};
-        let formattedAddr = '';
-        
-        if (addr.house_number && addr.house_number.toUpperCase() !== 'NIL') formattedAddr += `${addr.house_number} `;
-        if (addr.road && addr.road.toUpperCase() !== 'NIL') formattedAddr += `${addr.road}, `;
+        let formattedAddr = "";
+
+        if (addr.house_number && addr.house_number.toUpperCase() !== "NIL")
+          formattedAddr += `${addr.house_number} `;
+        if (addr.road && addr.road.toUpperCase() !== "NIL") formattedAddr += `${addr.road}, `;
         if (addr.suburb || addr.neighbourhood) {
-          const suburb = (addr.suburb || addr.neighbourhood);
-          if (suburb.toUpperCase() !== 'NIL') formattedAddr += `${suburb}, `;
+          const suburb = addr.suburb || addr.neighbourhood;
+          if (suburb.toUpperCase() !== "NIL") formattedAddr += `${suburb}, `;
         }
         if (addr.city || addr.state) {
-          const city = (addr.city || addr.state);
-          if (city.toUpperCase() !== 'NIL') formattedAddr += `${city} `;
+          const city = addr.city || addr.state;
+          if (city.toUpperCase() !== "NIL") formattedAddr += `${city} `;
         }
         if (addr.postcode) formattedAddr += `${addr.postcode}`;
-        
-        formattedAddr = formattedAddr.trim().replace(/,$/, '').replace(/NIL,?\s*/gi, '').replace(/,\s*,/g, ',').trim() || data[0].display_name.replace(/NIL,?\s*/gi, '');
-        
+
+        formattedAddr =
+          formattedAddr
+            .trim()
+            .replace(/,$/, "")
+            .replace(/NIL,?\s*/gi, "")
+            .replace(/,\s*,/g, ",")
+            .trim() || data[0].display_name.replace(/NIL,?\s*/gi, "");
+
         // Ensure Singapore and postal code are at the end
         if (formattedAddr) {
           // Remove existing "Singapore" and postal code if present
-          formattedAddr = formattedAddr.replace(/,\s*Singapore\s+\d{6}$/i, '').replace(/Singapore\s+\d{6}$/i, '').trim();
-          
+          formattedAddr = formattedAddr
+            .replace(/,\s*Singapore\s+\d{6}$/i, "")
+            .replace(/Singapore\s+\d{6}$/i, "")
+            .trim();
+
           // Add Singapore and postal code at the end
           if (code && code.length === 6) {
             formattedAddr = `${formattedAddr}, Singapore ${code}`;
           }
         }
-        
+
         setFormData((prev) => ({
           ...prev,
           address: formattedAddr,
@@ -292,7 +321,7 @@ export default function SignupPage() {
 
   // Handle postal code input with debounce
   const handlePostalCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, ''); // Only allow numbers
+    const value = e.target.value.replace(/\D/g, ""); // Only allow numbers
     setError("");
     setPostalCode(value);
 
@@ -308,7 +337,7 @@ export default function SignupPage() {
         setAddressSource("manual");
       }
     }
-    
+
     // Auto-search when postal code is 6 digits (Singapore postal code format)
     if (value.length === 6) {
       searchAddressByPostalCode(value);
@@ -386,7 +415,7 @@ export default function SignupPage() {
         .maybeSingle();
 
       // If there's an error and it's not a "no rows" error, throw it
-      if (customerCheckError && customerCheckError.code !== 'PGRST116') {
+      if (customerCheckError && customerCheckError.code !== "PGRST116") {
         throw customerCheckError;
       }
 
@@ -431,8 +460,8 @@ export default function SignupPage() {
         // Add unit number to address if not already included
         if (finalAddress && !finalAddress.includes(unitNumber.trim())) {
           // Insert unit number before "Singapore" or at the end if no Singapore
-          if (finalAddress.includes('Singapore')) {
-            finalAddress = finalAddress.replace('Singapore', `#${unitNumber.trim()}, Singapore`);
+          if (finalAddress.includes("Singapore")) {
+            finalAddress = finalAddress.replace("Singapore", `#${unitNumber.trim()}, Singapore`);
           } else {
             // If no Singapore/postal code, add unit number and then Singapore + postal code
             if (postalCode && postalCode.length === 6) {
@@ -444,7 +473,7 @@ export default function SignupPage() {
         }
       } else {
         // If no unit number but we have postal code, ensure Singapore and postal code are at the end
-        if (postalCode && postalCode.length === 6 && !finalAddress.includes('Singapore')) {
+        if (postalCode && postalCode.length === 6 && !finalAddress.includes("Singapore")) {
           finalAddress = `${finalAddress}, Singapore ${postalCode}`;
         }
       }
@@ -523,7 +552,10 @@ export default function SignupPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="company_name">
+              <label
+                className="block text-sm font-medium text-gray-700 mb-2"
+                htmlFor="company_name"
+              >
                 Company Name (Optional)
               </label>
               <input
@@ -558,17 +590,33 @@ export default function SignupPage() {
               <input
                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 id="postal_code"
+                maxLength={6}
                 placeholder="Enter postal code (e.g., 640965)"
                 type="text"
-                maxLength={6}
                 value={postalCode}
                 onChange={handlePostalCodeChange}
               />
               {isSearchingPostalCode && (
                 <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
-                  <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  <svg
+                    className="animate-spin h-3 w-3"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      fill="currentColor"
+                    ></path>
                   </svg>
                   Searching address...
                 </p>
@@ -576,16 +624,17 @@ export default function SignupPage() {
               {postalCode && postalCode.length > 0 && postalCode.length !== 6 && (
                 <p className="text-xs text-red-600 mt-1">Postal code must be exactly 6 digits</p>
               )}
-              {postalCodeError && (
-                <p className="text-xs text-red-600 mt-1">{postalCodeError}</p>
-              )}
-              {postalCode && postalCode.length === 6 && !isSearchingPostalCode && !postalCodeError && (
-                <p className="text-xs text-gray-500 mt-1">
-                  {resolvedPostalCode === postalCode
-                    ? "Address auto-filled from postal code"
-                    : "Address will be auto-filled when you enter 6 digits"}
-                </p>
-              )}
+              {postalCodeError && <p className="text-xs text-red-600 mt-1">{postalCodeError}</p>}
+              {postalCode &&
+                postalCode.length === 6 &&
+                !isSearchingPostalCode &&
+                !postalCodeError && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    {resolvedPostalCode === postalCode
+                      ? "Address auto-filled from postal code"
+                      : "Address will be auto-filled when you enter 6 digits"}
+                  </p>
+                )}
             </div>
 
             <div>
@@ -608,25 +657,56 @@ export default function SignupPage() {
                   Address
                 </label>
                 <button
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:bg-green-400 disabled:cursor-not-allowed"
+                  disabled={isGettingLocation}
+                  title="Get your current location"
                   type="button"
                   onClick={getCurrentLocation}
-                  disabled={isGettingLocation}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:bg-green-400 disabled:cursor-not-allowed"
-                  title="Get your current location"
                 >
                   {isGettingLocation ? (
                     <>
-                      <svg className="animate-spin h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      <svg
+                        className="animate-spin h-3 w-3 text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          fill="currentColor"
+                        ></path>
                       </svg>
                       <span>Getting...</span>
                     </>
                   ) : (
                     <>
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <svg
+                        className="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                        />
+                        <path
+                          d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                        />
                       </svg>
                       <span>Use My Location</span>
                     </>
@@ -646,8 +726,11 @@ export default function SignupPage() {
                     if (unitNumber && unitNumber.trim() && displayAddress) {
                       // Check if unit number is already in address
                       if (!displayAddress.includes(unitNumber.trim())) {
-                        if (displayAddress.includes('Singapore')) {
-                          displayAddress = displayAddress.replace('Singapore', `#${unitNumber.trim()}, Singapore`);
+                        if (displayAddress.includes("Singapore")) {
+                          displayAddress = displayAddress.replace(
+                            "Singapore",
+                            `#${unitNumber.trim()}, Singapore`
+                          );
                         } else {
                           displayAddress = `${displayAddress}, #${unitNumber.trim()}`;
                         }
@@ -659,16 +742,17 @@ export default function SignupPage() {
                     // Extract base address (remove unit number if user edits)
                     let baseAddress = e.target.value;
                     if (unitNumber && unitNumber.trim()) {
-                      baseAddress = baseAddress.replace(`#${unitNumber.trim()}, `, '').replace(`, #${unitNumber.trim()}`, '').trim();
+                      baseAddress = baseAddress
+                        .replace(`#${unitNumber.trim()}, `, "")
+                        .replace(`, #${unitNumber.trim()}`, "")
+                        .trim();
                     }
                     setLocationError("");
                     setAddressSource("manual");
                     setFormData((prev) => ({ ...prev, address: baseAddress }));
                   }}
                 />
-                {locationError && (
-                  <p className="text-xs text-red-600">{locationError}</p>
-                )}
+                {locationError && <p className="text-xs text-red-600">{locationError}</p>}
               </div>
             </div>
 
@@ -693,9 +777,9 @@ export default function SignupPage() {
               </label>
               <input
                 required
-                minLength={8}
                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 id="password"
+                minLength={8}
                 placeholder="Enter your password (minimum 8 characters)"
                 type="password"
                 value={formData.password}
@@ -710,8 +794,8 @@ export default function SignupPage() {
                         passwordStrength.strength === "weak"
                           ? "bg-red-500"
                           : passwordStrength.strength === "medium"
-                          ? "bg-yellow-500"
-                          : "bg-green-500"
+                            ? "bg-yellow-500"
+                            : "bg-green-500"
                       }`}
                       style={{
                         width: `${(passwordStrength.score / 6) * 100}%`,
@@ -725,11 +809,13 @@ export default function SignupPage() {
                         passwordStrength.strength === "weak"
                           ? "text-red-600"
                           : passwordStrength.strength === "medium"
-                          ? "text-yellow-600"
-                          : "text-green-600"
+                            ? "text-yellow-600"
+                            : "text-green-600"
                       }`}
                     >
-                      Password Strength: {passwordStrength.strength.charAt(0).toUpperCase() + passwordStrength.strength.slice(1)}
+                      Password Strength:{" "}
+                      {passwordStrength.strength.charAt(0).toUpperCase() +
+                        passwordStrength.strength.slice(1)}
                     </span>
                   </div>
                   {/* Feedback */}
@@ -742,13 +828,15 @@ export default function SignupPage() {
 
             <div className="flex items-center">
               <input
-                type="checkbox"
-                id="whatsapp_notifications"
                 checked={formData.whatsapp_notifications}
-                onChange={(e) => setFormData((prev) => ({ ...prev, whatsapp_notifications: e.target.checked }))}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                id="whatsapp_notifications"
+                type="checkbox"
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, whatsapp_notifications: e.target.checked }))
+                }
               />
-              <label htmlFor="whatsapp_notifications" className="ml-2 block text-sm text-gray-700">
+              <label className="ml-2 block text-sm text-gray-700" htmlFor="whatsapp_notifications">
                 I want to receive WhatsApp notifications about my orders and updates
               </label>
             </div>

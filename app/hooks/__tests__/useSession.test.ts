@@ -41,7 +41,7 @@ const buildSession = (overrides: Partial<Session> = {}): Session =>
       created_at: "2026-01-01T00:00:00.000Z",
     },
     ...overrides,
-  } as Session);
+  }) as Session;
 
 describe("useSession", () => {
   beforeEach(() => {

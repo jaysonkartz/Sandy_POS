@@ -54,7 +54,7 @@ export default function LoginPage() {
 
         // Log successful sign-in
         await logSignInSuccess(
-          data.user.id, 
+          data.user.id,
           data.user.email || email.trim(),
           data.session.access_token
         );
@@ -135,8 +135,8 @@ export default function LoginPage() {
           <div className="text-right">
             <button
               className="text-sm text-blue-600 hover:text-blue-500 transition-colors duration-200"
-              onClick={() => router.push("/forgot-password")}
               type="button"
+              onClick={() => router.push("/forgot-password")}
             >
               Forgot password?
             </button>

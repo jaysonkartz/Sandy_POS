@@ -22,7 +22,7 @@ export default function Login() {
     if (error) {
       setError(error.message);
     } else {
-      console.log("Logged in successfully");
+      console.warn("Logged in successfully");
       router.push("/dashboard");
     }
 
