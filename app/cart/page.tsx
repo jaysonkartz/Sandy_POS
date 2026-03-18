@@ -1,6 +1,6 @@
 "use client";
 
-import { useCart } from "@/context/CartContext";
+import { resolveCartItemKey, useCart } from "@/context/CartContext";
 import { useState } from "react";
 import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -32,20 +32,12 @@ export default function CartPage() {
     }
   };
 
-  const getCartItemKey = (item: (typeof cart)[number]) =>
-    item.cartItemKey ??
-    [
-      String(item.id),
-      String(item.Variation ?? item.variation ?? ""),
-      String(item.Country_of_origin ?? item.country_of_origin ?? item.origin ?? ""),
-    ].join("::");
-
   const getVariationLabel = (item: (typeof cart)[number]) => item.Variation ?? item.variation;
   const getOriginLabel = (item: (typeof cart)[number]) =>
     item.Country_of_origin ?? item.country_of_origin ?? item.origin;
 
   const handleRemoveCartItem = async (item: (typeof cart)[number]) => {
-    const itemKey = getCartItemKey(item);
+    const itemKey = resolveCartItemKey(item);
     setRemovingItem(itemKey);
     try {
       await new Promise((resolve) => setTimeout(resolve, 300));
@@ -98,7 +90,7 @@ export default function CartPage() {
         <div className="lg:col-span-2 space-y-4">
           {cart.map((item) => (
             <div
-              key={getCartItemKey(item)}
+              key={resolveCartItemKey(item)}
               className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow"
             >
               <div className="p-6">
@@ -159,7 +151,7 @@ export default function CartPage() {
                               updateQuantity(
                                 item.id,
                                 Math.max(0, item.quantity - 1),
-                                getCartItemKey(item)
+                                resolveCartItemKey(item)
                               )
                             }
                           >
@@ -175,7 +167,7 @@ export default function CartPage() {
                               updateQuantity(
                                 item.id,
                                 Math.min(item.maxQuantity, item.quantity + 1),
-                                getCartItemKey(item)
+                                resolveCartItemKey(item)
                               )
                             }
                           >
@@ -187,11 +179,11 @@ export default function CartPage() {
 
                       <button
                         className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                        disabled={removingItem === getCartItemKey(item)}
+                        disabled={removingItem === resolveCartItemKey(item)}
                         title="Remove item"
                         onClick={() => handleRemoveCartItem(item)}
                       >
-                        {removingItem === getCartItemKey(item) ? (
+                        {removingItem === resolveCartItemKey(item) ? (
                           <Loader2 className="w-5 h-5 animate-spin" />
                         ) : (
                           <Trash2 className="w-5 h-5" />
@@ -223,7 +215,7 @@ export default function CartPage() {
             <div className="space-y-3 mb-6">
               <div className="max-h-48 overflow-auto pr-1 space-y-2">
                 {cart.map((item) => (
-                  <div key={`summary-${getCartItemKey(item)}`} className="text-sm text-gray-700">
+                  <div key={`summary-${resolveCartItemKey(item)}`} className="text-sm text-gray-700">
                     <div className="flex justify-between gap-2">
                       <span className="truncate">{item.title}</span>
                       <span>x{item.quantity}</span>

@@ -28,7 +28,7 @@ const getOriginValue = (item: Partial<CartItem>) =>
   item.country_of_origin ??
   item.Country_of_origin;
 
-const resolveCartItemKey = (item: Partial<CartItem>) => {
+export const resolveCartItemKey = (item: Partial<CartItem>) => {
   if (item.cartItemKey) return item.cartItemKey;
 
   const baseId = String(item.id ?? "");
