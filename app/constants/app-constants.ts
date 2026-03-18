@@ -1,10 +1,3 @@
-// Session management constants
-export const SESSION_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
-export const SESSION_CHECK_INTERVAL = 1 * 60 * 1000; // 1 minute
-export const USER_ACTIVITY_TIMEOUT = 10 * 60 * 1000; // 10 minutes
-export const SESSION_RETRY_DELAY = 1000; // 1 second
-export const MAX_SESSION_RETRIES = 3;
-
 // UI constants
 export const SCROLL_THRESHOLD = 100;
 export const SEARCH_DEBOUNCE_DELAY = 300;
@@ -26,12 +19,6 @@ export const CATEGORY_MAP: { [key: string]: string } = {
   "7": "Vegetables",
   "8": "Dried Mushroom & Fungus",
 };
-
-// Local storage keys
-export const STORAGE_KEYS = {
-  SESSION: "sandy_pos_session",
-  SUPABASE_PREFIX: "sb-",
-} as const;
 
 // User roles
 export const USER_ROLES = {

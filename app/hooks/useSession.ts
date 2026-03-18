@@ -1,19 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { Session } from "@supabase/supabase-js";
+import { useState, useEffect, useCallback } from "react";
+import { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { supabase } from "@/app/lib/supabaseClient";
-import {
-  SESSION_REFRESH_INTERVAL,
-  SESSION_CHECK_INTERVAL,
-  USER_ACTIVITY_TIMEOUT,
-  STORAGE_KEYS,
-} from "@/app/constants/app-constants";
-import {
-  isRefreshTokenError,
-  clearInvalidSession,
-  refreshSession,
-  handleRefreshTokenError,
-  persistSession,
-} from "@/app/utils/session-helpers";
 
 interface UseSessionReturn {
   session: Session | null;
@@ -28,53 +15,13 @@ export const useSession = (): UseSessionReturn => {
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
-  const refreshPromiseRef = useRef<Promise<Session | null> | null>(null);
 
-  const shouldRefreshSession = useCallback((sessionToCheck: Session | null) => {
-    const expiresAt = sessionToCheck?.expires_at;
-    if (!expiresAt) return false;
-
-    const expiresAtMs = expiresAt * 1000;
-    const refreshThresholdMs = 10 * 60 * 1000;
-    return expiresAtMs - Date.now() <= refreshThresholdMs;
-  }, []);
-
-  const refreshInFlight = useCallback(async () => {
-    const currentSession = session;
-    if (!shouldRefreshSession(currentSession)) {
-      return currentSession;
+  const fetchUserRole = useCallback(async (userId?: string) => {
+    if (!userId) {
+      setUserRole("");
+      return;
     }
 
-    if (refreshPromiseRef.current) {
-      return refreshPromiseRef.current;
-    }
-
-    refreshPromiseRef.current = (async () => {
-      const refreshedSession = await refreshSession();
-
-      if (!refreshedSession) {
-        handleRefreshTokenError(setSession, setUserRole);
-        return null;
-      }
-
-      setSession(refreshedSession);
-      return refreshedSession;
-    })();
-
-    try {
-      return await refreshPromiseRef.current;
-    } finally {
-      refreshPromiseRef.current = null;
-    }
-  }, [session, shouldRefreshSession]);
-
-  // Helper function to check if session is valid
-  const isSessionValid = useCallback(() => {
-    return !!(session && session.user && session.user.id && session.user.email);
-  }, [session]);
-
-  // Function to fetch user role
-  const fetchUserRole = useCallback(async (userId: string) => {
     try {
       const { data: userData, error } = await supabase
         .from("users")
@@ -82,387 +29,80 @@ export const useSession = (): UseSessionReturn => {
         .eq("id", userId)
         .single();
 
-      if (userData && !error) {
+      if (!error && userData?.role) {
         setUserRole(userData.role);
-      } else {
-        setUserRole("");
+        return;
       }
-    } catch (error) {
-      console.error("Error fetching user role:", error);
+
+      setUserRole("");
+    } catch {
       setUserRole("");
     }
   }, []);
 
-  // Aggressive session recovery function
-  const aggressiveSessionRecovery = useCallback(async () => {
-    // Method 1: Try refreshSession
-    const refreshedSession = await refreshSession();
-    
-    if (!refreshedSession) {
-      // Check if it was a refresh token error
-      handleRefreshTokenError(setSession, setUserRole);
-      return false;
-    }
+  const syncSessionState = useCallback(
+    async (nextSession: Session | null) => {
+      setSession(nextSession);
+      await fetchUserRole(nextSession?.user?.id);
+    },
+    [fetchUserRole]
+  );
 
-    if (refreshedSession?.user) {
-      setSession(refreshedSession);
-      if (refreshedSession.user.id) {
-        await fetchUserRole(refreshedSession.user.id);
-      }
-      return true;
-    }
-
-    // Method 2: Check localStorage for stored session
-    try {
-      const keys = Object.keys(localStorage);
-      const supabaseKeys = keys.filter(
-        (key) => key.includes("supabase") || key.includes(STORAGE_KEYS.SUPABASE_PREFIX)
-      );
-
-      for (const key of supabaseKeys) {
-        try {
-          const value = localStorage.getItem(key);
-          if (value) {
-            const parsed = JSON.parse(value);
-            if (parsed?.user || parsed?.access_token) {
-              if (parsed.access_token) {
-                try {
-                  const {
-                    data: { session: restoredSession },
-                    error,
-                  } = await supabase.auth.setSession({
-                    access_token: parsed.access_token,
-                    refresh_token: parsed.refresh_token || "",
-                  });
-
-                  if (isRefreshTokenError(error)) {
-                    localStorage.removeItem(key);
-                    return false;
-                  }
-
-                  if (!error && restoredSession?.user) {
-                    setSession(restoredSession);
-                    if (restoredSession.user.id) {
-                      await fetchUserRole(restoredSession.user.id);
-                    }
-                    return true;
-                  }
-                } catch (setSessionError) {
-                  // Failed to set Supabase session
-                }
-              }
-
-              if (parsed.user) {
-                setSession(parsed);
-                if (parsed.user.id) {
-                  await fetchUserRole(parsed.user.id);
-                }
-                return true;
-              }
-            }
-          }
-        } catch (parseError) {
-          // Failed to parse localStorage key
-        }
-      }
-    } catch (error) {
-      // Method 2 failed
-    }
-
-    return false;
-  }, [fetchUserRole]);
-
-  // Function to force refresh session and role
   const forceRefreshSession = useCallback(async () => {
+    setIsLoading(true);
+
     try {
-      // Get current session
       const {
         data: { session: currentSession },
-        error,
       } = await supabase.auth.getSession();
 
-      if (error) {
-        setSession(null);
-        setUserRole("");
-        return;
-      }
-
-      if (currentSession?.user) {
-        setSession(currentSession);
-        if (currentSession.user.id) {
-          await fetchUserRole(currentSession.user.id);
-        }
-        return;
-      }
-
-      // No session found, try to refresh
-      const refreshedSession = await refreshSession();
-
-      if (!refreshedSession) {
-        handleRefreshTokenError(setSession, setUserRole);
-        return;
-      }
-
-      if (refreshedSession?.user) {
-        setSession(refreshedSession);
-        if (refreshedSession.user.id) {
-          await fetchUserRole(refreshedSession.user.id);
-        }
-      } else {
-        setSession(null);
-        setUserRole("");
-      }
-    } catch (error) {
-      // Error handled silently - session state will be cleared
-      setSession(null);
-      setUserRole("");
+      await syncSessionState(currentSession);
+    } finally {
+      setIsLoading(false);
     }
-  }, [fetchUserRole]);
+  }, [syncSessionState]);
 
-  // Initialize session
   useEffect(() => {
-    const initializeSession = async () => {
+    let isMounted = true;
+
+    const init = async () => {
       try {
-        // Set a maximum timeout for session initialization
-        const timeoutPromise = new Promise<void>((resolve) => {
-          setTimeout(() => {
-            setIsLoading(false);
-            resolve();
-          }, 5000); // 5 second timeout
-        });
+        const {
+          data: { session: initialSession },
+        } = await supabase.auth.getSession();
 
-        const sessionPromise = (async () => {
-          // Try to get current session first (most reliable)
-          const {
-            data: { session },
-            error,
-          } = await supabase.auth.getSession();
-
-          if (error) {
-            setIsLoading(false);
-            return;
-          }
-
-          if (session?.user) {
-            setSession(session);
-            if (session.user.id) {
-              await fetchUserRole(session.user.id);
-            }
-            setIsLoading(false);
-            return;
-          }
-
-          // If no session found, check for stored session
-          const storedSession = localStorage.getItem(STORAGE_KEYS.SESSION);
-          if (storedSession) {
-            try {
-              const parsed = JSON.parse(storedSession);
-              if (parsed?.access_token && parsed?.user) {
-                const {
-                  data: { session: restoredSession },
-                  error: restoreError,
-                } = await supabase.auth.setSession({
-                  access_token: parsed.access_token,
-                  refresh_token: parsed.refresh_token || "",
-                });
-
-                if (isRefreshTokenError(restoreError)) {
-                  // Invalid refresh token, clear session data
-                  clearInvalidSession();
-                  setSession(null);
-                  setUserRole("");
-                  setIsLoading(false);
-                  return;
-                }
-
-                if (!restoreError && restoredSession?.user) {
-                  setSession(restoredSession);
-                  if (restoredSession.user.id) {
-                    await fetchUserRole(restoredSession.user.id);
-                  }
-                  setIsLoading(false);
-                  return;
-                } else {
-                  localStorage.removeItem(STORAGE_KEYS.SESSION);
-                }
-              }
-            } catch (parseError) {
-              localStorage.removeItem(STORAGE_KEYS.SESSION);
-            }
-          }
-
-          // No session found anywhere
-          setSession(null);
-          setUserRole("");
+        if (!isMounted) return;
+        await syncSessionState(initialSession);
+      } finally {
+        if (isMounted) {
           setIsLoading(false);
-        })();
-
-        // Race between session initialization and timeout
-        await Promise.race([sessionPromise, timeoutPromise]);
-        setIsLoading(false);
-      } catch (error) {
-        setIsLoading(false);
+        }
       }
     };
 
-    initializeSession();
+    init();
 
-    // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event: any, session: Session | null) => {
-      setSession(session);
-
-      // Persist session to localStorage
-      if (session) {
-        persistSession(session);
-      }
-
-      if (session?.user?.id) {
-        await fetchUserRole(session.user.id);
-      } else {
-        setUserRole("");
-      }
+    } = supabase.auth.onAuthStateChange(async (_event: AuthChangeEvent, nextSession: Session | null) => {
+      if (!isMounted) return;
+      await syncSessionState(nextSession);
+      setIsLoading(false);
     });
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
     };
-  }, [aggressiveSessionRecovery, fetchUserRole]);
+  }, [syncSessionState]);
 
-  // Auto-refresh session
-  useEffect(() => {
-    if (!session?.user) return;
-
-    const refreshInterval = setInterval(async () => {
-      await refreshInFlight();
-    }, SESSION_REFRESH_INTERVAL);
-
-    return () => clearInterval(refreshInterval);
-  }, [session?.user, refreshInFlight]);
-
-  // Session monitoring
-  useEffect(() => {
-    const sessionCheckInterval = setInterval(async () => {
-      try {
-        if (session?.user) {
-          const {
-            data: { session: currentSession },
-            error,
-          } = await supabase.auth.getSession();
-
-          if (error || !currentSession?.user) {
-            const recovered = await aggressiveSessionRecovery();
-            if (!recovered) {
-              setSession(null);
-              setUserRole("");
-            }
-          } else if (shouldRefreshSession(currentSession)) {
-            const refreshedSession = await refreshSession();
-
-            if (!refreshedSession) {
-              handleRefreshTokenError(setSession, setUserRole);
-              return;
-            }
-
-            setSession(refreshedSession);
-          }
-        } else {
-          const recovered = await aggressiveSessionRecovery();
-          // Session recovered during periodic check
-        }
-      } catch (error) {
-        // Error in periodic session check - silently continue
-      }
-    }, SESSION_CHECK_INTERVAL);
-
-    return () => clearInterval(sessionCheckInterval);
-  }, [session?.user, aggressiveSessionRecovery, shouldRefreshSession]);
-
-  // Handle page visibility changes
-  useEffect(() => {
-    const handleVisibilityChange = async () => {
-      if (document.visibilityState === "visible") {
-        if (!session?.user) {
-          await aggressiveSessionRecovery();
-        } else {
-          const {
-            data: { session: currentSession },
-          } = await supabase.auth.getSession();
-          if (!currentSession?.user) {
-            const recovered = await aggressiveSessionRecovery();
-            if (!recovered) {
-              setSession(null);
-              setUserRole("");
-            }
-          }
-        }
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [session?.user, aggressiveSessionRecovery]);
-
-  // User activity detection
-  useEffect(() => {
-    let activityTimeout: ReturnType<typeof setTimeout> | undefined;
-
-    const handleUserActivity = async () => {
-      if (activityTimeout) {
-        clearTimeout(activityTimeout);
-      }
-
-      activityTimeout = setTimeout(async () => {
-        if (session?.user) {
-          await refreshInFlight();
-        }
-      }, USER_ACTIVITY_TIMEOUT);
-    };
-
-    const events = ["mousedown", "mousemove", "keypress", "scroll", "touchstart", "click"];
-    events.forEach((event) => {
-      document.addEventListener(event, handleUserActivity, true);
-    });
-
-    return () => {
-      if (activityTimeout) {
-        clearTimeout(activityTimeout);
-      }
-      events.forEach((event) => {
-        document.removeEventListener(event, handleUserActivity, true);
-      });
-    };
-  }, [session?.user, refreshInFlight]);
-
-  // Function to handle sign out
   const signOut = useCallback(async () => {
     try {
-      // First, clear all Supabase-related items from localStorage
-      const keys = Object.keys(localStorage);
-      const supabaseKeys = keys.filter(
-        (key) => key.includes("supabase") || key.includes(STORAGE_KEYS.SUPABASE_PREFIX)
-      );
-      supabaseKeys.forEach((key) => localStorage.removeItem(key));
-      localStorage.removeItem(STORAGE_KEYS.SESSION);
-
-      // Call Supabase signOut
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-
-      // Clear local state
+      await supabase.auth.signOut();
+    } finally {
       setSession(null);
       setUserRole("");
-
-      // Force a page reload to clear any cached state
-      window.location.href = "/";
-    } catch (error) {
-      // If normal signout fails, try aggressive cleanup
-      try {
-        await supabase.auth.signOut();
-        localStorage.clear(); // Clear everything as a last resort
-        window.location.href = "/";
-      } catch (finalError) {
+      if (typeof window !== "undefined") {
         window.location.href = "/";
       }
     }
@@ -472,8 +112,8 @@ export const useSession = (): UseSessionReturn => {
     session,
     userRole,
     isLoading,
-    isSessionValid: isSessionValid(),
+    isSessionValid: !!(session?.user?.id && session?.user?.email),
     forceRefreshSession,
-    signOut, // Add signOut to the returned object
+    signOut,
   };
 };
