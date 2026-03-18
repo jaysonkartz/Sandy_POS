@@ -8,14 +8,12 @@ interface ProductImageProps {
   src: string;
   alt: string;
   className?: string;
-  fallbackSrc?: string;
 }
 
 export default function ProductImage({
   src,
   alt,
   className = "w-full h-full object-cover",
-  fallbackSrc = "/product-placeholder.svg",
 }: ProductImageProps) {
   const [imageSrc, setImageSrc] = useState(src);
   const [hasError, setHasError] = useState(false);
@@ -24,9 +22,9 @@ export default function ProductImage({
   const handleError = useCallback(() => {
     if (!hasError) {
       setHasError(true);
-      setImageSrc(fallbackSrc);
+      setIsLoading(false);
     }
-  }, [hasError, fallbackSrc]);
+  }, [hasError]);
 
   const handleLoad = useCallback(() => {
     setIsLoading(false);
@@ -46,21 +44,23 @@ export default function ProductImage({
         </div>
       )}
 
-      <CldImage
-        unoptimized
-        alt={alt}
-        className={`${className} ${isLoading ? "opacity-0" : "opacity-100"} transition-opacity duration-200`}
-        decoding="async"
-        fetchPriority="low"
-        height={800}
-        loading="lazy"
-        src={imageSrc}
-        width={800}
-        onError={handleError}
-        onLoad={handleLoad}
-      />
+      {!hasError && (
+        <CldImage
+          unoptimized
+          alt={alt}
+          className={`${className} ${isLoading ? "opacity-0" : "opacity-100"} transition-opacity duration-200`}
+          decoding="async"
+          fetchPriority="low"
+          height={800}
+          loading="lazy"
+          src={imageSrc}
+          width={800}
+          onError={handleError}
+          onLoad={handleLoad}
+        />
+      )}
 
-      {hasError && imageSrc === fallbackSrc && (
+      {hasError && (
         <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
           <div className="text-center">
             <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-2" />
