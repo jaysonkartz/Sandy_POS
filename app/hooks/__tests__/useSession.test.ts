@@ -32,6 +32,7 @@ const buildSession = (overrides: Partial<Session> = {}): Session =>
     expires_at: 9999999999,
     expires_in: 3600,
     token_type: "bearer",
+
     user: {
       id: "user-1",
       email: "user@example.com",
@@ -40,6 +41,7 @@ const buildSession = (overrides: Partial<Session> = {}): Session =>
       aud: "authenticated",
       created_at: "2026-01-01T00:00:00.000Z",
     },
+
     ...overrides,
   }) as Session;
 
