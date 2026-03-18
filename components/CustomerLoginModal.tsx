@@ -1,8 +1,13 @@
 "use client";
 
+<<<<<<< HEAD
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+=======
+import { useEffect, useMemo, useState } from "react";
+>>>>>>> main
 import { useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
 import { supabase } from "@/app/lib/supabaseClient";
 import { useSignInLogging } from "@/app/hooks/useSignInLogging";
 import { USER_ROLES } from "@/app/constants/app-constants";
@@ -21,9 +26,14 @@ export default function CustomerLoginModal({
 }: CustomerLoginModalProps) {
   const router = useRouter();
   const { logSignInSuccess, logSignInFailure } = useSignInLogging();
+<<<<<<< HEAD
 
   const [mounted, setMounted] = useState(false);
 
+=======
+  const [mounted, setMounted] = useState(false);
+  const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
+>>>>>>> main
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -42,10 +52,56 @@ export default function CustomerLoginModal({
 
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [locationError, setLocationError] = useState("");
+<<<<<<< HEAD
 
+=======
+  const [postalCodeError, setPostalCodeError] = useState("");
+>>>>>>> main
   const [postalCode, setPostalCode] = useState("");
+  const [resolvedPostalCode, setResolvedPostalCode] = useState("");
   const [isSearchingPostalCode, setIsSearchingPostalCode] = useState(false);
   const [unitNumber, setUnitNumber] = useState("");
+  const [addressSource, setAddressSource] = useState<"manual" | "postal" | "geolocation">("manual");
+
+  useEffect(() => {
+    setMounted(true);
+
+    const existing = document.getElementById("customer-login-modal-root");
+    if (existing) {
+      setPortalEl(existing);
+      return;
+    }
+
+    const el = document.createElement("div");
+    el.id = "customer-login-modal-root";
+    document.body.appendChild(el);
+    setPortalEl(el);
+
+    return () => {
+      if (el.parentNode) el.parentNode.removeChild(el);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mounted || !isOpen) return;
+
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [isOpen, mounted]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOpen, onClose]);
 
   // ----- Portal mount + body scroll lock -----
   useEffect(() => {
@@ -126,9 +182,19 @@ export default function CustomerLoginModal({
           );
           if (!response.ok) throw new Error("Failed to get address from coordinates");
           const data = await response.json();
+<<<<<<< HEAD
 
           if (data?.display_name) {
             setFormData((prev) => ({ ...prev, address: data.display_name }));
+=======
+          
+          if (data && data.display_name) {
+            setFormData((prev) => ({
+              ...prev,
+              address: data.display_name,
+            }));
+            setAddressSource("geolocation");
+>>>>>>> main
             setLocationError("");
           } else {
             throw new Error("Could not determine address from location");
@@ -136,7 +202,10 @@ export default function CustomerLoginModal({
         } catch (err) {
           console.error("Reverse geocoding error:", err);
           setLocationError("Failed to get address. Please enter manually.");
+<<<<<<< HEAD
           setFormData((prev) => ({ ...prev, address: `${latitude}, ${longitude}` }));
+=======
+>>>>>>> main
         } finally {
           setIsGettingLocation(false);
         }
@@ -173,7 +242,8 @@ export default function CustomerLoginModal({
     if (!code || code.trim().length < 4) return;
 
     setIsSearchingPostalCode(true);
-    setLocationError("");
+    setPostalCodeError("");
+    setResolvedPostalCode("");
 
     try {
       const oneMapResponse = await fetch(
@@ -195,6 +265,7 @@ export default function CustomerLoginModal({
             .trim();
 
           if (formattedAddress) {
+<<<<<<< HEAD
             formattedAddress = formattedAddress
               .replace(/,\s*Singapore\s+\d{6}$/i, "")
               .replace(/Singapore\s+\d{6}$/i, "")
@@ -203,7 +274,23 @@ export default function CustomerLoginModal({
             if (code.length === 6) formattedAddress = `${formattedAddress}, Singapore ${code}`;
 
             setFormData((prev) => ({ ...prev, address: formattedAddress }));
+=======
+            // Remove existing "Singapore" and postal code if present
+            formattedAddress = formattedAddress.replace(/,\s*Singapore\s+\d{6}$/i, '').replace(/Singapore\s+\d{6}$/i, '').trim();
+            
+            // Add Singapore and postal code at the end
+            if (code && code.length === 6) {
+              formattedAddress = `${formattedAddress}, Singapore ${code}`;
+            }
+            
+            setFormData((prev) => ({
+              ...prev,
+              address: formattedAddress,
+            }));
+            setAddressSource("postal");
+>>>>>>> main
             setLocationError("");
+            setResolvedPostalCode(code);
             setIsSearchingPostalCode(false);
             return;
           }
@@ -238,6 +325,7 @@ export default function CustomerLoginModal({
         if (city && String(city).toUpperCase() !== "NIL") formattedAddr += `${city} `;
 
         if (addr.postcode) formattedAddr += `${addr.postcode}`;
+<<<<<<< HEAD
 
         formattedAddr =
           formattedAddr
@@ -255,22 +343,74 @@ export default function CustomerLoginModal({
         if (code.length === 6) formattedAddr = `${formattedAddr}, Singapore ${code}`;
 
         setFormData((prev) => ({ ...prev, address: formattedAddr }));
+=======
+        
+        formattedAddr = formattedAddr.trim().replace(/,$/, '').replace(/NIL,?\s*/gi, '').replace(/,\s*,/g, ',').trim() || data[0].display_name.replace(/NIL,?\s*/gi, '');
+        
+        // Ensure Singapore and postal code are at the end
+        if (formattedAddr) {
+          // Remove existing "Singapore" and postal code if present
+          formattedAddr = formattedAddr.replace(/,\s*Singapore\s+\d{6}$/i, '').replace(/Singapore\s+\d{6}$/i, '').trim();
+          
+          // Add Singapore and postal code at the end
+          if (code && code.length === 6) {
+            formattedAddr = `${formattedAddr}, Singapore ${code}`;
+          }
+        }
+        
+        setFormData((prev) => ({
+          ...prev,
+          address: formattedAddr,
+        }));
+        setAddressSource("postal");
+>>>>>>> main
         setLocationError("");
+        setResolvedPostalCode(code);
       } else {
-        setLocationError(`No address found for postal code ${code}`);
+        setPostalCodeError(`No address found for postal code ${code}`);
       }
+<<<<<<< HEAD
     } catch (err) {
       console.error("Postal code search error:", err);
       setLocationError("Failed to find address for this postal code. Please enter manually.");
+=======
+    } catch (error) {
+      console.error("Postal code search error:", error);
+      setPostalCodeError("Failed to find address for this postal code. Please enter manually.");
+>>>>>>> main
     } finally {
       setIsSearchingPostalCode(false);
     }
   };
 
   const handlePostalCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+<<<<<<< HEAD
     const value = e.target.value.replace(/\D/g, "");
     setPostalCode(value);
     if (value.length === 6) searchAddressByPostalCode(value);
+=======
+    const value = e.target.value.replace(/\D/g, ''); // Only allow numbers
+    setError("");
+    setPostalCode(value);
+
+    if (value !== resolvedPostalCode) {
+      setResolvedPostalCode("");
+      setPostalCodeError("");
+
+      if (addressSource === "postal") {
+        setFormData((prev) => ({
+          ...prev,
+          address: "",
+        }));
+        setAddressSource("manual");
+      }
+    }
+    
+    // Auto-search when postal code is 6 digits (Singapore postal code format)
+    if (value.length === 6) {
+      searchAddressByPostalCode(value);
+    }
+>>>>>>> main
   };
 
   // ----- Auth handlers -----
@@ -331,6 +471,66 @@ export default function CustomerLoginModal({
     setError("");
     setIsLoading(true);
 
+<<<<<<< HEAD
+=======
+    // Validate all mandatory fields
+    if (!formData.name || !formData.name.trim()) {
+      setError("Full name is required");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!formData.phone || !formData.phone.trim()) {
+      setError("Mobile number is required");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!formData.address || !formData.address.trim()) {
+      setError("Address is required");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!formData.email || !formData.email.trim()) {
+      setError("Email address is required");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!formData.password || !formData.password.trim()) {
+      setError("Password is required");
+      setIsLoading(false);
+      return;
+    }
+
+    // Validate password length
+    if (formData.password.length < 8) {
+      setError("Password must be at least 8 characters long");
+      setIsLoading(false);
+      return;
+    }
+
+    // Validate postal code if provided
+    if (postalCode && postalCode.length > 0 && postalCode.length !== 6) {
+      setError("Postal code must be exactly 6 digits");
+      setIsLoading(false);
+      return;
+    }
+
+    if (isSearchingPostalCode) {
+      setError("Wait for postal code validation to finish");
+      setIsLoading(false);
+      return;
+    }
+
+    if (postalCode && resolvedPostalCode !== postalCode) {
+      setError(postalCodeError || "Enter a valid postal code to continue");
+      setIsLoading(false);
+      return;
+    }
+
+>>>>>>> main
     try {
       if (!formData.name.trim()) throw new Error("Full name is required");
       if (!formData.phone.trim()) throw new Error("Mobile number is required");
@@ -412,6 +612,7 @@ export default function CustomerLoginModal({
     }
   };
 
+<<<<<<< HEAD
   if (!isOpen || !mounted) return null;
 
   const modal = (
@@ -433,6 +634,27 @@ export default function CustomerLoginModal({
           >
             ✕
           </button>
+=======
+  if (!isOpen || !mounted || !portalEl) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 bg-black bg-opacity-50 p-4 overflow-y-auto">
+      <div className="min-h-full flex items-center justify-center">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full relative">
+        <button
+          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+          onClick={onClose}
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              d="M6 18L18 6M6 6l12 12"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+            />
+          </svg>
+        </button>
+>>>>>>> main
 
           <div className="p-8">
             <h1 className="text-2xl font-bold text-center mb-8">
@@ -446,12 +668,85 @@ export default function CustomerLoginModal({
                 </div>
               )}
 
+<<<<<<< HEAD
               {/* --- Register fields (same UI as your original) --- */}
               {isRegistering && (
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="name">
                       Full Name
+=======
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="phone">
+                    Mobile Number
+                  </label>
+                  <input
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    id="phone"
+                    placeholder="Enter your mobile number"
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="postal_code">
+                    Postal Code 
+                  </label>
+                  <input
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    id="postal_code"
+                    placeholder="Enter postal code (e.g., 654321)"
+                    type="text"
+                    maxLength={6}
+                    value={postalCode}
+                    onChange={handlePostalCodeChange}
+                  />
+                  {isSearchingPostalCode && (
+                    <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                      <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Searching address...
+                    </p>
+                  )}
+                  {postalCode && postalCode.length > 0 && postalCode.length !== 6 && (
+                    <p className="text-xs text-red-600 mt-1">Postal code must be exactly 6 digits</p>
+                  )}
+                  {postalCodeError && (
+                    <p className="text-xs text-red-600 mt-1">{postalCodeError}</p>
+                  )}
+                  {postalCode && postalCode.length === 6 && !isSearchingPostalCode && !postalCodeError && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {resolvedPostalCode === postalCode
+                        ? "Address auto-filled from postal code"
+                        : "Address will be auto-filled when you enter 6 digits"}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="unit_number">
+                    Unit Number (Optional)
+                  </label>
+                  <input
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    id="unit_number"
+                    placeholder="Enter unit number (e.g., 01-123)"
+                    type="text"
+                    value={unitNumber}
+                    onChange={(e) => setUnitNumber(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700" htmlFor="address">
+                      Address
+>>>>>>> main
                     </label>
                     <input
                       required
@@ -535,8 +830,36 @@ export default function CustomerLoginModal({
                       id="address"
                       placeholder="Enter your address"
                       rows={3}
+<<<<<<< HEAD
                       value={formData.address}
                       onChange={(e) => setFormData((p) => ({ ...p, address: e.target.value }))}
+=======
+                      value={(() => {
+                        // Combine address with unit number for display
+                        let displayAddress = formData.address;
+                        if (unitNumber && unitNumber.trim() && displayAddress) {
+                          // Check if unit number is already in address
+                          if (!displayAddress.includes(unitNumber.trim())) {
+                            if (displayAddress.includes('Singapore')) {
+                              displayAddress = displayAddress.replace('Singapore', `#${unitNumber.trim()}, Singapore`);
+                            } else {
+                              displayAddress = `${displayAddress}, #${unitNumber.trim()}`;
+                            }
+                          }
+                        }
+                        return displayAddress;
+                      })()}
+                      onChange={(e) => {
+                        // Extract base address (remove unit number if user edits)
+                        let baseAddress = e.target.value;
+                        if (unitNumber && unitNumber.trim()) {
+                          baseAddress = baseAddress.replace(`#${unitNumber.trim()}, `, '').replace(`, #${unitNumber.trim()}`, '').trim();
+                        }
+                        setLocationError("");
+                        setAddressSource("manual");
+                        setFormData((prev) => ({ ...prev, address: baseAddress }));
+                      }}
+>>>>>>> main
                     />
                     {locationError && <p className="text-xs text-red-600 mt-1">{locationError}</p>}
                   </div>
@@ -641,7 +964,10 @@ export default function CustomerLoginModal({
           </div>
         </div>
       </div>
+      </div>
     </div>
+    ,
+    portalEl
   );
 
   return createPortal(modal, document.body);

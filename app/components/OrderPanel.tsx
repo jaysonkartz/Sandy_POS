@@ -225,7 +225,7 @@ export const OrderPanel = memo<OrderPanelProps>(({
         try {
           // Add timeout to prevent hanging
           const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error("Customer data query timeout")), 5000);
+            setTimeout(() => reject(new Error("Customer data query timeout")), 4000);
           });
 
           const queryPromise = supabase

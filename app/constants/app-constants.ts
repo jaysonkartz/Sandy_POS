@@ -1,15 +1,10 @@
-// Session management constants
-export const SESSION_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
-export const SESSION_CHECK_INTERVAL = 1 * 60 * 1000; // 1 minute
-export const USER_ACTIVITY_TIMEOUT = 30 * 1000; // 30 seconds
-export const SESSION_RETRY_DELAY = 1000; // 1 second
-export const MAX_SESSION_RETRIES = 3;
-
 // UI constants
 export const SCROLL_THRESHOLD = 100;
 export const SEARCH_DEBOUNCE_DELAY = 300;
 export const LOADING_TIMEOUT = 3000;
-export const FORCE_LOADING_RESET_DELAY = 5000;
+export const SESSION_TIMEOUT_MS = 4000;
+export const LOGOUT_TIMEOUT_MS = SESSION_TIMEOUT_MS;
+export const FORCE_LOADING_RESET_DELAY = SESSION_TIMEOUT_MS;
 
 // WhatsApp constants
 export const WHATSAPP_PHONE_NUMBER = "6593254825";
@@ -26,12 +21,6 @@ export const CATEGORY_MAP: { [key: string]: string } = {
   "7": "Vegetables",
   "8": "Dried Mushroom & Fungus",
 };
-
-// Local storage keys
-export const STORAGE_KEYS = {
-  SESSION: "sandy_pos_session",
-  SUPABASE_PREFIX: "sb-",
-} as const;
 
 // User roles
 export const USER_ROLES = {

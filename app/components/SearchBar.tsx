@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 
 interface SearchBarProps {
@@ -14,6 +14,20 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   onSearchChange,
   onClearSearch,
 }) => {
+  const [inputValue, setInputValue] = useState(searchTerm);
+
+  useEffect(() => {
+    setInputValue(searchTerm);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      onSearchChange(inputValue);
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [inputValue, onSearchChange]);
+
   return (
     <div className="relative w-full">
       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -22,10 +36,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         className="pl-10 pr-4 py-2 border border-gray-200 rounded-full bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full sm:w-72"
         placeholder={isEnglish ? "Search products..." : "搜索产品..."}
         type="text"
-        value={searchTerm}
-        onChange={(e) => onSearchChange(e.target.value)}
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Escape") {
+            setInputValue("");
             e.currentTarget.blur();
             onClearSearch();
           }

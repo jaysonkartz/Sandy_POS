@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X, Trash2 } from "lucide-react";
-import { CldUploadWidget } from "next-cloudinary";
+import { CldImage, CldUploadWidget } from "next-cloudinary";
 import { supabase } from "@/app/lib/supabaseClient";
 
 type ProductImageRow = {
@@ -182,7 +182,13 @@ export default function ProductPhotoEditorModal({
           <div className="rounded-lg border bg-gray-50 p-3">
             <div className="text-sm font-medium mb-2">Cover</div>
             {coverUrl ? (
-              <img src={coverUrl} className="w-full h-56 object-contain bg-white rounded" />
+              <CldImage
+                src={coverUrl}
+                alt={`${productName} cover image`}
+                width={1200}
+                height={560}
+                className="w-full h-56 object-contain bg-white rounded"
+              />
             ) : (
               <div className="h-56 flex items-center justify-center text-gray-400">No image yet</div>
             )}
@@ -246,7 +252,13 @@ export default function ProductPhotoEditorModal({
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
             {images.map((img) => (
               <div key={img.id} className="relative group rounded-lg border overflow-hidden bg-white">
-                <img src={img.image_url} className="w-full h-24 object-cover" />
+                <CldImage
+                  src={img.image_url}
+                  alt={`${productName} thumbnail`}
+                  width={320}
+                  height={192}
+                  className="w-full h-24 object-cover"
+                />
 
                 <div className="absolute inset-x-0 bottom-0 p-1 flex gap-1 bg-black/40 opacity-0 group-hover:opacity-100 transition">
                   <button

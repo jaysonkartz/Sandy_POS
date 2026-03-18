@@ -84,14 +84,18 @@ export const useOrder = (): UseOrderReturn => {
   const [customerAddress, setCustomerAddress] = useState(stored?.customerAddress ?? "");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // ✅ Persist every change
+  // Persist with a short delay to reduce write pressure during rapid input changes.
   useEffect(() => {
-    writeStored({
-      selectedProducts,
-      customerName,
-      customerPhone,
-      customerAddress,
-    });
+    const timeout = setTimeout(() => {
+      writeStored({
+        selectedProducts,
+        customerName,
+        customerPhone,
+        customerAddress,
+      });
+    }, 120);
+
+    return () => clearTimeout(timeout);
   }, [selectedProducts, customerName, customerPhone, customerAddress]);
 
   const addToOrder = useCallback((product: Product) => {

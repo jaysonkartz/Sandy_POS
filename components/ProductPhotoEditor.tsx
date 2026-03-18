@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence as FramerAnimatePresence } from "framer-motion";
+import { CldImage } from "next-cloudinary";
 import { Upload, X, Edit3, Loader2, Check, Trash2 } from "lucide-react";
 import { supabase } from "@/app/lib/supabaseClient";
 
@@ -339,10 +340,13 @@ export default function ProductPhotoEditor({
               <div className="mb-6">
                 <h3 className="text-sm font-medium text-gray-700 mb-3">Current Image</h3>
                 <div className="relative inline-block">
-                  <img
+                  <CldImage
                     alt={productName}
                     className="w-48 h-48 object-cover rounded-lg border"
                     src={currentImageUrl}
+                    width={192}
+                    height={192}
+                    unoptimized
                   />
                   <button
                     className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
@@ -386,10 +390,13 @@ export default function ProductPhotoEditor({
 
                 {/* Image Preview */}
                 <div className="relative">
-                  <img
+                  <CldImage
                     alt="Preview"
                     className="max-w-full h-auto rounded-lg border"
                     src={previewUrl}
+                    width={1200}
+                    height={1200}
+                    unoptimized
                   />
 
                   {/* Edit Controls */}

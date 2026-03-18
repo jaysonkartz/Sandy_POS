@@ -1,4 +1,4 @@
-import React, { memo } from "react";
+import React, { memo, useMemo } from "react";
 import { ProductCard } from "./ProductCard";
 
 interface Product {
@@ -59,6 +59,14 @@ export const ProductGrid = memo<ProductGridProps>(({
   onOpenPhotoEditor,
   onOpenSignupModal,
 }) => {
+  const quantityByProductId = useMemo(() => {
+    const result: Record<number, number> = {};
+    selectedProducts.forEach(({ product, quantity }) => {
+      result[product.id] = quantity;
+    });
+    return result;
+  }, [selectedProducts]);
+
   // Group products by category for display
   const categoryDisplayGroups: { [category: string]: typeof productGroups } = {};
   productGroups.forEach((group) => {
@@ -89,7 +97,7 @@ export const ProductGrid = memo<ProductGridProps>(({
                 isSessionValid={isSessionValid}
                 userRole={userRole}
                 selectedOptions={selectedOptions}
-                selectedProducts={selectedProducts}
+                currentQuantityByProductId={quantityByProductId}
                 countryMap={countryMap}
                 isLoggingIn={isLoggingIn}
                 onOptionChange={onOptionChange}

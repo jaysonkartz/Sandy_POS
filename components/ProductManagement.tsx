@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence as FramerAnimatePresence } from "framer-motion";
 import { supabase } from "@/app/lib/supabaseClient";
 import { Plus, Edit3, Trash2, Search, Camera, Image as ImageIcon, Eye, EyeOff } from "lucide-react";
@@ -49,16 +49,24 @@ export default function ProductManagement() {
   const [isPhotoEditorOpen, setIsPhotoEditorOpen] = useState(false);
   const [selectedProductForPhoto, setSelectedProductForPhoto] = useState<Product | null>(null);
   const [showImages, setShowImages] = useState(true);
+  const latestFetchIdRef = useRef(0);
 
 
 
   // Fetch products
   const fetchProducts = useCallback(async () => {
+    const fetchId = ++latestFetchIdRef.current;
+
     try {
       setLoading(true);
       setError(null);
 
-      let query = supabase.from("products").select("*").order("created_at", { ascending: false });
+      let query = supabase
+        .from("products")
+        .select(
+          "id, Product, Product_CH, Category, \"Item Code\", price, UOM, Country, Variation, weight, stock_quantity, image_url, created_at, updated_at"
+        )
+        .order("created_at", { ascending: false });
 
       if (selectedCategory !== "all") {
         query = query.eq("Category", selectedCategory);
@@ -68,42 +76,64 @@ export default function ProductManagement() {
 
       if (error) throw error;
 
-      // Fetch variants for each product
-      const productsWithVariants = await Promise.all(
-        (productsData || []).map(async (product) => {
-          const { data: variantsData } = await supabase
-            .from('product_variants')
-            .select('*')
-            .eq('product_id', product.id)
-            .order('created_at', { ascending: true });
+      const safeProducts = productsData || [];
 
-          return {
-            ...product,
-            variants: variantsData || []
-          };
-        })
-      );
+      const productIds = safeProducts.map((product) => product.id);
+      let variantsByProductId: Record<number, ProductVariant[]> = {};
+
+      if (productIds.length > 0) {
+        const { data: variantsData } = await supabase
+          .from("product_variants")
+          .select("*")
+          .in("product_id", productIds)
+          .order("created_at", { ascending: true });
+
+        const safeVariants = variantsData || [];
+
+        variantsByProductId = safeVariants.reduce(
+          (acc: Record<number, ProductVariant[]>, variant: ProductVariant & { product_id: number }) => {
+            if (!acc[variant.product_id]) {
+              acc[variant.product_id] = [];
+            }
+            acc[variant.product_id].push(variant);
+            return acc;
+          },
+          {}
+        );
+      }
+
+      const productsWithVariants = safeProducts.map((product) => ({
+        ...product,
+        variants: variantsByProductId[product.id] || [],
+      }));
+
+      if (fetchId !== latestFetchIdRef.current) return;
 
       setProducts(productsWithVariants);
     } catch (err) {
+      if (fetchId !== latestFetchIdRef.current) return;
       console.error("Error fetching products:", err);
       setError(err instanceof Error ? err.message : "Failed to load products");
     } finally {
+      if (fetchId !== latestFetchIdRef.current) return;
       setLoading(false);
     }
-  }, [supabase, selectedCategory]);
+  }, [selectedCategory]);
 
   // Fetch categories
   const fetchCategories = useCallback(async () => {
     try {
-      const { data, error } = await supabase.from("categories").select("*").order("name");
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id, name, name_ch")
+        .order("name");
 
       if (error) throw error;
       setCategories(data || []);
     } catch (err) {
       console.error("Error fetching categories:", err);
     }
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     fetchProducts();

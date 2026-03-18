@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from "@/app/lib/supabase/server";
 import { redirect } from "next/navigation";
 
-export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+export default async function ManagementLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createSupabaseServerClient();
 
   const {

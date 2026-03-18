@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Bar } from "react-chartjs-2";
+import { CldImage } from "next-cloudinary";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -213,6 +214,88 @@ export default function ManagementDashboard() {
     activeCustomers: 0,
     pendingOrders: 0,
   });
+  const hasLoadedOverviewRef = useRef(false);
+  const hasLoadedPricingRef = useRef(false);
+  const [loadedVariantProductIds, setLoadedVariantProductIds] = useState<Set<number>>(new Set());
+  const [loadingVariantProductIds, setLoadingVariantProductIds] = useState<Set<number>>(new Set());
+
+  const fetchVariantsByProductIds = useCallback(async (productIds: number[]) => {
+    const ids = Array.from(new Set(productIds.filter((id) => Number.isFinite(id))));
+    if (ids.length === 0) return {} as Record<number, ProductVariant[]>;
+
+    try {
+      const { data, error } = await supabase
+        .from("product_variants")
+        .select("*")
+        .in("product_id", ids)
+        .order("created_at", { ascending: true });
+
+      if (error) {
+        // PGRST116 can happen when relation is missing in some environments.
+        if (error.code === "PGRST116") {
+          return {} as Record<number, ProductVariant[]>;
+        }
+        throw error;
+      }
+
+      const grouped: Record<number, ProductVariant[]> = {};
+      (data || []).forEach((variant: ProductVariant & { product_id: number }) => {
+        if (!grouped[variant.product_id]) {
+          grouped[variant.product_id] = [];
+        }
+        grouped[variant.product_id].push(variant);
+      });
+
+      return grouped;
+    } catch {
+      return {} as Record<number, ProductVariant[]>;
+    }
+  }, []);
+
+  const applyVariantsToCategories = useCallback((variantsByProductId: Record<number, ProductVariant[]>) => {
+    setCategories((prev) =>
+      prev.map((category) => ({
+        ...category,
+        products: category.products.map((product) =>
+          Object.prototype.hasOwnProperty.call(variantsByProductId, product.id)
+            ? { ...product, variants: variantsByProductId[product.id] || [] }
+            : product
+        ),
+      }))
+    );
+  }, []);
+
+  const ensureVariantsLoaded = useCallback(
+    async (productIds: number[]) => {
+      const toLoad = Array.from(
+        new Set(productIds.filter((id) => Number.isFinite(id) && !loadedVariantProductIds.has(id)))
+      );
+      if (toLoad.length === 0) return;
+
+      setLoadingVariantProductIds((prev) => {
+        const next = new Set(prev);
+        toLoad.forEach((id) => next.add(id));
+        return next;
+      });
+
+      try {
+        const variantsByProductId = await fetchVariantsByProductIds(toLoad);
+        applyVariantsToCategories(variantsByProductId);
+        setLoadedVariantProductIds((prev) => {
+          const next = new Set(prev);
+          toLoad.forEach((id) => next.add(id));
+          return next;
+        });
+      } finally {
+        setLoadingVariantProductIds((prev) => {
+          const next = new Set(prev);
+          toLoad.forEach((id) => next.delete(id));
+          return next;
+        });
+      }
+    },
+    [applyVariantsToCategories, fetchVariantsByProductIds, loadedVariantProductIds]
+  );
 
   // Clear all offer prices
   const clearOfferPrices = () => {
@@ -271,7 +354,7 @@ export default function ManagementDashboard() {
 
   // Fetch all customers when component mounts or when products section is active
   useEffect(() => {
-    if (activeSection === "products") {
+    if (activeSection === "pricing") {
       // Small delay to ensure component is ready
       const timer = setTimeout(() => {
         fetchAllCustomers();
@@ -282,7 +365,7 @@ export default function ManagementDashboard() {
 
   // Also fetch customers when a product is selected (in case they weren't loaded yet)
   useEffect(() => {
-    if (selectedProduct && activeSection === "products" && allCustomers.length === 0 && !isLoadingCustomers) {
+    if (selectedProduct && activeSection === "pricing" && allCustomers.length === 0 && !isLoadingCustomers) {
       fetchAllCustomers();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -429,28 +512,7 @@ export default function ManagementDashboard() {
         .map((ph: PriceHistoryEntry) => ph.product_id)
         .filter((v: number, i: number, a: number[]) => a.indexOf(v) === i);
 
-      // Fetch variants for each product (store uniqueHistoryProductIds for later use)
-      const historyProductIds = uniqueHistoryProductIds;
-      const productsWithVariants = await Promise.all(
-        (products || []).map(async (product: any) => {
-          // Fetch variants, but don't fail if table doesn't exist or returns 404
-          let variantsData: ProductVariant[] = [];
-          try {
-            const { data, error } = await supabase
-              .from('product_variants')
-              .select('*')
-              .eq('product_id', product.id)
-              .order('created_at', { ascending: true });
-            
-            if (error && error.code !== 'PGRST116') { // PGRST116 is "relation does not exist"
-              // Silently continue without variants
-            } else {
-              variantsData = (data || []) as ProductVariant[];
-            }
-          } catch (err) {
-            // Silently handle 404 or other errors for variants
-            variantsData = [];
-          }
+      const productsWithVariants = (products || []).map((product: any) => {
 
           // Resolve country name from the mapping
           const countryId = product.Country != null ? String(product.Country) : null;
@@ -469,14 +531,13 @@ export default function ManagementDashboard() {
                        priceHistoryMap[Number(productIdStr)] ||
                        [];
 
-          return {
-            ...product,
-            countryName: countryName, // Add resolved country name
-            variants: variantsData || [],
-            priceHistory: history.slice(0, 3),
-          };
-        })
-      );
+        return {
+          ...product,
+          countryName: countryName, // Add resolved country name
+          variants: [],
+          priceHistory: history.slice(0, 3),
+        };
+      });
 
       // Group products by category
       const categoryGroups: { [key: string]: Product[] } = {};
@@ -499,6 +560,7 @@ export default function ManagementDashboard() {
       }));
 
       setCategories(categoriesArray);
+      setLoadedVariantProductIds(new Set());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch categories");
     } finally {
@@ -530,23 +592,40 @@ export default function ManagementDashboard() {
   };
 
   useEffect(() => {
-    fetchCategories();
-    fetchTopSellingProducts(undefined, "quantity");
-    fetchTopSellingProducts(undefined, "price");
-    fetchRecentOrders();
-    fetchSalesChartData();
-    fetchDashboardStats();
-  }, []);
+    if (activeSection === "overview" && !hasLoadedOverviewRef.current) {
+      hasLoadedOverviewRef.current = true;
+      fetchTopSellingProducts(undefined, "quantity");
+      fetchTopSellingProducts(undefined, "price");
+      fetchRecentOrders();
+      fetchSalesChartData();
+      fetchDashboardStats();
+    }
+
+    if (activeSection === "pricing" && !hasLoadedPricingRef.current) {
+      hasLoadedPricingRef.current = true;
+      fetchCategories();
+    }
+  }, [activeSection]);
+
+  useEffect(() => {
+    if (!selectedProductForVariants) return;
+    if (activeSection !== "pricing") return;
+    ensureVariantsLoaded([selectedProductForVariants]);
+  }, [activeSection, ensureVariantsLoaded, selectedProductForVariants]);
+
+  useEffect(() => {
+    if (!expandedCategory) return;
+    if (activeSection !== "pricing") return;
+
+    const category = categories.find((c) => c.id === expandedCategory);
+    if (!category) return;
+
+    ensureVariantsLoaded(category.products.map((p) => p.id));
+  }, [activeSection, categories, ensureVariantsLoaded, expandedCategory]);
 
   const fetchTopSellingProducts = async (month?: string, type?: string) => {
     setIsLoadingTopProducts(true);
     try {
-      // First, get all available months from orders (include all statuses for month detection)
-      // Try to get any orders without filters first
-      const { data: allOrders, error: monthsError } = await supabase.from("orders").select("*");
-
-      if (monthsError) throw monthsError;
-
       // Generate all months for the current year
       const currentDate = new Date();
       const currentYear = currentDate.getFullYear();
@@ -614,36 +693,6 @@ export default function ManagementDashboard() {
           created_at
         `
       ).gte('created_at', startDate).lte('created_at', endDate);
-
-      // If no results or error, try without date filtering to see if there's data
-      if (!orderItems || orderItems.length === 0 || error) {
-        const { data: allOrderItems, error: allError } = await supabase.from("order_items").select(
-          `
-            id,
-            order_id,
-            product_id,
-            quantity,
-            price,
-            total_price,
-            product_name,
-            product_code,
-            created_at
-          `
-        );
-        
-        if (!error && allOrderItems) {
-          // Filter manually by date
-          orderItems = allOrderItems.filter((item: { created_at?: string }) => {
-            if (!item.created_at) return false;
-            const itemDate = new Date(item.created_at);
-            return itemDate >= new Date(startDate) && itemDate <= new Date(endDate);
-          });
-          error = null;
-        } else {
-          orderItems = allOrderItems;
-          error = allError;
-        }
-      }
 
       if (error) {
         throw error;
@@ -815,10 +864,14 @@ export default function ManagementDashboard() {
   const fetchSalesChartData = async () => {
     setIsLoadingSalesChart(true);
     try {
-      // Fetch all order items with created_at and total_price to group by month
+      // Fetch only recent 12 months for chart responsiveness.
+      const today = new Date();
+      const twelveMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 11, 1).toISOString();
+
       const { data: orderItems, error } = await supabase
         .from("order_items")
-        .select("total_price, created_at");
+        .select("total_price, created_at")
+        .gte("created_at", twelveMonthsAgo);
 
       if (error) {
         toast.error(`Failed to fetch sales chart data: ${error.message}`);
@@ -892,7 +945,7 @@ export default function ManagementDashboard() {
       const { data, error, count } = await supabase
         .from("orders")
         .select("id, created_at, customer_name, customer_phone, total_amount, status", {
-          count: "exact",
+          count: "planned",
         })
         .order("created_at", { ascending: false })
         .range(from, to);
@@ -906,7 +959,7 @@ export default function ManagementDashboard() {
         const orderIds = data.map((order: { id: string | number }) => parseInt(String(order.id)));
         const { data: itemsData, error: itemsError } = await supabase
           .from("order_items")
-          .select("*")
+          .select("id, order_id, product_id, quantity, price, total_price, product_name, product_code")
           .in("order_id", orderIds);
 
         if (itemsError) {
@@ -968,12 +1021,6 @@ export default function ManagementDashboard() {
       fetchOrderDetails(currentPage);
     }
   }, [activeSection, currentPage]);
-
-  useEffect(() => {
-    if (activeSection === "overview") {
-      fetchDashboardStats();
-    }
-  }, [activeSection]);
 
   const sections: DashboardSection[] = [
     {
@@ -1481,7 +1528,17 @@ export default function ManagementDashboard() {
                     <tr key={user.id}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <img alt="" className="h-8 w-8 rounded-full" src={user.avatar_url} />
+                          {user.avatar_url ? (
+                            <CldImage
+                              src={user.avatar_url}
+                              alt={user.name || "User avatar"}
+                              width={32}
+                              height={32}
+                              className="h-8 w-8 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="h-8 w-8 rounded-full bg-gray-200" />
+                          )}
                           <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900">{user.name || "N/A"}</div>
                           </div>
@@ -1732,11 +1789,19 @@ export default function ManagementDashboard() {
                 const selectedProductData = categories
                   .flatMap((c: Category) => c.products)
                   .find(p => p.id === selectedProductForVariants);
+                const isLoadingSelectedVariants = loadingVariantProductIds.has(selectedProductForVariants);
                 
                 if (!selectedProductData) return null;
                 
                 return (
                   <>
+                    {isLoadingSelectedVariants && (
+                      <div className="mt-2 mb-2 inline-flex items-center gap-2 text-sm text-blue-600">
+                        <span className="inline-block h-4 w-4 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
+                        Loading variants...
+                      </div>
+                    )}
+
                     {/* Show current variants list when manager is NOT open */}
                     {selectedProductData.variants && selectedProductData.variants.length > 0 && showVariantManager !== selectedProductForVariants && (
                       <div className="mt-2">
@@ -1748,9 +1813,11 @@ export default function ManagementDashboard() {
                             <div key={variant.id} className="flex items-center justify-between bg-white p-2 rounded border">
                               <div className="flex items-center space-x-3">
                                 {variant.image_url && (
-                                  <img 
-                                    src={variant.image_url} 
+                                  <CldImage
+                                    src={variant.image_url}
                                     alt={variant.variation_name}
+                                    width={64}
+                                    height={64}
                                     className="w-8 h-8 object-cover rounded"
                                   />
                                 )}

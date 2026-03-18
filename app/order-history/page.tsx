@@ -1,37 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { useOrder } from "@/app/hooks/useOrder";
 import { ShoppingBag } from "lucide-react";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement,
-} from "chart.js";
-import { Line, Doughnut } from "react-chartjs-2";
 import { supabase } from "@/app/lib/supabaseClient";
 
-// Register ChartJS modules
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement
-);
+const OrderHistoryAnalytics = dynamic(() => import("@/app/components/OrderHistoryAnalytics"), {
+  ssr: false,
+  loading: () => (
+    <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="bg-white p-6 rounded-lg shadow-xl h-[280px] animate-pulse" />
+      <div className="bg-white p-6 rounded-lg shadow-xl h-[280px] animate-pulse" />
+    </div>
+  ),
+});
 
 export default function OrderHistory() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -41,16 +24,14 @@ export default function OrderHistory() {
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const userIdRef = useRef<string | null>(null);
   const ordersPerPage = 5;
   const router = useRouter();
-  const { addToOrder, updateQuantity, setCustomerName, setCustomerPhone, setCustomerAddress } = useOrder();
 
   const handleReorder = async (orderId: string) => {
     try {
       setReorderingId(orderId);
-      console.log("Starting reorder for order ID:", orderId);
-      console.log("ItemsData available:", itemsData.length);
-      
+
       // Convert orderId to both string and number for comparison (order_id might be stored as either)
       const orderIdStr = String(orderId);
       const orderIdNum = Number(orderId);
@@ -61,116 +42,13 @@ export default function OrderHistory() {
         return itemOrderId === orderIdStr || item.order_id === orderIdNum;
       });
       
-      console.log("Filtered items:", items);
-      
+
       if (!items || items.length === 0) {
-        console.error("No items found for order", orderId, "Available order_ids:", itemsData.map((i: any) => i.order_id));
         alert("No items found for this order. Please try refreshing the page.");
         setReorderingId(null);
         return;
       }
-
-      // Get the order details
-      const { data: orderData, error: orderError } = await (supabase
-        .from("orders") as any)
-        .select("customer_name, customer_phone, customer_address")
-        .eq("id", orderId)
-        .single();
-        
-      if (orderError) {
-        console.error("Error fetching order data:", orderError);
-      }
-
-      console.log("Order data:", orderData);
-      console.log("Reordering items:", items);
-
-      // First, add all items to the order (with quantity 1 initially)
-      for (const item of items) {
-        console.log("Processing item:", item);
-
-        // Get the actual product details from the database
-        const { data: productData, error: productError } = await (supabase
-          .from("products") as any)
-          .select("*")
-          .eq("id", item.product_id)
-          .single();
-
-        if (productError) {
-          console.error("Error fetching product:", productError, "for product_id:", item.product_id);
-        }
-
-        console.log("Product data from DB:", productData);
-
-        if (productData) {
-          const orderItem = {
-            id: productData.id,
-            "Item Code": productData["Item Code"] || "",
-            Product: productData.Product || item.product_name,
-            Category: productData.Category || "",
-            weight: productData.weight || "",
-            UOM: productData.UOM || "",
-            Country: productData.Country || "",
-            Product_CH: productData.Product_CH,
-            Category_CH: productData.Category_CH,
-            Country_CH: productData.Country_CH,
-            Variation: productData.Variation,
-            Variation_CH: productData.Variation_CH,
-            price: productData.price || item.price,
-            uom: productData.uom || "",
-            stock_quantity: productData.stock_quantity || 0,
-            image_url: productData.image_url || item.image_url || "/product-placeholder.svg",
-          };
-
-          console.log("Adding to order:", orderItem);
-          addToOrder(orderItem);
-        } else {
-          console.warn("Product not found in DB, using original item data. Product ID:", item.product_id);
-          // Fallback to original item data if product not found
-          addToOrder({
-            id: item.product_id,
-            "Item Code": "",
-            Product: item.product_name || "Unknown Product",
-            Category: "",
-            weight: "",
-            UOM: "",
-            Country: "",
-            price: item.price || 0,
-            uom: "",
-            stock_quantity: 0,
-            image_url: item.image_url || "/product-placeholder.svg",
-          });
-        }
-      }
-      
-      console.log("All items added to order");
-
-      // Set customer info if available
-      if (orderData) {
-        setCustomerName(orderData.customer_name || "");
-        setCustomerPhone(orderData.customer_phone || "");
-        setCustomerAddress(orderData.customer_address || "");
-        console.log("Customer info set:", {
-          name: orderData.customer_name,
-          phone: orderData.customer_phone,
-          address: orderData.customer_address
-        });
-      }
-
-      // Wait a brief moment for state updates, then update quantities
-      console.log("Waiting for state updates...");
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      // Now update quantities to match the original order
-      console.log("Updating quantities for", items.length, "items");
-      for (const item of items) {
-        if (item.quantity && item.quantity > 0) {
-          console.log(`Updating quantity for product ${item.product_id} to ${item.quantity}`);
-          updateQuantity(item.product_id, item.quantity);
-        }
-      }
-
-      // Wait a bit more for quantity updates
-      await new Promise(resolve => setTimeout(resolve, 100));
+      const selectedOrder = orders.find((order) => String(order.id) === orderIdStr);
 
       // Prepare items for localStorage
       const itemsToStore = items.map((item: any) => ({
@@ -191,20 +69,18 @@ export default function OrderHistory() {
       }));
 
       // Store customer details and order items in localStorage for persistence
-      if (orderData) {
-        localStorage.setItem("reorder_customer_name", orderData.customer_name || "");
-        localStorage.setItem("reorder_customer_phone", orderData.customer_phone || "");
-        localStorage.setItem("reorder_customer_address", orderData.customer_address || "");
+      if (selectedOrder) {
+        localStorage.setItem("reorder_customer_name", selectedOrder.customer_name || "");
+        localStorage.setItem("reorder_customer_phone", selectedOrder.customer_phone || "");
+        localStorage.setItem("reorder_customer_address", selectedOrder.customer_address || "");
       }
 
       // Store order items in localStorage
       localStorage.setItem("reorder_items", JSON.stringify(itemsToStore));
 
-      console.log("Redirecting to main page with order panel");
       // Redirect to main page with order panel and customer info
       router.push("/?order=true&reorder=true");
     } catch (error) {
-      console.error("Error reordering items:", error);
       alert("Failed to add items to cart. Please try again.");
     } finally {
       setReorderingId(null);
@@ -215,13 +91,17 @@ export default function OrderHistory() {
       const loadingState = isLoadMore ? setLoadingMore : setLoading;
       loadingState(true);
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      if (!userIdRef.current) {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-      if (!user) {
-        router.push("/");
-        return;
+        if (!user) {
+          router.push("/");
+          return;
+        }
+
+        userIdRef.current = user.id;
       }
 
       // Calculate pagination range
@@ -231,16 +111,24 @@ export default function OrderHistory() {
       // Fetch orders with count
       const { data: ordersData = [], count } = await (supabase
         .from("orders") as any)
-        .select("*", { count: "exact" })
-        .eq("user_id", user.id)
+        .select(
+          "id, created_at, total_amount, status, customer_name, customer_phone, customer_address",
+          { count: "planned" }
+        )
+        .eq("user_id", userIdRef.current)
         .order("created_at", { ascending: false })
         .range(from, to);
 
-      // Fetch items for these orders
-      const { data: itemsDataResult = [] } = await (supabase
-        .from("order_items") as any)
-        .select("*")
-        .in("order_id", (ordersData as any[])?.map((o: any) => o.id) || []);
+      const orderIds = (ordersData as any[])?.map((o: any) => o.id) || [];
+
+      let itemsDataResult: any[] = [];
+      if (orderIds.length > 0) {
+        const { data = [] } = await (supabase
+          .from("order_items") as any)
+          .select("order_id, product_id, quantity, price, product_name, image_url")
+          .in("order_id", orderIds);
+        itemsDataResult = data;
+      }
 
       if (isLoadMore) {
         setOrders((prev) => [...prev, ...(ordersData || [])]);
@@ -272,6 +160,31 @@ export default function OrderHistory() {
     fetchOrders(1);
   }, []);
 
+  const orderItems = useMemo(
+    () =>
+      itemsData.reduce(
+        (acc: Record<string, typeof itemsData>, item: { order_id: string }) => {
+          if (!acc[item.order_id]) acc[item.order_id] = [];
+          acc[item.order_id].push(item);
+          return acc;
+        },
+        {} as Record<string, typeof itemsData>
+      ),
+    [itemsData]
+  );
+
+  const chartOrders = useMemo(
+    () =>
+      orders.map((order: { created_at: string; total_amount: number; status: string }) => ({
+        created_at: order.created_at,
+        total_amount: Number(order.total_amount || 0),
+        status: order.status,
+      })),
+    [orders]
+  );
+
+  const hasChartsData = chartOrders.length > 0;
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -281,58 +194,6 @@ export default function OrderHistory() {
       </div>
     );
   }
-
-  if (!orders || !itemsData) {
-    return <div>No orders found</div>;
-  }
-
-  const orderItems = itemsData.reduce(
-    (acc: Record<string, typeof itemsData>, item: { order_id: string }) => {
-      if (!acc[item.order_id]) acc[item.order_id] = [];
-      acc[item.order_id].push(item);
-      return acc;
-    },
-    {} as Record<string, typeof itemsData>
-  );
-
-  const monthlyData = orders.reduce(
-    (acc: Record<string, number>, order: { created_at: string; total_amount: number }) => {
-      const month = new Date(order.created_at).toLocaleString("default", { month: "short" });
-      acc[month] = (acc[month] || 0) + order.total_amount;
-      return acc;
-    },
-    {} as Record<string, number>
-  );
-
-  const monthOrder = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-  const sortedMonthlyData = monthOrder.reduce(
-    (acc: Record<string, number>, month: string) => {
-      if (monthlyData[month]) acc[month] = monthlyData[month];
-      return acc;
-    },
-    {} as Record<string, number>
-  );
-
-  const statusData = orders.reduce(
-    (acc: Record<string, number>, order: { status: string }) => {
-      acc[order.status] = (acc[order.status] || 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>
-  );
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -354,96 +215,7 @@ export default function OrderHistory() {
         <h1 className="text-2xl font-bold">Order History</h1>
       </div>
 
-      <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow-xl">
-          <h2 className="text-lg font-medium mb-4">Monthly Spend</h2>
-          <Line
-            data={{
-              labels: Object.keys(sortedMonthlyData),
-              datasets: [
-                {
-                  label: "Spend ($)",
-                  data: Object.values(sortedMonthlyData),
-                  borderColor: "rgb(75, 192, 192)",
-                  tension: 0.1,
-                  fill: false,
-                },
-              ],
-            }}
-            options={{
-              responsive: true,
-              plugins: {
-                legend: {
-                  position: "top",
-                },
-              },
-              scales: {
-                y: {
-                  beginAtZero: true,
-                },
-              },
-            }}
-          />
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-xl">
-          <h2 className="text-lg font-medium mb-4">Order Status Distribution</h2>
-          <Doughnut
-            data={{
-              labels: Object.keys(statusData),
-              datasets: [
-                {
-                  data: Object.values(statusData),
-                  backgroundColor: [
-                    "rgba(75, 192, 192, 0.8)",
-                    "rgba(255, 206, 86, 0.8)",
-                    "rgba(255, 99, 132, 0.8)",
-                  ],
-                },
-              ],
-            }}
-            options={{
-              responsive: true,
-              plugins: {
-                legend: {
-                  position: "top",
-                },
-              },
-            }}
-          />
-        </div>
-
-        <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white p-6 rounded-lg shadow-xl">
-            <h3 className="text-sm font-medium text-gray-500">Total Orders</h3>
-            <p className="text-2xl font-bold text-gray-900">{orders.length}</p>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow-xl">
-            <h3 className="text-sm font-medium text-gray-500">Total Spent</h3>
-            <p className="text-2xl font-bold text-gray-900">
-              $
-              {orders
-                .reduce(
-                  (sum: number, order: { total_amount: number }) => sum + order.total_amount,
-                  0
-                )
-                .toFixed(2)}
-            </p>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow-xl">
-            <h3 className="text-sm font-medium text-gray-500">Average Order Value</h3>
-            <p className="text-2xl font-bold text-gray-900">
-              $
-              {(
-                orders.reduce(
-                  (sum: number, order: { total_amount: number }) => sum + order.total_amount,
-                  0
-                ) / orders.length || 0
-              ).toFixed(2)}
-            </p>
-          </div>
-        </div>
-      </div>
+      {hasChartsData && <OrderHistoryAnalytics orders={chartOrders} />}
 
       <div className="space-y-6">
         {orders.length === 0 && !loading ? (
@@ -475,7 +247,7 @@ export default function OrderHistory() {
                         {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                       </span>
                       <span className="text-lg font-medium text-gray-900">
-                        ${order.total_amount.toFixed(2)}
+                        ${Number(order.total_amount || 0).toFixed(2)}
                       </span>
                       <button
                         onClick={() => handleReorder(order.id)}

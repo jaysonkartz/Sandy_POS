@@ -1,7 +1,6 @@
 "use client";
 
 import React, { memo, useCallback } from "react";
-import { motion } from "framer-motion";
 import { Camera } from "lucide-react";
 import ProductImage from "@/components/ProductImage";
 import { WhatsAppIcon } from "./WhatsAppIcon";
@@ -40,7 +39,7 @@ interface ProductCardProps {
   selectedOptions: {
     [title: string]: { variation?: string; countryId?: string; weight?: string };
   };
-  selectedProducts: { product: Product; quantity: number }[];
+  currentQuantityByProductId: Record<number, number>;
   countryMap: { [key: string]: { name: string; chineseName: string } };
   isLoggingIn: boolean;
   onOptionChange: (
@@ -64,7 +63,7 @@ export const ProductCard = memo<ProductCardProps>(({
   isSessionValid,
   userRole,
   selectedOptions,
-  selectedProducts,
+  currentQuantityByProductId,
   countryMap,
   isLoggingIn,
   onOptionChange,
@@ -89,6 +88,7 @@ export const ProductCard = memo<ProductCardProps>(({
   }, [products, selectedOptions, title]);
 
   const product = getSelectedProduct();
+  const currentQuantity = currentQuantityByProductId[product.id] ?? 0;
 
   const uniq = (arr: Array<string | undefined | null>) =>
     Array.from(new Set(arr.filter(Boolean).map((v) => String(v).trim()))).filter(Boolean);
@@ -104,13 +104,8 @@ export const ProductCard = memo<ProductCardProps>(({
     [onOptionChange, title]
   );
 
-  const currentQty = selectedProducts.find((p) => p.product.id === product.id)?.quantity ?? 0;
-
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
+    <div
       className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-shadow"
       role="article"
       aria-label={isEnglish ? product.Product : product.Product_CH}
@@ -223,71 +218,68 @@ export const ProductCard = memo<ProductCardProps>(({
         )}
 
         {/* Action Buttons */}
-        <div className="mt-auto pt-4 border-t border-gray-100">
-          {!isSessionValid ? (
-            <button
-              className="w-full text-center text-blue-600 font-semibold hover:text-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={isLoggingIn}
-              onClick={onOpenSignupModal}
-            >
-              {isLoggingIn
-                ? isEnglish
-                  ? "Logging in..."
-                  : "登录中..."
-                : isEnglish
-                  ? "Login to see price"
-                  : "登录查看价格"}
-            </button>
-          ) : (
-            // ✅ KEY FIX:
-            // iPad(md) cards are narrow -> stack WhatsApp below.
-            // Only go horizontal at lg (>=1024).
-            <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-              {/* Quantity controls */}
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                <div className="flex items-stretch w-full overflow-hidden rounded-md border bg-white">
-                  {/* Minus */}
-                  <button
-                    className="shrink-0 w-9 h-9 lg:w-10 lg:h-10 bg-gray-100 hover:bg-gray-200 text-base font-semibold flex items-center justify-center"
-                    onClick={() => {
-                      if (currentQty > 1) onUpdateQuantity(product.id, currentQty - 1);
-                      else if (currentQty === 1) onUpdateQuantity(product.id, 0);
-                    }}
-                  >
-                    −
-                  </button>
+<div className="mt-auto pt-4 border-t border-gray-100">
+  {!isSessionValid ? (
+    <button
+      className="w-full text-center text-blue-600 font-semibold hover:text-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      disabled={isLoggingIn}
+      onClick={onOpenSignupModal}
+    >
+      {isLoggingIn
+        ? isEnglish
+          ? "Logging in..."
+          : "登录中..."
+        : isEnglish
+          ? "Login to see price"
+          : "登录查看价格"}
+    </button>
+  ) : (
+    <div className="flex items-center justify-between w-full gap-2 py-3 px-1 sm:px-3 rounded-lg">
+    {/* Left: Quantity controls */}
+<div className="flex items-center gap-2 flex-1">
+  <div className="flex items-stretch flex-1 overflow-hidden rounded-md border bg-white">
+    {/* Minus */}
+    <button
+      className="shrink-0 w-10 h-10 bg-gray-100 hover:bg-gray-200 text-base font-semibold flex items-center justify-center"
+      onClick={() => {
+        if (currentQuantity > 1) onUpdateQuantity(product.id, currentQuantity - 1);
+        else if (currentQuantity === 1) onUpdateQuantity(product.id, 0);
+      }}
+    >
+      −
+    </button>
 
-                  {/* Quantity */}
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min={0}
-                    className="w-14 lg:w-16 text-center text-base font-semibold outline-none border-x bg-white
-                               [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    value={currentQty}
-                    onChange={(e) => {
-                      const newQuantity = parseInt(e.target.value) || 0;
-                      if (newQuantity > 0) {
-                        if (currentQty === 0) onAddToOrder(product);
-                        onUpdateQuantity(product.id, newQuantity);
-                      } else {
-                        onUpdateQuantity(product.id, 0);
-                      }
-                    }}
-                  />
+    {/* Quantity */}
+    <input
+      type="number"
+      inputMode="numeric"
+      min={0}
+      className="w-16 sm:w-20 text-center text-base font-semibold outline-none border-x bg-white
+                 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+      value={currentQuantity}
+      onChange={(e) => {
+        const newQuantity = parseInt(e.target.value) || 0;
+        if (newQuantity > 0) {
+          if (currentQuantity === 0) onAddToOrder(product);
+          onUpdateQuantity(product.id, newQuantity);
+        } else {
+          onUpdateQuantity(product.id, 0);
+        }
+      }}
+    />
 
-                  {/* Plus */}
-                  <button
-                    className="shrink-0 w-9 h-9 lg:w-10 lg:h-10 bg-gray-100 hover:bg-gray-200 text-base font-semibold flex items-center justify-center"
-                    onClick={() => {
-                      if (currentQty > 0) onUpdateQuantity(product.id, currentQty + 1);
-                      else onAddToOrder(product);
-                    }}
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
+    {/* Plus */}
+    <button
+      className="shrink-0 w-10 h-10 bg-gray-100 hover:bg-gray-200 text-base font-semibold flex items-center justify-center"
+      onClick={() => {
+        if (currentQuantity > 0) onUpdateQuantity(product.id, currentQuantity + 1);
+        else onAddToOrder(product);
+      }}
+    >
+      +
+    </button>
+  </div>
+</div>
 
               {/* WhatsApp (stacked on md/ipad) */}
               <button
@@ -302,7 +294,7 @@ export const ProductCard = memo<ProductCardProps>(({
           )}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 });
 
