@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { motion, AnimatePresence as FramerAnimatePresence } from "framer-motion";
 import { CldImage } from "next-cloudinary";
-import { Upload, X, Edit3, Loader2, Check, Trash2 } from "lucide-react";
+import { Upload, X, Loader2, Check, Trash2 } from "lucide-react";
 import { supabase } from "@/app/lib/supabaseClient";
 
 const AnimatePresence = FramerAnimatePresence as unknown as React.FC<
@@ -24,6 +24,22 @@ interface UploadResult {
   public_id: string;
 }
 
+type CropRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+type ResizeHandle = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
+
+type CropInteraction =
+  | { mode: "move"; startX: number; startY: number; startCrop: CropRect }
+  | { mode: "resize"; handle: ResizeHandle; startX: number; startY: number; startCrop: CropRect };
+
+const DEFAULT_CROP_SIZE = 200;
+const MIN_CROP_SIZE = 40;
+
 export default function ProductPhotoEditor({
   productId,
   productName,
@@ -39,12 +55,10 @@ export default function ProductPhotoEditor({
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [cropData, setCropData] = useState<{
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  } | null>(null);
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  const activePointerIdRef = useRef<number | null>(null);
+  const interactionRef = useRef<CropInteraction | null>(null);
+  const [cropData, setCropData] = useState<CropRect | null>(null);
 
   // Handle file selection
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
@@ -90,6 +104,267 @@ export default function ProductPhotoEditor({
     event.preventDefault();
   }, []);
 
+  const getSafeCrop = useCallback(
+    (canvas: HTMLCanvasElement) => {
+      if (!cropData) {
+        return {
+          x: 0,
+          y: 0,
+          width: canvas.width,
+          height: canvas.height,
+        };
+      }
+
+      const width = Math.max(1, Math.min(cropData.width, canvas.width));
+      const height = Math.max(1, Math.min(cropData.height, canvas.height));
+      const x = Math.max(0, Math.min(cropData.x, canvas.width - width));
+      const y = Math.max(0, Math.min(cropData.y, canvas.height - height));
+
+      return { x, y, width, height };
+    },
+    [cropData]
+  );
+
+  const getCanvasMetrics = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height || !canvas.width || !canvas.height) return null;
+
+    return {
+      canvas,
+      rect,
+      scaleX: canvas.width / rect.width,
+      scaleY: canvas.height / rect.height,
+    };
+  }, []);
+
+  const clampCrop = useCallback((crop: CropRect, canvasWidth: number, canvasHeight: number): CropRect => {
+    const width = Math.max(MIN_CROP_SIZE, Math.min(crop.width, canvasWidth));
+    const height = Math.max(MIN_CROP_SIZE, Math.min(crop.height, canvasHeight));
+    const x = Math.max(0, Math.min(crop.x, canvasWidth - width));
+    const y = Math.max(0, Math.min(crop.y, canvasHeight - height));
+
+    return { x, y, width, height };
+  }, []);
+
+  const startCropInteraction = useCallback(
+    (mode: CropInteraction["mode"], event: React.PointerEvent, handle?: ResizeHandle) => {
+      if (!cropData) return;
+      const metrics = getCanvasMetrics();
+      if (!metrics) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      activePointerIdRef.current = event.pointerId;
+      interactionRef.current =
+        mode === "move"
+          ? {
+              mode,
+              startX: event.clientX,
+              startY: event.clientY,
+              startCrop: cropData,
+            }
+          : {
+              mode,
+              handle: handle!,
+              startX: event.clientX,
+              startY: event.clientY,
+              startCrop: cropData,
+            };
+
+      surfaceRef.current?.setPointerCapture(event.pointerId);
+    },
+    [cropData, getCanvasMetrics]
+  );
+
+  const handleSurfacePointerMove = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const activePointerId = activePointerIdRef.current;
+      const interaction = interactionRef.current;
+      if (activePointerId === null || activePointerId !== event.pointerId || !interaction) return;
+
+      const metrics = getCanvasMetrics();
+      if (!metrics) return;
+
+      event.preventDefault();
+
+      const dx = (event.clientX - interaction.startX) * metrics.scaleX;
+      const dy = (event.clientY - interaction.startY) * metrics.scaleY;
+
+      if (interaction.mode === "move") {
+        const movedCrop = clampCrop(
+          {
+            ...interaction.startCrop,
+            x: interaction.startCrop.x + dx,
+            y: interaction.startCrop.y + dy,
+          },
+          metrics.canvas.width,
+          metrics.canvas.height
+        );
+        setCropData(movedCrop);
+        return;
+      }
+
+      const { startCrop, handle } = interaction;
+      let left = startCrop.x;
+      let top = startCrop.y;
+      let right = startCrop.x + startCrop.width;
+      let bottom = startCrop.y + startCrop.height;
+
+      if (handle.includes("w")) left += dx;
+      if (handle.includes("e")) right += dx;
+      if (handle.includes("n")) top += dy;
+      if (handle.includes("s")) bottom += dy;
+
+      if (right - left < MIN_CROP_SIZE) {
+        if (handle.includes("w") && !handle.includes("e")) {
+          left = right - MIN_CROP_SIZE;
+        } else {
+          right = left + MIN_CROP_SIZE;
+        }
+      }
+
+      if (bottom - top < MIN_CROP_SIZE) {
+        if (handle.includes("n") && !handle.includes("s")) {
+          top = bottom - MIN_CROP_SIZE;
+        } else {
+          bottom = top + MIN_CROP_SIZE;
+        }
+      }
+
+      left = Math.max(0, left);
+      top = Math.max(0, top);
+      right = Math.min(metrics.canvas.width, right);
+      bottom = Math.min(metrics.canvas.height, bottom);
+
+      if (right - left < MIN_CROP_SIZE) {
+        if (handle.includes("w") && !handle.includes("e")) {
+          left = Math.max(0, right - MIN_CROP_SIZE);
+        } else {
+          right = Math.min(metrics.canvas.width, left + MIN_CROP_SIZE);
+        }
+      }
+
+      if (bottom - top < MIN_CROP_SIZE) {
+        if (handle.includes("n") && !handle.includes("s")) {
+          top = Math.max(0, bottom - MIN_CROP_SIZE);
+        } else {
+          bottom = Math.min(metrics.canvas.height, top + MIN_CROP_SIZE);
+        }
+      }
+
+      setCropData({
+        x: left,
+        y: top,
+        width: right - left,
+        height: bottom - top,
+      });
+    },
+    [clampCrop, getCanvasMetrics]
+  );
+
+  const endCropInteraction = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (activePointerIdRef.current !== event.pointerId) return;
+
+    activePointerIdRef.current = null;
+    interactionRef.current = null;
+    if (surfaceRef.current?.hasPointerCapture(event.pointerId)) {
+      surfaceRef.current.releasePointerCapture(event.pointerId);
+    }
+  }, []);
+
+  const cropOverlayStyle = useMemo(() => {
+    const metrics = getCanvasMetrics();
+    if (!metrics || !cropData) return null;
+
+    return {
+      left: cropData.x / metrics.scaleX,
+      top: cropData.y / metrics.scaleY,
+      width: cropData.width / metrics.scaleX,
+      height: cropData.height / metrics.scaleY,
+    };
+  }, [cropData, getCanvasMetrics]);
+
+  const dataUrlToFile = useCallback(
+    async (dataUrl: string) => {
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      return new File([blob], `${productName}-${Date.now()}.jpg`, { type: "image/jpeg" });
+    },
+    [productName]
+  );
+
+  const getEditedFile = useCallback(async (): Promise<File> => {
+    if (!previewUrl) {
+      throw new Error("No image selected");
+    }
+
+    if (!isEditing || !canvasRef.current) {
+      return dataUrlToFile(previewUrl);
+    }
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      return dataUrlToFile(previewUrl);
+    }
+
+    return new Promise<File>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+
+        const crop = getSafeCrop(canvas);
+        const outputCanvas = document.createElement("canvas");
+        outputCanvas.width = crop.width;
+        outputCanvas.height = crop.height;
+        const outputCtx = outputCanvas.getContext("2d");
+
+        if (!outputCtx) {
+          reject(new Error("Failed to initialize image editor"));
+          return;
+        }
+
+        outputCtx.drawImage(
+          canvas,
+          crop.x,
+          crop.y,
+          crop.width,
+          crop.height,
+          0,
+          0,
+          crop.width,
+          crop.height
+        );
+
+        outputCanvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error("Failed to prepare edited image"));
+              return;
+            }
+
+            resolve(
+              new File([blob], `${productName}-${Date.now()}.jpg`, {
+                type: "image/jpeg",
+              })
+            );
+          },
+          "image/jpeg",
+          0.9
+        );
+      };
+      img.onerror = () => reject(new Error("Failed to load selected image"));
+      img.src = previewUrl;
+    });
+  }, [dataUrlToFile, getSafeCrop, isEditing, previewUrl, productName]);
+
   // Draw image on canvas when editing mode is enabled
   useEffect(() => {
     if (isEditing && canvasRef.current && previewUrl) {
@@ -104,12 +379,26 @@ export default function ProductPhotoEditor({
           canvas.height = img.height;
 
           // Draw the image on canvas
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(img, 0, 0);
+
+          if (!cropData) {
+            const side = Math.max(
+              MIN_CROP_SIZE,
+              Math.min(DEFAULT_CROP_SIZE, Math.min(canvas.width, canvas.height) * 0.7)
+            );
+            setCropData({
+              x: Math.max(0, (canvas.width - side) / 2),
+              y: Math.max(0, (canvas.height - side) / 2),
+              width: side,
+              height: side,
+            });
+          }
         };
         img.src = previewUrl;
       }
     }
-  }, [isEditing, previewUrl]);
+  }, [cropData, getSafeCrop, isEditing, previewUrl]);
 
   // Upload to Cloudinary
   const uploadToCloudinary = useCallback(async (file: File): Promise<UploadResult> => {
@@ -132,18 +421,38 @@ export default function ProductPhotoEditor({
       fileSize: file.size,
     });
 
-    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-      method: "POST",
-      body: formData,
+    return new Promise<UploadResult>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`);
+      xhr.timeout = 60000;
+
+      xhr.upload.onprogress = (event) => {
+        if (!event.lengthComputable) return;
+        const progress = Math.min(99, Math.round((event.loaded / event.total) * 100));
+        setUploadProgress(progress);
+      };
+
+      xhr.onload = () => {
+        if (xhr.status < 200 || xhr.status >= 300) {
+          console.error("Cloudinary upload failed:", xhr.status, xhr.responseText);
+          reject(new Error(`Upload failed: ${xhr.status} - ${xhr.responseText}`));
+          return;
+        }
+
+        try {
+          const data = JSON.parse(xhr.responseText) as UploadResult;
+          setUploadProgress(100);
+          resolve(data);
+        } catch {
+          reject(new Error("Upload failed: invalid Cloudinary response"));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error("Upload failed: network error"));
+      xhr.ontimeout = () => reject(new Error("Upload timed out. Please try again."));
+
+      xhr.send(formData);
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Cloudinary upload failed:", response.status, errorText);
-      throw new Error(`Upload failed: ${response.status} - ${errorText}`);
-    }
-
-    return response.json();
   }, []);
 
   // Save image to database
@@ -173,58 +482,14 @@ export default function ProductPhotoEditor({
     setError(null);
 
     try {
-      let file: File;
-
-      if (isEditing && canvasRef.current) {
-        // Draw the image on canvas before converting to blob
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext("2d");
-
-        if (ctx) {
-          // Create a temporary image to get dimensions
-          const img = new Image();
-          img.onload = async () => {
-            // Set canvas dimensions to match image
-            canvas.width = img.width;
-            canvas.height = img.height;
-
-            // Draw the image on canvas
-            ctx.drawImage(img, 0, 0);
-
-            // Convert to blob
-            canvas.toBlob(
-              async (blob) => {
-                if (blob) {
-                  file = new File([blob], `${productName}-${Date.now()}.jpg`, {
-                    type: "image/jpeg",
-                  });
-                  await processUpload(file);
-                }
-              },
-              "image/jpeg",
-              0.9
-            );
-          };
-          img.src = previewUrl;
-        } else {
-          // Fallback to original file if canvas context fails
-          const response = await fetch(previewUrl);
-          const blob = await response.blob();
-          file = new File([blob], `${productName}-${Date.now()}.jpg`, { type: "image/jpeg" });
-          await processUpload(file);
-        }
-      } else {
-        // Use original file
-        const response = await fetch(previewUrl);
-        const blob = await response.blob();
-        file = new File([blob], `${productName}-${Date.now()}.jpg`, { type: "image/jpeg" });
-        await processUpload(file);
-      }
+      const file = await getEditedFile();
+      await processUpload(file);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
       setIsUploading(false);
+      setUploadProgress(0);
     }
-  }, [previewUrl, isEditing, productName]);
+  }, [previewUrl, getEditedFile]);
 
   const processUpload = async (file: File) => {
     try {
@@ -243,22 +508,8 @@ export default function ProductPhotoEditor({
         throw new Error("Invalid file type. Only images are allowed.");
       }
 
-      // Simulate upload progress
-      const progressInterval = setInterval(() => {
-        setUploadProgress((prev) => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return prev + 10;
-        });
-      }, 100);
-
       // Upload to Cloudinary
       const uploadResult = await uploadToCloudinary(file);
-
-      clearInterval(progressInterval);
-      setUploadProgress(100);
 
       // Save to database
       await saveImageToDatabase(uploadResult.secure_url);
@@ -269,6 +520,7 @@ export default function ProductPhotoEditor({
       // Reset state
       setPreviewUrl(null);
       setIsEditing(false);
+      setCropData(null);
       setUploadProgress(0);
       setIsUploading(false);
 
@@ -287,11 +539,34 @@ export default function ProductPhotoEditor({
 
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    const displayX = event.clientX - rect.left;
+    const displayY = event.clientY - rect.top;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const centerX = displayX * scaleX;
+    const centerY = displayY * scaleY;
+    const side = Math.max(MIN_CROP_SIZE, Math.min(DEFAULT_CROP_SIZE, Math.min(canvas.width, canvas.height)));
 
-    setCropData({ x, y, width: 200, height: 200 });
+    const x = Math.max(0, Math.min(centerX - side / 2, canvas.width - side));
+    const y = Math.max(0, Math.min(centerY - side / 2, canvas.height - side));
+
+    setCropData({ x, y, width: side, height: side });
   }, []);
+
+  const cropHandles: Array<{
+    key: ResizeHandle;
+    className: string;
+    cursor: string;
+  }> = [
+    { key: "nw", className: "-top-2 -left-2", cursor: "nwse-resize" },
+    { key: "ne", className: "-top-2 -right-2", cursor: "nesw-resize" },
+    { key: "sw", className: "-bottom-2 -left-2", cursor: "nesw-resize" },
+    { key: "se", className: "-bottom-2 -right-2", cursor: "nwse-resize" },
+    { key: "n", className: "-top-2 left-1/2 -translate-x-1/2", cursor: "ns-resize" },
+    { key: "s", className: "-bottom-2 left-1/2 -translate-x-1/2", cursor: "ns-resize" },
+    { key: "w", className: "-left-2 top-1/2 -translate-y-1/2", cursor: "ew-resize" },
+    { key: "e", className: "-right-2 top-1/2 -translate-y-1/2", cursor: "ew-resize" },
+  ];
 
   // Remove current image
   const handleRemoveImage = useCallback(async () => {
@@ -341,12 +616,12 @@ export default function ProductPhotoEditor({
                 <h3 className="text-sm font-medium text-gray-700 mb-3">Current Image</h3>
                 <div className="relative inline-block">
                   <CldImage
+                    unoptimized
                     alt={productName}
                     className="w-48 h-48 object-cover rounded-lg border"
+                    height={192}
                     src={currentImageUrl}
                     width={192}
-                    height={192}
-                    unoptimized
                   />
                   <button
                     className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
@@ -386,57 +661,66 @@ export default function ProductPhotoEditor({
             {/* Preview and Edit */}
             {previewUrl && (
               <div className="space-y-4">
-                <h3 className="text-sm font-medium text-gray-700">Preview</h3>
-
-                {/* Image Preview */}
-                <div className="relative">
-                  <CldImage
-                    alt="Preview"
-                    className="max-w-full h-auto rounded-lg border"
-                    src={previewUrl}
-                    width={1200}
-                    height={1200}
-                    unoptimized
-                  />
-
-                  {/* Edit Controls */}
-                  <div className="absolute top-2 right-2 flex gap-2">
-                    <button
-                      className="bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600 transition-colors"
-                      title="Edit image"
-                      onClick={() => setIsEditing(!isEditing)}
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </button>
-                    <button
-                      className="bg-gray-500 text-white p-2 rounded-full hover:bg-gray-600 transition-colors"
-                      title="Cancel"
-                      onClick={() => {
-                        setPreviewUrl(null);
-                        setIsEditing(false);
-                        setCropData(null);
-                      }}
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-gray-700">Edit Image</h3>
+                  <button
+                    className="bg-gray-500 text-white p-2 rounded-full hover:bg-gray-600 transition-colors"
+                    title="Cancel"
+                    onClick={() => {
+                      setPreviewUrl(null);
+                      setIsEditing(false);
+                      setCropData(null);
+                    }}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
 
-                {/* Canvas for editing */}
-                {isEditing && (
-                  <div className="border rounded-lg p-4">
-                    <h4 className="text-sm font-medium text-gray-700 mb-3">Edit Image</h4>
+                <div className="border rounded-lg p-4">
+                  <div
+                    ref={surfaceRef}
+                    className="relative inline-block touch-none"
+                    onPointerMove={handleSurfacePointerMove}
+                    onPointerUp={endCropInteraction}
+                    onPointerCancel={endCropInteraction}
+                  >
                     <canvas
                       ref={canvasRef}
                       className="border rounded cursor-crosshair"
                       style={{ maxWidth: "100%", height: "auto" }}
                       onClick={handleCrop}
                     />
-                    <p className="text-xs text-gray-500 mt-2">
-                      Click on the image to set crop area
-                    </p>
+
+                    {cropOverlayStyle && (
+                      <div
+                        className="absolute border-2 border-blue-500 bg-blue-200/15 cursor-move"
+                        style={{
+                          left: `${cropOverlayStyle.left}px`,
+                          top: `${cropOverlayStyle.top}px`,
+                          width: `${cropOverlayStyle.width}px`,
+                          height: `${cropOverlayStyle.height}px`,
+                        }}
+                        onPointerDown={(event) => startCropInteraction("move", event)}
+                      >
+                        {cropHandles.map((handle) => (
+                          <button
+                            key={handle.key}
+                            type="button"
+                            className={`absolute h-4 w-4 rounded-full border border-white bg-blue-500 ${handle.className}`}
+                            style={{ cursor: handle.cursor }}
+                            onPointerDown={(event) =>
+                              startCropInteraction("resize", event, handle.key)
+                            }
+                            aria-label={`Resize crop ${handle.key}`}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
+                  <p className="text-xs text-gray-500 mt-2">
+                    Drag the box to move it. Drag blue handles to resize. Click image to recenter.
+                  </p>
+                </div>
 
                 {/* Upload Button */}
                 <div className="flex gap-3">
