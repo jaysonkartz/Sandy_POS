@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
 import { supabase } from "@/app/lib/supabaseClient";
 import { useSignInLogging } from "@/app/hooks/useSignInLogging";
 import { USER_ROLES } from "@/app/constants/app-constants";
@@ -16,6 +17,8 @@ interface CustomerLoginModalProps {
 export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: CustomerLoginModalProps) {
   const router = useRouter();
   const { logSignInSuccess, logSignInFailure } = useSignInLogging();
+  const [mounted, setMounted] = useState(false);
+  const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -32,9 +35,52 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
   const [showPassword, setShowPassword] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [locationError, setLocationError] = useState("");
+  const [postalCodeError, setPostalCodeError] = useState("");
   const [postalCode, setPostalCode] = useState("");
+  const [resolvedPostalCode, setResolvedPostalCode] = useState("");
   const [isSearchingPostalCode, setIsSearchingPostalCode] = useState(false);
   const [unitNumber, setUnitNumber] = useState("");
+  const [addressSource, setAddressSource] = useState<"manual" | "postal" | "geolocation">("manual");
+
+  useEffect(() => {
+    setMounted(true);
+
+    const existing = document.getElementById("customer-login-modal-root");
+    if (existing) {
+      setPortalEl(existing);
+      return;
+    }
+
+    const el = document.createElement("div");
+    el.id = "customer-login-modal-root";
+    document.body.appendChild(el);
+    setPortalEl(el);
+
+    return () => {
+      if (el.parentNode) el.parentNode.removeChild(el);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mounted || !isOpen) return;
+
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [isOpen, mounted]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOpen, onClose]);
 
   // Password strength calculation
   const getPasswordStrength = (password: string): { strength: "weak" | "medium" | "strong"; score: number; feedback: string } => {
@@ -118,6 +164,7 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
               ...prev,
               address: data.display_name,
             }));
+            setAddressSource("geolocation");
             setLocationError("");
           } else {
             throw new Error("Could not determine address from location");
@@ -125,11 +172,6 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
         } catch (error) {
           console.error("Reverse geocoding error:", error);
           setLocationError("Failed to get address. Please enter manually.");
-          // Still set coordinates as fallback
-          setFormData((prev) => ({
-            ...prev,
-            address: `${latitude}, ${longitude}`,
-          }));
         } finally {
           setIsGettingLocation(false);
         }
@@ -193,7 +235,8 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
     }
 
     setIsSearchingPostalCode(true);
-    setLocationError("");
+    setPostalCodeError("");
+    setResolvedPostalCode("");
 
     try {
       // First, try OneMap.sg API (Singapore's official mapping service - more accurate)
@@ -228,7 +271,9 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
               ...prev,
               address: formattedAddress,
             }));
+            setAddressSource("postal");
             setLocationError("");
+            setResolvedPostalCode(code);
             setIsSearchingPostalCode(false);
             return;
           }
@@ -285,13 +330,15 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
           ...prev,
           address: formattedAddr,
         }));
+        setAddressSource("postal");
         setLocationError("");
+        setResolvedPostalCode(code);
       } else {
-        setLocationError(`No address found for postal code ${code}`);
+        setPostalCodeError(`No address found for postal code ${code}`);
       }
     } catch (error) {
       console.error("Postal code search error:", error);
-      setLocationError("Failed to find address for this postal code. Please enter manually.");
+      setPostalCodeError("Failed to find address for this postal code. Please enter manually.");
     } finally {
       setIsSearchingPostalCode(false);
     }
@@ -300,7 +347,21 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
   // Handle postal code input with debounce
   const handlePostalCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, ''); // Only allow numbers
+    setError("");
     setPostalCode(value);
+
+    if (value !== resolvedPostalCode) {
+      setResolvedPostalCode("");
+      setPostalCodeError("");
+
+      if (addressSource === "postal") {
+        setFormData((prev) => ({
+          ...prev,
+          address: "",
+        }));
+        setAddressSource("manual");
+      }
+    }
     
     // Auto-search when postal code is 6 digits (Singapore postal code format)
     if (value.length === 6) {
@@ -414,6 +475,18 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
       return;
     }
 
+    if (isSearchingPostalCode) {
+      setError("Wait for postal code validation to finish");
+      setIsLoading(false);
+      return;
+    }
+
+    if (postalCode && resolvedPostalCode !== postalCode) {
+      setError(postalCodeError || "Enter a valid postal code to continue");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       // 1. Check if customer already exists
       const { data: existingCustomer, error: customerCheckError } = await supabase
@@ -515,11 +588,12 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted || !portalEl) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 relative">
+  return createPortal(
+    <div className="fixed inset-0 z-50 bg-black bg-opacity-50 p-4 overflow-y-auto">
+      <div className="min-h-full flex items-center justify-center">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full relative">
         <button
           className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
           onClick={onClose}
@@ -603,8 +677,15 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
                   {postalCode && postalCode.length > 0 && postalCode.length !== 6 && (
                     <p className="text-xs text-red-600 mt-1">Postal code must be exactly 6 digits</p>
                   )}
-                  {postalCode && postalCode.length === 6 && !isSearchingPostalCode && (
-                    <p className="text-xs text-gray-500 mt-1">Address will be auto-filled when you enter 6 digits</p>
+                  {postalCodeError && (
+                    <p className="text-xs text-red-600 mt-1">{postalCodeError}</p>
+                  )}
+                  {postalCode && postalCode.length === 6 && !isSearchingPostalCode && !postalCodeError && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {resolvedPostalCode === postalCode
+                        ? "Address auto-filled from postal code"
+                        : "Address will be auto-filled when you enter 6 digits"}
+                    </p>
                   )}
                 </div>
 
@@ -681,6 +762,8 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
                         if (unitNumber && unitNumber.trim()) {
                           baseAddress = baseAddress.replace(`#${unitNumber.trim()}, `, '').replace(`, #${unitNumber.trim()}`, '').trim();
                         }
+                        setLocationError("");
+                        setAddressSource("manual");
                         setFormData((prev) => ({ ...prev, address: baseAddress }));
                       }}
                     />
@@ -824,6 +907,9 @@ export default function CustomerLoginModal({ isOpen, onClose, onLoginSuccess }: 
           </form>
         </div>
       </div>
+      </div>
     </div>
+    ,
+    portalEl
   );
 }

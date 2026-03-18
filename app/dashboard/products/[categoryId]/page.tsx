@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
+import { CldImage } from "next-cloudinary";
 
 interface Product {
   id: number;
@@ -68,10 +69,12 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {products.map((product) => (
           <div key={product.id} className="border rounded-lg p-4">
-            <img
+            <CldImage
               alt={product.title}
               className="w-full h-48 object-cover rounded mb-2"
               src={product.heroImage || product.imagesUrl}
+              width={640}
+              height={384}
             />
             <h3 className="font-semibold">{product.title}</h3>
             <p className="text-gray-600">S${product.price}</p>

@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence as FramerAnimatePresence } from "framer-motion";
+import { CldImage } from "next-cloudinary";
 import { supabase } from "@/app/lib/supabaseClient";
 import { Plus, Edit3, Trash2, Save, X, Camera, Image as ImageIcon } from "lucide-react";
 import { ProductVariant } from "@/app/types/product";
@@ -123,10 +124,13 @@ export default function VariantManager({ productId, variants, onVariantsChange }
                   {/* Variant Image */}
                   <div className="relative">
                     {variant.image_url ? (
-                      <img
+                      <CldImage
                         src={variant.image_url}
                         alt={variant.variation_name}
                         className="w-16 h-16 object-cover rounded-lg border"
+                        width={64}
+                        height={64}
+                        unoptimized
                       />
                     ) : (
                       <div className="w-16 h-16 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">

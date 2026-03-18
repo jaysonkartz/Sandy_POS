@@ -4,6 +4,7 @@ import { useCart } from "@/context/CartContext";
 import { useState } from "react";
 import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { CldImage } from "next-cloudinary";
 
 export default function CartPage() {
   const { cart, removeFromCart, updateQuantity, getCartTotal, clearCart } = useCart();
@@ -93,10 +94,12 @@ export default function CartPage() {
                   {/* Product Image */}
                   {item.imagesUrl && (
                     <div className="flex-shrink-0">
-                      <img
+                      <CldImage
                         alt={item.title}
                         className="w-24 h-24 object-cover rounded-lg"
                         src={item.imagesUrl}
+                        width={96}
+                        height={96}
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
                           target.src = "/product-placeholder.png";

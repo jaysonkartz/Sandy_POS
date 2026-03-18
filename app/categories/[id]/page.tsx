@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
+import { CldImage } from "next-cloudinary";
 
 interface Product {
   id: number;
@@ -79,10 +80,12 @@ export default function CategoryPage({ params }: { params: { id: string } }) {
             ← Back to Categories
           </button>
           <div className="relative w-[100px] h-[200px] rounded-lg overflow-hidden mb-4">
-            <img
+            <CldImage
               alt={category.name}
               className="w-full h-full object-cover"
               src={category.imageUrl}
+              width={100}
+              height={200}
             />
           </div>
           <h1 className="text-3xl font-bold mb-4">{category.name}</h1>
@@ -93,10 +96,12 @@ export default function CategoryPage({ params }: { params: { id: string } }) {
         {products.map((product) => (
           <div key={product.id} className="border rounded-lg overflow-hidden shadow-md">
             <div className="relative w-full h-[150px]">
-              <img
+              <CldImage
                 alt={product.title}
                 className="w-full h-full object-cover"
                 src={product.imageUrl}
+                width={600}
+                height={150}
               />
             </div>
             <div className="p-4">

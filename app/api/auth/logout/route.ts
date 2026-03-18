@@ -1,5 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 type CookieToSet = {
   name: string;
@@ -7,10 +7,8 @@ type CookieToSet = {
   options?: Record<string, unknown>;
 };
 
-export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  });
+export async function POST(request: NextRequest) {
+  let response = NextResponse.json({ success: true });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,14 +19,10 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet: CookieToSet[]) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-
-          supabaseResponse = NextResponse.next({
-            request,
-          });
+          response = NextResponse.json({ success: true });
 
           cookiesToSet.forEach(({ name, value, options }) => {
-            supabaseResponse.cookies.set({
+            response.cookies.set({
               name,
               value,
               ...options,
@@ -39,9 +33,7 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  await supabase.auth.signOut({ scope: "global" });
 
-  return { response: supabaseResponse, user, supabase };
+  return response;
 }
