@@ -1,13 +1,14 @@
 "use client";
 
-import { resolveCartItemKey, useCart } from "@/context/CartContext";
+import { useCart } from "@/context/CartContext";
 import { useState } from "react";
 import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { CldImage } from "next-cloudinary";
 
 export default function CartPage() {
-  const { cart, removeFromCart, updateQuantity, getCartTotal, clearCart } = useCart();
+  const { cart, removeFromCart, updateQuantity, getCartTotal, clearCart, resolveCartItemKey } =
+    useCart();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [removingItem, setRemovingItem] = useState<null | string | number>(null);
 
@@ -215,7 +216,10 @@ export default function CartPage() {
             <div className="space-y-3 mb-6">
               <div className="max-h-48 overflow-auto pr-1 space-y-2">
                 {cart.map((item) => (
-                  <div key={`summary-${resolveCartItemKey(item)}`} className="text-sm text-gray-700">
+                  <div
+                    key={`summary-${resolveCartItemKey(item)}`}
+                    className="text-sm text-gray-700"
+                  >
                     <div className="flex justify-between gap-2">
                       <span className="truncate">{item.title}</span>
                       <span>x{item.quantity}</span>
