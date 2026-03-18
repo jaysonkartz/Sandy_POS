@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { supabasePublic } from "@/app/lib/supabaseClient";
+import { supabase, supabasePublic } from "@/app/lib/supabaseClient";
 import { CATEGORY_ID_NAME_MAP } from "@/app/(admin)/const/category";
 
 interface Product {
@@ -65,6 +65,154 @@ export const useProducts = (
   const handleClearSearch = useCallback(() => {
     setSearchTerm("");
   }, []);
+
+  const resolveCustomerId = useCallback(async (): Promise<string | null> => {
+    if (!session?.user) return null;
+
+    try {
+      if (session.user.id) {
+        const { data: customerByUserId, error: userIdError } = await supabase
+          .from("customers")
+          .select("id, user_id")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+
+        if (!userIdError && customerByUserId?.id) {
+          return String(customerByUserId.id);
+        }
+      }
+
+      if (session.user.email) {
+        const { data: customersByEmail, error: emailError } = await supabase
+          .from("customers")
+          .select("id, user_id")
+          .eq("email", session.user.email);
+
+        if (!emailError && customersByEmail?.length) {
+          const matchedCustomer =
+            customersByEmail.find(
+              (c: { user_id?: string | null }) => c.user_id === session.user.id
+            ) || customersByEmail[0];
+
+          if (matchedCustomer?.id) {
+            return String(matchedCustomer.id);
+          }
+        }
+      }
+    } catch {
+      return null;
+    }
+
+    return null;
+  }, [session]);
+
+  const applyLatestPriceHistory = useCallback(
+    async (sourceProducts: Product[]): Promise<Product[]> => {
+      if (sourceProducts.length === 0) {
+        return sourceProducts;
+      }
+
+      const customerId = await resolveCustomerId();
+
+      const productIds = Array.from(new Set(sourceProducts.map((p) => p.id).filter(Boolean)));
+      if (productIds.length === 0) {
+        return sourceProducts;
+      }
+
+      try {
+        let historyQuery = supabase
+          .from("product_price_history")
+          .select("product_id, customer_id, original_price, last_price_update, created_at")
+          .in("product_id", productIds);
+
+        historyQuery = customerId
+          ? historyQuery.or(`customer_id.is.null,customer_id.eq.${customerId}`)
+          : historyQuery.is("customer_id", null);
+
+        const { data: priceHistoryRows, error: priceHistoryError } = await historyQuery;
+
+        if (priceHistoryError || !priceHistoryRows?.length) {
+          return sourceProducts;
+        }
+
+        const latestByProductId = new Map<
+          number,
+          { price: number; timestampMs: number; isSpecificCustomer: boolean }
+        >();
+
+        priceHistoryRows.forEach(
+          (row: {
+            product_id?: number;
+            customer_id?: string | null;
+            original_price?: number | null;
+            last_price_update?: string | null;
+            created_at?: string | null;
+          }) => {
+            if (!row.product_id) {
+              return;
+            }
+
+            const nextPrice = typeof row.original_price === "number" ? row.original_price : null;
+            if (typeof nextPrice !== "number" || Number.isNaN(nextPrice) || nextPrice <= 0) {
+              return;
+            }
+
+            const timestampMs = Date.parse(row.last_price_update || row.created_at || "");
+            const normalizedTimestampMs = Number.isNaN(timestampMs) ? 0 : timestampMs;
+            const nextIsSpecificCustomer = !!row.customer_id;
+
+            const existing = latestByProductId.get(row.product_id);
+
+            if (!existing) {
+              latestByProductId.set(row.product_id, {
+                price: nextPrice,
+                timestampMs: normalizedTimestampMs,
+                isSpecificCustomer: nextIsSpecificCustomer,
+              });
+              return;
+            }
+
+            const isNewer = normalizedTimestampMs > existing.timestampMs;
+            const isSameTimeButPreferGlobal =
+              normalizedTimestampMs === existing.timestampMs &&
+              !nextIsSpecificCustomer &&
+              existing.isSpecificCustomer;
+
+            if (isNewer || isSameTimeButPreferGlobal) {
+              latestByProductId.set(row.product_id, {
+                price: nextPrice,
+                timestampMs: normalizedTimestampMs,
+                isSpecificCustomer: nextIsSpecificCustomer,
+              });
+            }
+          }
+        );
+
+        if (!latestByProductId.size) {
+          return sourceProducts;
+        }
+
+        return sourceProducts.map((product) => {
+          const resolved = latestByProductId.get(product.id);
+          if (!resolved) {
+            return product;
+          }
+
+          if (typeof resolved.price !== "number") {
+            return product;
+          }
+
+          return {
+            ...product,
+            price: resolved.price,
+          };
+        });
+      } catch {
+        return sourceProducts;
+      }
+    },
+    [resolveCustomerId]
+  );
 
   // Memoized filtered products
   const filteredProducts = useMemo(() => {
@@ -190,7 +338,8 @@ export const useProducts = (
         throw productsError;
       }
 
-      setProducts(productsData || []);
+      const resolvedProducts = await applyLatestPriceHistory(productsData || []);
+      setProducts(resolvedProducts);
     } catch (error) {
       // Use mock data when database fails
       const mockProducts = [
@@ -818,7 +967,7 @@ export const useProducts = (
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory]);
+  }, [selectedCategory, applyLatestPriceHistory]);
 
   const refetchProducts = useCallback(async () => {
     setLoading(true);

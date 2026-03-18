@@ -318,13 +318,142 @@ export default function ManagementDashboard() {
     setOfferPrices({});
   };
 
+  const getReadableErrorMessage = (error: unknown, fallback: string) => {
+    if (!error) return fallback;
+
+    if (typeof error === "string") {
+      return error.trim() || fallback;
+    }
+
+    if (error instanceof Error) {
+      return error.message?.trim() || fallback;
+    }
+
+    if (typeof error === "object") {
+      const maybeError = error as {
+        message?: unknown;
+        details?: unknown;
+        hint?: unknown;
+        code?: unknown;
+        error?: unknown;
+        error_description?: unknown;
+        status?: unknown;
+        statusText?: unknown;
+      };
+
+      const parts = [
+        typeof maybeError.message === "string" ? maybeError.message.trim() : "",
+        typeof maybeError.details === "string" ? maybeError.details.trim() : "",
+        typeof maybeError.hint === "string" ? maybeError.hint.trim() : "",
+        typeof maybeError.error === "string" ? maybeError.error.trim() : "",
+        typeof maybeError.error_description === "string" ? maybeError.error_description.trim() : "",
+        typeof maybeError.code === "string" ? `code: ${maybeError.code.trim()}` : "",
+        typeof maybeError.status === "number" ? `status: ${maybeError.status}` : "",
+        typeof maybeError.statusText === "string" && maybeError.statusText.trim()
+          ? `statusText: ${maybeError.statusText.trim()}`
+          : "",
+      ].filter(Boolean);
+
+      if (parts.length > 0) {
+        return parts.join(" | ");
+      }
+
+      try {
+        const ownPropertyParts = Object.getOwnPropertyNames(error)
+          .map((key) => {
+            const value = (error as Record<string, unknown>)[key];
+            if (value === null || value === undefined) return "";
+            if (typeof value === "string" && value.trim()) return `${key}: ${value.trim()}`;
+            if (typeof value === "number" || typeof value === "boolean") {
+              return `${key}: ${String(value)}`;
+            }
+            return "";
+          })
+          .filter(Boolean);
+
+        if (ownPropertyParts.length > 0) {
+          return ownPropertyParts.join(" | ");
+        }
+      } catch {
+        // Ignore property inspection errors and continue fallback attempts.
+      }
+
+      try {
+        const raw = JSON.stringify(error);
+        if (raw && raw !== "{}") {
+          return raw;
+        }
+      } catch {
+        // Ignore JSON serialization errors and return fallback below.
+      }
+
+      const objectTag = Object.prototype.toString.call(error);
+      if (objectTag && objectTag !== "[object Object]") {
+        return objectTag;
+      }
+
+      const stringified = String(error);
+      if (stringified && stringified !== "[object Object]") {
+        return stringified;
+      }
+    }
+
+    return fallback;
+  };
+
+  const insertPriceOffersWithFallback = async (
+    offers: Array<{
+      customer_id: string;
+      product_id: number;
+      offered_price: number;
+      previous_price: number;
+      created_at?: string;
+    }>
+  ) => {
+    const firstPayload = offers.map(
+      ({ customer_id, product_id, offered_price, previous_price, created_at }) => ({
+        customer_id,
+        product_id,
+        previous_price,
+        original_price: offered_price,
+        last_price_update: created_at || new Date().toISOString(),
+      })
+    );
+
+    const firstAttempt = await supabase.from("product_price_history").insert(firstPayload);
+    if (!firstAttempt.error) return;
+
+    const secondPayload = firstPayload.map(({ last_price_update, ...rest }) => rest);
+    const secondAttempt = await supabase.from("product_price_history").insert(secondPayload);
+    if (!secondAttempt.error) return;
+
+    const thirdPayload = secondPayload.map(({ previous_price, ...rest }) => rest);
+    const thirdAttempt = await supabase.from("product_price_history").insert(thirdPayload);
+    if (!thirdAttempt.error) return;
+
+    throw {
+      message: "product_price_history insert failed after retries",
+      details: [
+        `attempt1: ${getReadableErrorMessage(firstAttempt.error, "failed")}`,
+        `attempt2: ${getReadableErrorMessage(secondAttempt.error, "failed")}`,
+        `attempt3: ${getReadableErrorMessage(thirdAttempt.error, "failed")}`,
+      ].join(" | "),
+      code: thirdAttempt.error?.code || secondAttempt.error?.code || firstAttempt.error?.code,
+      status: thirdAttempt.status || secondAttempt.status || firstAttempt.status,
+      statusText: thirdAttempt.statusText || secondAttempt.statusText || firstAttempt.statusText,
+      firstError: firstAttempt.error,
+      secondError: secondAttempt.error,
+      thirdError: thirdAttempt.error,
+    };
+  };
+
   // Fetch all customers for the customer selector
   const fetchAllCustomers = async () => {
     setIsLoadingCustomers(true);
     try {
       const { data, error } = await supabase
         .from("customers")
-        .select("*")
+        .select("id, name, phone, email")
         .order("name", { ascending: true });
 
       if (error) {
@@ -336,27 +465,31 @@ export default function ManagementDashboard() {
       }
 
       if (data && Array.isArray(data)) {
-        // Convert id to string for consistency and filter out any invalid entries
+        // Keep all valid IDs, even when legacy rows have empty names.
         const formattedCustomers = data
           .filter(
-            (customer: { id?: string | number; name?: string }) =>
-              customer && customer.id && customer.name
+            (customer: { id?: string | number | null }) =>
+              customer && customer.id !== null && customer.id !== undefined
           )
           .map(
             (customer: {
               id: string | number;
-              name: string;
+              name?: string | null;
               phone?: string | null;
               email?: string | null;
             }) => ({
               id: String(customer.id),
-              name: customer.name || "Unnamed Customer",
+              name: customer.name?.trim() || customer.email?.split("@")[0] || "Unnamed Customer",
               phone: customer.phone || null,
               email: customer.email || null,
             })
           );
 
-        setAllCustomers(formattedCustomers);
+        const dedupedCustomers = Array.from(
+          new Map(formattedCustomers.map((customer) => [String(customer.id), customer])).values()
+        );
+
+        setAllCustomers(dedupedCustomers);
       } else {
         setAllCustomers([]);
       }
@@ -2926,10 +3059,11 @@ export default function ManagementDashboard() {
                                                           <button
                                                             className="px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-green-500 to-green-600 rounded-lg hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
                                                             onClick={async () => {
-                                                              const customerId =
+                                                              const customerId = String(
                                                                 selectedCustomerForOffer[
                                                                   product.id
-                                                                ];
+                                                                ] || ""
+                                                              ).trim();
                                                               if (!customerId) {
                                                                 toast.error(
                                                                   "Please select a customer"
@@ -2945,26 +3079,64 @@ export default function ManagementDashboard() {
                                                                 );
                                                                 return;
                                                               }
+
+                                                              let customer = allCustomers.find(
+                                                                (c) =>
+                                                                  String(c.id).trim() === customerId
+                                                              );
+
+                                                              // Handle stale dropdown state by refreshing the customer list once.
+                                                              if (!customer) {
+                                                                await fetchAllCustomers();
+                                                                const {
+                                                                  data: refreshedCustomers,
+                                                                  error: refreshError,
+                                                                } = await supabase
+                                                                  .from("customers")
+                                                                  .select("id, name, phone, email")
+                                                                  .eq("id", customerId)
+                                                                  .maybeSingle();
+
+                                                                if (
+                                                                  refreshError ||
+                                                                  !refreshedCustomers
+                                                                ) {
+                                                                  toast.error(
+                                                                    "Unable to find selected customer. Please refresh and try again."
+                                                                  );
+                                                                  return;
+                                                                }
+
+                                                                customer = {
+                                                                  id: String(refreshedCustomers.id),
+                                                                  name:
+                                                                    refreshedCustomers.name?.trim() ||
+                                                                    refreshedCustomers.email?.split(
+                                                                      "@"
+                                                                    )[0] ||
+                                                                    "Unnamed Customer",
+                                                                  phone:
+                                                                    refreshedCustomers.phone ||
+                                                                    null,
+                                                                  email:
+                                                                    refreshedCustomers.email ||
+                                                                    null,
+                                                                };
+                                                              }
+
                                                               try {
-                                                                const { error } = await supabase
-                                                                  .from("price_offers")
-                                                                  .insert([
+                                                                await insertPriceOffersWithFallback(
+                                                                  [
                                                                     {
                                                                       customer_id: customerId,
                                                                       product_id: product.id,
                                                                       offered_price: price,
-                                                                      status: "pending",
+                                                                      previous_price: product.price,
                                                                       created_at:
                                                                         new Date().toISOString(),
                                                                     },
-                                                                  ]);
-
-                                                                if (error) {
-                                                                  toast.error(
-                                                                    `Failed to send offer: ${error.message}`
-                                                                  );
-                                                                  return;
-                                                                }
+                                                                  ]
+                                                                );
 
                                                                 // Clear the inputs after successful send
                                                                 setSelectedCustomerForOffer(
@@ -2980,18 +3152,21 @@ export default function ManagementDashboard() {
                                                                     return newState;
                                                                   }
                                                                 );
-
-                                                                const customer = allCustomers.find(
-                                                                  (c) =>
-                                                                    String(c.id) ===
-                                                                    String(customerId)
-                                                                );
                                                                 toast.success(
                                                                   `Offer sent successfully to ${customer?.name || "customer"} for $${price.toFixed(2)}`
                                                                 );
                                                               } catch (err) {
+                                                                console.error(
+                                                                  "Failed to insert single custom price offer",
+                                                                  {
+                                                                    error: err,
+                                                                    customerId,
+                                                                    productId: product.id,
+                                                                    price,
+                                                                  }
+                                                                );
                                                                 toast.error(
-                                                                  "Failed to send offer. Please try again."
+                                                                  `Failed to send offer: ${getReadableErrorMessage(err, "Unexpected error (check browser console for details)")}`
                                                                 );
                                                               }
                                                             }}
@@ -3076,22 +3251,15 @@ export default function ManagementDashboard() {
                                                                   customer_id: String(customer.id),
                                                                   product_id: product.id,
                                                                   offered_price: price,
-                                                                  status: "pending",
+                                                                  previous_price: product.price,
                                                                   created_at:
                                                                     new Date().toISOString(),
                                                                 })
                                                               );
 
-                                                              const { error } = await supabase
-                                                                .from("price_offers")
-                                                                .insert(offers);
-
-                                                              if (error) {
-                                                                toast.error(
-                                                                  `Failed to send offers: ${error.message}`
-                                                                );
-                                                                return;
-                                                              }
+                                                              await insertPriceOffersWithFallback(
+                                                                offers
+                                                              );
 
                                                               // Clear the price input after successful send
                                                               setCustomPriceForSelectedCustomer(
@@ -3106,8 +3274,18 @@ export default function ManagementDashboard() {
                                                                 `Offer sent successfully to all ${allCustomers.length} customer${allCustomers.length !== 1 ? "s" : ""} for $${price.toFixed(2)}`
                                                               );
                                                             } catch (err) {
+                                                              console.error(
+                                                                "Failed to insert bulk custom price offers",
+                                                                {
+                                                                  error: err,
+                                                                  customerCount:
+                                                                    allCustomers.length,
+                                                                  productId: product.id,
+                                                                  price,
+                                                                }
+                                                              );
                                                               toast.error(
-                                                                "Failed to send offers. Please try again."
+                                                                `Failed to send offers: ${getReadableErrorMessage(err, "Unexpected error (check browser console for details)")}`
                                                               );
                                                             }
                                                           }}
@@ -3319,26 +3497,17 @@ export default function ManagementDashboard() {
                                                               return;
                                                             }
                                                             try {
-                                                              const { error } = await supabase
-                                                                .from("price_offers")
-                                                                .insert([
-                                                                  {
-                                                                    customer_id: order.customer_id,
-                                                                    product_id: product.id,
-                                                                    offered_price:
-                                                                      currentOfferPrice,
-                                                                    status: "pending",
-                                                                    created_at:
-                                                                      new Date().toISOString(),
-                                                                  },
-                                                                ]);
-
-                                                              if (error) {
-                                                                toast.error(
-                                                                  `Failed to send offer: ${error.message}`
-                                                                );
-                                                                return;
-                                                              }
+                                                              await insertPriceOffersWithFallback([
+                                                                {
+                                                                  customer_id: order.customer_id,
+                                                                  product_id: product.id,
+                                                                  offered_price: currentOfferPrice,
+                                                                  previous_price:
+                                                                    oi.price ?? product.price,
+                                                                  created_at:
+                                                                    new Date().toISOString(),
+                                                                },
+                                                              ]);
 
                                                               // Clear the offer price after sending successfully
                                                               setOfferPrices((prev) => {
@@ -3351,8 +3520,17 @@ export default function ManagementDashboard() {
                                                                 `Offer sent successfully to ${order.customer_name} for $${currentOfferPrice.toFixed(2)}`
                                                               );
                                                             } catch (err) {
+                                                              console.error(
+                                                                "Failed to insert historical customer custom price offer",
+                                                                {
+                                                                  error: err,
+                                                                  customerId: order.customer_id,
+                                                                  productId: product.id,
+                                                                  price: currentOfferPrice,
+                                                                }
+                                                              );
                                                               toast.error(
-                                                                "Failed to send offer. Please try again."
+                                                                `Failed to send offer: ${getReadableErrorMessage(err, "Unexpected error (check browser console for details)")}`
                                                               );
                                                             }
                                                           }}
