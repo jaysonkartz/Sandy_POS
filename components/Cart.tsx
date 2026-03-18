@@ -1,16 +1,8 @@
-import { useCart } from "@/context/CartContext";
+import { resolveCartItemKey, useCart } from "@/context/CartContext";
 import Image from "next/image";
 
 export default function Cart() {
   const { cart, removeFromCart, updateQuantity, getCartTotal } = useCart();
-
-  const getCartItemKey = (item: (typeof cart)[number]) =>
-    item.cartItemKey ??
-    [
-      String(item.id),
-      String(item.Variation ?? item.variation ?? ""),
-      String(item.Country_of_origin ?? item.country_of_origin ?? item.origin ?? ""),
-    ].join("::");
 
   const getVariationLabel = (item: (typeof cart)[number]) => item.Variation ?? item.variation;
   const getOriginLabel = (item: (typeof cart)[number]) =>
@@ -25,7 +17,7 @@ export default function Cart() {
       ) : (
         <>
           {cart.map((item) => (
-            <div key={getCartItemKey(item)} className="flex items-center gap-4 py-4 border-b">
+            <div key={resolveCartItemKey(item)} className="flex items-center gap-4 py-4 border-b">
               <div className="relative h-20 w-20 flex-shrink-0">
                 <Image
                   fill
@@ -51,7 +43,7 @@ export default function Cart() {
                     className="border rounded p-1"
                     value={item.quantity}
                     onChange={(e) =>
-                      updateQuantity(item.id, Number(e.target.value), getCartItemKey(item))
+                      updateQuantity(item.id, Number(e.target.value), resolveCartItemKey(item))
                     }
                   >
                     {[...Array(item.maxQuantity)].map((_, i) => (
@@ -63,7 +55,7 @@ export default function Cart() {
 
                   <button
                     className="text-red-500 hover:text-red-700"
-                    onClick={() => removeFromCart(item.id, getCartItemKey(item))}
+                    onClick={() => removeFromCart(item.id, resolveCartItemKey(item))}
                   >
                     Remove
                   </button>
