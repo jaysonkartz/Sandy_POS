@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useWhatsApp } from '../useWhatsApp';
 
+const DEFAULT_MESSAGE = 'Hi, I would like to inquire about your products.';
+
 describe('useWhatsApp', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -29,6 +31,36 @@ describe('useWhatsApp', () => {
     expect(callArgs[0]).toContain('wa.me/6593254825');
     expect(callArgs[0]).toContain('text=');
     expect(callArgs[1]).toBe('_blank');
+
+    const url = new URL(callArgs[0]);
+    const message = decodeURIComponent(url.searchParams.get('text') || '');
+    expect(message).toBe(DEFAULT_MESSAGE);
+  });
+
+  it('should include product details when handleCustomerService is called with a product payload', () => {
+    const { result } = renderHook(() => useWhatsApp());
+
+    act(() => {
+      result.current.handleCustomerService({
+        productName: 'Dried Chilli',
+        variation: 'Premium',
+        origin: 'China',
+        weight: '25kg',
+      });
+    });
+
+    expect(window.open).toHaveBeenCalledTimes(1);
+    const callArgs = (window.open as any).mock.calls[0];
+    const url = new URL(callArgs[0]);
+    const message = decodeURIComponent(url.searchParams.get('text') || '');
+
+    expect(message).toContain(DEFAULT_MESSAGE);
+    expect(message).toContain('Product details:');
+    expect(message).toContain('Product: Dried Chilli');
+    expect(message).toContain('Variation: Premium');
+    expect(message).toContain('Origin: China');
+    expect(message).toContain('Weight: 25kg');
+    expect(message).not.toContain('Item Code:');
   });
 
   it('should open WhatsApp with order notification when sendWhatsAppNotification is called', () => {

@@ -38,7 +38,12 @@ interface ProductGridProps {
   onOptionChange: (title: string, type: "variation" | "countryId" | "weight", value: string) => void;
   onAddToOrder: (product: Product) => void;
   onUpdateQuantity: (productId: number, newQuantity: number) => void;
-  onCustomerService: () => void;
+  onCustomerService: (productDetails: {
+    productName: string;
+    variation?: string;
+    origin?: string;
+    weight?: string;
+  }) => void;
   onOpenPhotoEditor: (product: Product) => void;
   onOpenSignupModal: () => void;
 }

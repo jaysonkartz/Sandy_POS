@@ -49,7 +49,12 @@ interface ProductCardProps {
   ) => void;
   onAddToOrder: (product: Product) => void;
   onUpdateQuantity: (productId: number, newQuantity: number) => void;
-  onCustomerService: () => void;
+  onCustomerService: (productDetails: {
+    productName: string;
+    variation?: string;
+    origin?: string;
+    weight?: string;
+  }) => void;
   onOpenPhotoEditor: (product: Product) => void;
   onOpenSignupModal: () => void;
 }
@@ -121,6 +126,12 @@ export const ProductCard = memo<ProductCardProps>(({
   const variations = uniq(products.map((p) => p.Variation));
   const origins = uniq(products.map((p) => p.Country));
   const weights = uniq(products.map((p) => p.weight));
+  const productOrigin = getValue(product.Country);
+  const originDisplayName = productOrigin
+    ? isEnglish
+      ? countryMap[productOrigin]?.name || productOrigin
+      : countryMap[productOrigin]?.chineseName || productOrigin
+    : "";
 
   const handleOptionChange = useCallback(
     (type: "variation" | "countryId" | "weight", value: string) => {
@@ -353,7 +364,14 @@ export const ProductCard = memo<ProductCardProps>(({
       <button
         className="flex-shrink-0 bg-gray-100 text-gray-600 w-9 h-9 sm:w-10 sm:h-10 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center"
         title={isEnglish ? "Inquire via WhatsApp" : "通过WhatsApp询价"}
-        onClick={onCustomerService}
+        onClick={() =>
+          onCustomerService({
+            productName: isEnglish ? product.Product : product.Product_CH || product.Product,
+            variation: getValue(isEnglish ? product.Variation : product.Variation_CH || product.Variation),
+            origin: originDisplayName,
+            weight: getValue(product.weight),
+          })
+        }
       >
         <WhatsAppIcon className="w-4 h-4" />
       </button>
