@@ -4,6 +4,18 @@ import Image from "next/image";
 export default function Cart() {
   const { cart, removeFromCart, updateQuantity, getCartTotal } = useCart();
 
+  const getCartItemKey = (item: (typeof cart)[number]) =>
+    item.cartItemKey ??
+    [
+      String(item.id),
+      String(item.Variation ?? item.variation ?? ""),
+      String(item.Country_of_origin ?? item.country_of_origin ?? item.origin ?? ""),
+    ].join("::");
+
+  const getVariationLabel = (item: (typeof cart)[number]) => item.Variation ?? item.variation;
+  const getOriginLabel = (item: (typeof cart)[number]) =>
+    item.Country_of_origin ?? item.country_of_origin ?? item.origin;
+
   return (
     <div className="border rounded-lg p-4 bg-white">
       <h2 className="text-xl font-bold mb-4">Shopping Cart</h2>
@@ -13,7 +25,7 @@ export default function Cart() {
       ) : (
         <>
           {cart.map((item) => (
-            <div key={item.id} className="flex items-center gap-4 py-4 border-b">
+            <div key={getCartItemKey(item)} className="flex items-center gap-4 py-4 border-b">
               <div className="relative h-20 w-20 flex-shrink-0">
                 <Image
                   fill
@@ -25,13 +37,22 @@ export default function Cart() {
 
               <div className="flex-grow">
                 <h3 className="font-medium">{item.title}</h3>
+                {(getVariationLabel(item) || getOriginLabel(item)) && (
+                  <p className="text-xs text-gray-500">
+                    {getVariationLabel(item) ? `Variation: ${getVariationLabel(item)}` : ""}
+                    {getVariationLabel(item) && getOriginLabel(item) ? " | " : ""}
+                    {getOriginLabel(item) ? `Origin: ${getOriginLabel(item)}` : ""}
+                  </p>
+                )}
                 <p className="text-gray-600">${(item.price ?? 0).toFixed(2)}</p>
 
                 <div className="flex items-center gap-2 mt-2">
                   <select
                     className="border rounded p-1"
                     value={item.quantity}
-                    onChange={(e) => updateQuantity(item.id, Number(e.target.value))}
+                    onChange={(e) =>
+                      updateQuantity(item.id, Number(e.target.value), getCartItemKey(item))
+                    }
                   >
                     {[...Array(item.maxQuantity)].map((_, i) => (
                       <option key={i + 1} value={i + 1}>
@@ -42,7 +63,7 @@ export default function Cart() {
 
                   <button
                     className="text-red-500 hover:text-red-700"
-                    onClick={() => removeFromCart(item.id)}
+                    onClick={() => removeFromCart(item.id, getCartItemKey(item))}
                   >
                     Remove
                   </button>

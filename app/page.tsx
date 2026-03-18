@@ -320,6 +320,7 @@ function HomeContent({
         isOpen={isOrderPanelOpen}
         isEnglish={isEnglish}
         selectedProducts={selectedProducts}
+        countryMap={countryMap}
         customerName={customerName}
         customerPhone={customerPhone}
         customerAddress={customerAddress}

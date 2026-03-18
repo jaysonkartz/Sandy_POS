@@ -27,6 +27,7 @@ interface OrderReviewProps {
   isOpen: boolean;
   isEnglish: boolean;
   selectedProducts: { product: Product; quantity: number }[];
+  countryMap: { [key: string]: { name: string; chineseName: string } };
   customerName: string;
   customerPhone: string;
   customerAddress: string;
@@ -48,6 +49,7 @@ export const OrderReview = ({
   isOpen,
   isEnglish,
   selectedProducts,
+  countryMap,
   customerName,
   customerPhone,
   customerAddress,
@@ -56,6 +58,36 @@ export const OrderReview = ({
   onConfirmOrder,
   onBackToEdit,
 }: OrderReviewProps) => {
+  const getVariationLabel = (product: Product) =>
+    product.Variation ??
+    (product as Product & { variation?: string; variation_name?: string }).variation ??
+    (product as Product & { variation_name?: string }).variation_name ??
+    "";
+
+  const getWeightLabel = (product: Product) =>
+    product.weight ??
+    (product as Product & { Weight?: string; weight_value?: string }).Weight ??
+    (product as Product & { weight_value?: string }).weight_value ??
+    "";
+
+  const getOriginLabel = (product: Product) => {
+    const rawOrigin =
+      (product as Product & { Country_of_origin?: string; country_of_origin?: string; origin?: string }).Country_of_origin ??
+      (product as Product & { country_of_origin?: string }).country_of_origin ??
+      product.Country ??
+      (product as Product & { origin?: string }).origin;
+
+    if (!rawOrigin) return "";
+
+    const originKey = String(rawOrigin).trim();
+    const mapped = countryMap[originKey];
+    if (mapped) {
+      return isEnglish ? mapped.name || originKey : mapped.chineseName || mapped.name || originKey;
+    }
+
+    return originKey;
+  };
+
   const [remarks, setRemarks] = useState("");
   const [purchaseOrder, setPurchaseOrder] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
@@ -120,23 +152,44 @@ export const OrderReview = ({
             {/* Order Items */}
             <div className="mb-4">
               <h3 className="font-semibold mb-2">{isEnglish ? "Order Items" : "订单项目"}</h3>
-              {selectedProducts.map(({ product, quantity }) => (
-                <div key={product.id} className="flex justify-between items-center py-2 border-b">
-                  <div className="flex-1">
-                    <p className="font-medium text-sm">
-                      {isEnglish ? product.Product : product.Product_CH}
-                    </p>
-                    <p className="text-xs text-gray-600">
-                      {quantity} x ${product.price.toFixed(2)}/{product.UOM}
-                    </p>
+              {selectedProducts.map(({ product, quantity }) => {
+                const variation = getVariationLabel(product);
+                const origin = getOriginLabel(product);
+                const weight = getWeightLabel(product);
+
+                return (
+                  <div key={product.id} className="flex justify-between items-start py-2 border-b">
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">
+                        {isEnglish ? product.Product : product.Product_CH}
+                      </p>
+                      {variation && (
+                        <p className="text-xs text-gray-500">
+                          {isEnglish ? "Variation:" : "规格:"} {variation}
+                        </p>
+                      )}
+                      {origin && (
+                        <p className="text-xs text-gray-500">
+                          {isEnglish ? "Origin:" : "产地:"} {origin}
+                        </p>
+                      )}
+                      {weight && (
+                        <p className="text-xs text-gray-500">
+                          {isEnglish ? "Weight:" : "重量:"} {weight}
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-600">
+                        {quantity} x ${product.price.toFixed(2)}/{product.UOM}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium">
+                        ${(product.price * quantity).toFixed(2)}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium">
-                      ${(product.price * quantity).toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
               
               {/* Order Summary */}
               <div className="mt-3 pt-3 border-t">

@@ -74,16 +74,41 @@ export const ProductCard = memo<ProductCardProps>(({
   onOpenSignupModal,
 }) => {
   const { title, products } = group;
+  const optionIdPrefix = `product-${String(title).toLowerCase().replace(/\s+/g, "-")}`;
+
+  const getValue = (value?: string | null) => (value ? String(value).trim() : "");
+  const matchBySelection = (
+    p: Product,
+    selection: { variation?: string; countryId?: string; weight?: string }
+  ) => {
+    const variation = getValue(selection.variation);
+    const countryId = getValue(selection.countryId);
+    const weight = getValue(selection.weight);
+
+    if (variation && getValue(p.Variation) !== variation) return false;
+    if (countryId && getValue(p.Country) !== countryId) return false;
+    if (weight && getValue(p.weight) !== weight) return false;
+
+    return true;
+  };
 
   const getSelectedProduct = useCallback(() => {
     const selected = selectedOptions[title] || {};
     return (
-      products.find(
-        (p) =>
-          (!selected.variation || p.Variation === selected.variation) &&
-          (!selected.countryId || p.Country === selected.countryId) &&
-          (!selected.weight || p.weight === selected.weight)
-      ) || products[0]
+      products.find((p) => matchBySelection(p, selected)) ||
+      products.find((p) => {
+        const normalizedCountry = getValue(selected.countryId);
+        return normalizedCountry ? getValue(p.Country) === normalizedCountry : false;
+      }) ||
+      products.find((p) => {
+        const normalizedVariation = getValue(selected.variation);
+        return normalizedVariation ? getValue(p.Variation) === normalizedVariation : false;
+      }) ||
+      products.find((p) => {
+        const normalizedWeight = getValue(selected.weight);
+        return normalizedWeight ? getValue(p.weight) === normalizedWeight : false;
+      }) ||
+      products[0]
     );
   }, [products, selectedOptions, title]);
 
@@ -99,9 +124,24 @@ export const ProductCard = memo<ProductCardProps>(({
 
   const handleOptionChange = useCallback(
     (type: "variation" | "countryId" | "weight", value: string) => {
-      onOptionChange(title, type, value);
+      const current = selectedOptions[title] || {};
+      const next = { ...current, [type]: value };
+
+      const exactMatch = products.find((p) => matchBySelection(p, next));
+      const targetedMatch =
+        products.find((p) => {
+          if (type === "variation") return getValue(p.Variation) === getValue(value);
+          if (type === "countryId") return getValue(p.Country) === getValue(value);
+          return getValue(p.weight) === getValue(value);
+        }) || products[0];
+
+      const resolvedProduct = exactMatch || targetedMatch;
+
+      onOptionChange(title, "variation", getValue(resolvedProduct?.Variation));
+      onOptionChange(title, "countryId", getValue(resolvedProduct?.Country));
+      onOptionChange(title, "weight", getValue(resolvedProduct?.weight));
     },
-    [onOptionChange, title]
+    [onOptionChange, products, selectedOptions, title]
   );
 
   return (
@@ -145,17 +185,26 @@ export const ProductCard = memo<ProductCardProps>(({
 
           {/* Variation */}
           {variations.length > 1 ? (
-            <select
-              className="w-full p-2 text-sm border rounded"
-              value={selectedOptions[title]?.variation || variations[0]}
-              onChange={e => handleOptionChange("variation", e.target.value)}
-            >
-              {variations.map(v => (
-                <option key={v} value={v}>
-                  {isEnglish ? v : products.find(p => p.Variation === v)?.Variation_CH || v}
-                </option>
-              ))}
-            </select>
+            <div>
+              <label
+                htmlFor={`${optionIdPrefix}-variation`}
+                className="block text-xs font-medium text-gray-600 mb-1"
+              >
+                {isEnglish ? "Variation:" : "规格:"}
+              </label>
+              <select
+                id={`${optionIdPrefix}-variation`}
+                className="w-full p-2 text-sm border rounded"
+                value={getValue(product.Variation) || variations[0]}
+                onChange={e => handleOptionChange("variation", e.target.value)}
+              >
+                {variations.map(v => (
+                  <option key={v} value={v}>
+                    {isEnglish ? v : products.find(p => p.Variation === v)?.Variation_CH || v}
+                  </option>
+                ))}
+              </select>
+            </div>
           ) : variations.length === 1 ? (
             <div className="text-sm text-gray-600">
               {isEnglish ? "Variation" : "规格"}:
@@ -167,17 +216,26 @@ export const ProductCard = memo<ProductCardProps>(({
 
           {/* Origin */}
           {origins.length > 1 ? (
-            <select
-              className="w-full p-2 text-sm border rounded"
-              value={selectedOptions[title]?.countryId || origins[0]}
-              onChange={e => handleOptionChange("countryId", e.target.value)}
-            >
-              {origins.map(o => (
-                <option key={o} value={o}>
-                  {isEnglish ? countryMap[o]?.name || o : countryMap[o]?.chineseName || o}
-                </option>
-              ))}
-            </select>
+            <div>
+              <label
+                htmlFor={`${optionIdPrefix}-origin`}
+                className="block text-xs font-medium text-gray-600 mb-1"
+              >
+                {isEnglish ? "Origin:" : "产地:"}
+              </label>
+              <select
+                id={`${optionIdPrefix}-origin`}
+                className="w-full p-2 text-sm border rounded"
+                value={getValue(product.Country) || origins[0]}
+                onChange={e => handleOptionChange("countryId", e.target.value)}
+              >
+                {origins.map(o => (
+                  <option key={o} value={o}>
+                    {isEnglish ? countryMap[o]?.name || o : countryMap[o]?.chineseName || o}
+                  </option>
+                ))}
+              </select>
+            </div>
           ) : origins.length === 1 ? (
             <div className="text-sm text-gray-600">
               {isEnglish ? "Origin" : "产地"}:
@@ -191,15 +249,24 @@ export const ProductCard = memo<ProductCardProps>(({
 
           {/* Weight */}
           {weights.length > 1 ? (
-            <select
-              className="w-full p-2 text-sm border rounded"
-              value={selectedOptions[title]?.weight || weights[0]}
-              onChange={e => handleOptionChange("weight", e.target.value)}
-            >
-              {weights.map(w => (
-                <option key={w} value={w}>{w}</option>
-              ))}
-            </select>
+            <div>
+              <label
+                htmlFor={`${optionIdPrefix}-weight`}
+                className="block text-xs font-medium text-gray-600 mb-1"
+              >
+                {isEnglish ? "Weight:" : "重量:"}
+              </label>
+              <select
+                id={`${optionIdPrefix}-weight`}
+                className="w-full p-2 text-sm border rounded"
+                value={getValue(product.weight) || weights[0]}
+                onChange={e => handleOptionChange("weight", e.target.value)}
+              >
+                {weights.map(w => (
+                  <option key={w} value={w}>{w}</option>
+                ))}
+              </select>
+            </div>
           ) : weights.length === 1 ? (
             <div className="text-sm text-gray-600">
               {isEnglish ? "Weight" : "重量"}:

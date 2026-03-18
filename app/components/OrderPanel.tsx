@@ -40,6 +40,7 @@ interface OrderPanelProps {
   isOpen: boolean;
   isEnglish: boolean;
   selectedProducts: { product: Product; quantity: number }[];
+  countryMap: { [key: string]: { name: string; chineseName: string } };
   customerName: string;
   customerPhone: string;
   customerAddress: string;
@@ -61,6 +62,7 @@ export const OrderPanel = memo<OrderPanelProps>(({
   isOpen,
   isEnglish,
   selectedProducts,
+  countryMap,
   customerName,
   customerPhone,
   customerAddress,
@@ -73,6 +75,36 @@ export const OrderPanel = memo<OrderPanelProps>(({
   onCustomerAddressChange,
   onSubmitOrder,
 }) => {
+  const getVariationLabel = (product: Product) =>
+    product.Variation ??
+    (product as Product & { variation?: string; variation_name?: string }).variation ??
+    (product as Product & { variation_name?: string }).variation_name ??
+    "";
+
+  const getWeightLabel = (product: Product) =>
+    product.weight ??
+    (product as Product & { Weight?: string; weight_value?: string }).Weight ??
+    (product as Product & { weight_value?: string }).weight_value ??
+    "";
+
+  const getOriginLabel = (product: Product) => {
+    const rawOrigin =
+      (product as Product & { Country_of_origin?: string; country_of_origin?: string; origin?: string }).Country_of_origin ??
+      (product as Product & { country_of_origin?: string }).country_of_origin ??
+      product.Country ??
+      (product as Product & { origin?: string }).origin;
+
+    if (!rawOrigin) return "";
+
+    const originKey = String(rawOrigin).trim();
+    const mapped = countryMap[originKey];
+    if (mapped) {
+      return isEnglish ? mapped.name || originKey : mapped.chineseName || mapped.name || originKey;
+    }
+
+    return originKey;
+  };
+
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
   const [showAddAddress, setShowAddAddress] = useState(false);
@@ -659,7 +691,12 @@ export const OrderPanel = memo<OrderPanelProps>(({
                 <h3 className="font-semibold mb-2">
                   {isEnglish ? "Selected Products" : "已选产品"}
                 </h3>
-                {selectedProducts.map(({ product, quantity }) => (
+                {selectedProducts.map(({ product, quantity }) => {
+                  const variation = getVariationLabel(product);
+                  const origin = getOriginLabel(product);
+                  const weight = getWeightLabel(product);
+
+                  return (
                   <div key={product.id} className="p-3 bg-gray-50 rounded-lg">
                     <div className="flex justify-between items-start mb-1">
                       <p className="text-sm font-medium">
@@ -669,6 +706,25 @@ export const OrderPanel = memo<OrderPanelProps>(({
                         ${product.price.toFixed(2)}/{product.UOM}
                       </span>
                     </div>
+                    {(variation || origin || weight) && (
+                      <div className="text-xs text-gray-500 space-y-0.5">
+                        {variation && (
+                          <p>
+                            {isEnglish ? "Variation:" : "规格:"} {variation}
+                          </p>
+                        )}
+                        {origin && (
+                          <p>
+                            {isEnglish ? "Origin:" : "产地:"} {origin}
+                          </p>
+                        )}
+                        {weight && (
+                          <p>
+                            {isEnglish ? "Weight:" : "重量:"} {weight}
+                          </p>
+                        )}
+                      </div>
+                    )}
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center gap-2">
                         <button
@@ -693,7 +749,8 @@ export const OrderPanel = memo<OrderPanelProps>(({
                       </button>
                     </div>
                   </div>
-                ))}
+                );
+                })}
                 <div className="text-right space-y-1 mt-2">
                   <div className="text-sm">
                     {isEnglish ? "Subtotal:" : "小计:"} ${subtotal.toFixed(2)}
@@ -802,6 +859,7 @@ export const OrderPanel = memo<OrderPanelProps>(({
               isOpen={showReview}
               isEnglish={isEnglish}
               selectedProducts={selectedProducts}
+              countryMap={countryMap}
               customerName={customerName}
               customerPhone={customerPhone}
               customerAddress={customerAddress}
