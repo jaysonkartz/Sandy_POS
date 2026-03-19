@@ -1,7 +1,8 @@
 import { createBrowserClient } from "@supabase/ssr";
 
 const getSupabaseUrl = (): string => (process.env.NEXT_PUBLIC_SUPABASE_URL || "") as string;
-const getSupabaseAnonKey = (): string => (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "") as string;
+const getSupabaseAnonKey = (): string =>
+  (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "") as string;
 
 const supabaseUrl = getSupabaseUrl();
 const supabaseAnonKey = getSupabaseAnonKey();
@@ -15,7 +16,8 @@ if (!supabaseUrl) {
 }
 
 if (!supabaseAnonKey) {
-  const error = "NEXT_PUBLIC_SUPABASE_ANON_KEY is not set. Please check your environment variables.";
+  const error =
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY is not set. Please check your environment variables.";
   if (typeof window === "undefined") {
     throw new Error(error);
   }

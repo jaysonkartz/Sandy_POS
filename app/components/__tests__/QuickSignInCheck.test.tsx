@@ -1,45 +1,45 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import QuickSignInCheck from '../QuickSignInCheck';
-import { SignInLogger } from '@/app/lib/signin-logger';
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import QuickSignInCheck from "../QuickSignInCheck";
+import { SignInLogger } from "@/app/lib/signin-logger";
 
 // Mock SignInLogger
-vi.mock('@/app/lib/signin-logger', () => ({
+vi.mock("@/app/lib/signin-logger", () => ({
   SignInLogger: {
     getRecentSignIns: vi.fn(),
   },
 }));
 
-describe('QuickSignInCheck', () => {
+describe("QuickSignInCheck", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('should show loading state initially', () => {
+  it("should show loading state initially", () => {
     (SignInLogger.getRecentSignIns as any).mockImplementation(
       () => new Promise(() => {}) // Never resolves
     );
 
     render(<QuickSignInCheck />);
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    expect(screen.getByText("Loading...")).toBeInTheDocument();
   });
 
-  it('should display recent sign-ins when data is loaded', async () => {
+  it("should display recent sign-ins when data is loaded", async () => {
     const mockRecords = [
       {
         id: 1,
-        email: 'test1@example.com',
+        email: "test1@example.com",
         success: true,
         sign_in_at: new Date().toISOString(),
         failure_reason: null,
-        device_info: { browser: 'Chrome', os: 'Windows' },
+        device_info: { browser: "Chrome", os: "Windows" },
       },
       {
         id: 2,
-        email: 'test2@example.com',
+        email: "test2@example.com",
         success: false,
         sign_in_at: new Date().toISOString(),
-        failure_reason: 'Invalid password',
+        failure_reason: "Invalid password",
         device_info: null,
       },
     ];
@@ -49,23 +49,23 @@ describe('QuickSignInCheck', () => {
     render(<QuickSignInCheck />);
 
     await waitFor(() => {
-      expect(screen.getByText('test1@example.com')).toBeInTheDocument();
-      expect(screen.getByText('test2@example.com')).toBeInTheDocument();
+      expect(screen.getByText("test1@example.com")).toBeInTheDocument();
+      expect(screen.getByText("test2@example.com")).toBeInTheDocument();
     });
 
-    expect(screen.getByText('Recent Sign-ins')).toBeInTheDocument();
-    expect(screen.getByText('Success')).toBeInTheDocument();
-    expect(screen.getByText('Failed')).toBeInTheDocument();
+    expect(screen.getByText("Recent Sign-ins")).toBeInTheDocument();
+    expect(screen.getByText("Success")).toBeInTheDocument();
+    expect(screen.getByText("Failed")).toBeInTheDocument();
   });
 
   it('should display "Recent Failed Sign-ins" when showFailedOnly is true', async () => {
     const mockRecords = [
       {
         id: 1,
-        email: 'test1@example.com',
+        email: "test1@example.com",
         success: false,
         sign_in_at: new Date().toISOString(),
-        failure_reason: 'Invalid credentials',
+        failure_reason: "Invalid credentials",
         device_info: null,
       },
     ];
@@ -75,15 +75,15 @@ describe('QuickSignInCheck', () => {
     render(<QuickSignInCheck showFailedOnly={true} />);
 
     await waitFor(() => {
-      expect(screen.getByText('Recent Failed Sign-ins')).toBeInTheDocument();
+      expect(screen.getByText("Recent Failed Sign-ins")).toBeInTheDocument();
     });
   });
 
-  it('should filter failed sign-ins when showFailedOnly is true', async () => {
+  it("should filter failed sign-ins when showFailedOnly is true", async () => {
     const mockRecords = [
       {
         id: 1,
-        email: 'success@example.com',
+        email: "success@example.com",
         success: true,
         sign_in_at: new Date().toISOString(),
         failure_reason: null,
@@ -91,47 +91,47 @@ describe('QuickSignInCheck', () => {
       },
       {
         id: 2,
-        email: 'failed@example.com',
+        email: "failed@example.com",
         success: false,
         sign_in_at: new Date().toISOString(),
-        failure_reason: 'Error',
+        failure_reason: "Error",
         device_info: null,
       },
     ];
 
     (SignInLogger.getRecentSignIns as any).mockResolvedValue(mockRecords);
 
-    render(<QuickSignInCheck showFailedOnly={true} limit={10} />);
+    render(<QuickSignInCheck limit={10} showFailedOnly={true} />);
 
     await waitFor(() => {
-      expect(screen.queryByText('success@example.com')).not.toBeInTheDocument();
-      expect(screen.getByText('failed@example.com')).toBeInTheDocument();
+      expect(screen.queryByText("success@example.com")).not.toBeInTheDocument();
+      expect(screen.getByText("failed@example.com")).toBeInTheDocument();
     });
   });
 
-  it('should display error message and retry button on error', async () => {
-    (SignInLogger.getRecentSignIns as any).mockRejectedValue(new Error('Database error'));
+  it("should display error message and retry button on error", async () => {
+    (SignInLogger.getRecentSignIns as any).mockRejectedValue(new Error("Database error"));
 
     render(<QuickSignInCheck />);
 
     await waitFor(() => {
-      expect(screen.getByText('Failed to fetch records')).toBeInTheDocument();
-      expect(screen.getByText('Retry')).toBeInTheDocument();
+      expect(screen.getByText("Failed to fetch records")).toBeInTheDocument();
+      expect(screen.getByText("Retry")).toBeInTheDocument();
     });
   });
 
-  it('should retry fetching when retry button is clicked', async () => {
+  it("should retry fetching when retry button is clicked", async () => {
     (SignInLogger.getRecentSignIns as any)
-      .mockRejectedValueOnce(new Error('Error'))
+      .mockRejectedValueOnce(new Error("Error"))
       .mockResolvedValueOnce([]);
 
     render(<QuickSignInCheck />);
 
     await waitFor(() => {
-      expect(screen.getByText('Retry')).toBeInTheDocument();
+      expect(screen.getByText("Retry")).toBeInTheDocument();
     });
 
-    const retryButton = screen.getByText('Retry');
+    const retryButton = screen.getByText("Retry");
     retryButton.click();
 
     await waitFor(() => {
@@ -145,11 +145,11 @@ describe('QuickSignInCheck', () => {
     render(<QuickSignInCheck />);
 
     await waitFor(() => {
-      expect(screen.getByText('No records found')).toBeInTheDocument();
+      expect(screen.getByText("No records found")).toBeInTheDocument();
     });
   });
 
-  it('should respect limit prop', async () => {
+  it("should respect limit prop", async () => {
     const mockRecords = Array.from({ length: 20 }, (_, i) => ({
       id: i + 1,
       email: `test${i + 1}@example.com`,
@@ -169,15 +169,15 @@ describe('QuickSignInCheck', () => {
     });
   });
 
-  it('should display device info when available', async () => {
+  it("should display device info when available", async () => {
     const mockRecords = [
       {
         id: 1,
-        email: 'test@example.com',
+        email: "test@example.com",
         success: true,
         sign_in_at: new Date().toISOString(),
         failure_reason: null,
-        device_info: { browser: 'Chrome', os: 'Windows' },
+        device_info: { browser: "Chrome", os: "Windows" },
       },
     ];
 
@@ -190,4 +190,3 @@ describe('QuickSignInCheck', () => {
     });
   });
 });
-

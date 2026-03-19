@@ -17,7 +17,9 @@ const AUTH_EXCLUDED_PREFIXES = [
 ];
 
 const isExcludedPath = (pathname: string): boolean => {
-  return AUTH_EXCLUDED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  return AUTH_EXCLUDED_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
 };
 
 const isAdminPath = (pathname: string): boolean => {

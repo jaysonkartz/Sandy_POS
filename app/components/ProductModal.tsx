@@ -81,9 +81,9 @@ export default function ProductModal({ isOpen, onClose, categoryId }: ProductMod
                   <CldImage
                     alt={product.title}
                     className="w-full h-48 object-cover rounded mb-2"
+                    height={384}
                     src={product.heroImage || product.imagesUrl}
                     width={640}
-                    height={384}
                   />
                   <h3 className="font-semibold">{product.title}</h3>
                   <p className="text-gray-600">${product.price}</p>

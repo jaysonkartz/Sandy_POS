@@ -60,13 +60,11 @@ export default function ForgotPasswordPage() {
             initial={{ opacity: 0, y: -10 }}
           >
             <p className="text-center">
-              Password reset email sent! Please check your inbox and follow the instructions to reset your password.
+              Password reset email sent! Please check your inbox and follow the instructions to
+              reset your password.
             </p>
             <div className="mt-4 text-center">
-              <Link
-                className="text-blue-600 hover:text-blue-500 font-medium"
-                href="/login"
-              >
+              <Link className="text-blue-600 hover:text-blue-500 font-medium" href="/login">
                 Back to Login
               </Link>
             </div>

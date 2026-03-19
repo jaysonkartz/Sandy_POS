@@ -41,27 +41,25 @@ export default function EditProductModal({ product, onClose, onUpdate }: EditPro
   const [currentImageUrl, setCurrentImageUrl] = useState(product.image_url || "");
   const [variants, setVariants] = useState<ProductVariant[]>(product.variants || []);
 
-
-
   // Fetch variants when component mounts
   useEffect(() => {
     const fetchVariants = async () => {
       try {
         const { data, error } = await supabase
-          .from('product_variants')
-          .select('*')
-          .eq('product_id', product.id)
-          .order('created_at', { ascending: true });
+          .from("product_variants")
+          .select("*")
+          .eq("product_id", product.id)
+          .order("created_at", { ascending: true });
 
         if (error) throw error;
         setVariants(data || []);
       } catch (err) {
-        console.error('Error fetching variants:', err);
+        console.error("Error fetching variants:", err);
       }
     };
 
     fetchVariants();
-  }, [supabase, product.id]);
+  }, [product.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,12 +121,12 @@ export default function EditProductModal({ product, onClose, onUpdate }: EditPro
               {currentImageUrl ? (
                 <div className="relative inline-block">
                   <CldImage
+                    unoptimized
                     alt={editedProduct.Product}
                     className="w-32 h-32 object-cover rounded-lg border"
+                    height={128}
                     src={currentImageUrl}
                     width={128}
-                    height={128}
-                    unoptimized
                   />
                   <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-20 transition-all rounded-lg flex items-center justify-center">
                     <Edit3 className="w-6 h-6 text-white opacity-0 hover:opacity-100 transition-opacity" />

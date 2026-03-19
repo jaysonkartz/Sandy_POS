@@ -27,7 +27,11 @@ export default function Header() {
       return;
     }
 
-    const { data: userData } = await supabase.from("users").select("role").eq("id", userId).single();
+    const { data: userData } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", userId)
+      .single();
     setUserRole(userData?.role || "");
   };
 
@@ -86,23 +90,23 @@ export default function Header() {
         <div className="mx-auto w-full max-w-7xl px-3 sm:px-6 lg:px-8">
           <div className="h-14 flex items-center justify-between gap-3">
             <Link
-              href="/"
-              className="flex items-center gap-2 hover:opacity-90 transition-opacity"
               aria-label="Go to homepage"
+              className="flex items-center gap-2 hover:opacity-90 transition-opacity"
+              href="/"
             >
               <Image
+                priority
                 alt="Hong Guan"
                 className="h-50 w-20 rounded-lg object-cover"
+                height={50}
                 src="/HongGuan_Icon.jpg"
                 width={80}
-                height={50}
-                priority
               />
-              <span className="hidden sm:block font-semibold text-gray-900">Hong Guan</span>
+              {/* <span className="hidden sm:block font-semibold text-gray-900">Hong Guan</span> */}
             </Link>
 
             <div className="flex items-center gap-2">
-              {(pathname === "/" || pathname.startsWith("/dashboard")) && (
+              {/* {(pathname === "/" || pathname.startsWith("/dashboard")) && (
                 <a
                   className="hidden sm:inline-flex items-center justify-center text-sm text-gray-600 hover:text-gray-900"
                   href="https://wa.me/6593254825"
@@ -111,9 +115,13 @@ export default function Header() {
                 >
                   WhatsApp
                 </a>
-              )}
+              )} */}
 
-              <TopBarLogin session={session} userRole={userRole} onLoginSuccess={handleLoginSuccess} />
+              <TopBarLogin
+                session={session}
+                userRole={userRole}
+                onLoginSuccess={handleLoginSuccess}
+              />
             </div>
           </div>
         </div>

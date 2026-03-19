@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { supabasePublic } from "@/app/lib/supabaseClient";
+import { supabase, supabasePublic } from "@/app/lib/supabaseClient";
 import { CATEGORY_ID_NAME_MAP } from "@/app/(admin)/const/category";
 
 interface Product {
@@ -52,7 +52,6 @@ export const useProducts = (
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-
   // Get category name by id
   const getCategoryName = useCallback((category: string | number) => {
     return CATEGORY_ID_NAME_MAP[String(category)] || "Unknown Category";
@@ -67,6 +66,154 @@ export const useProducts = (
     setSearchTerm("");
   }, []);
 
+  const resolveCustomerId = useCallback(async (): Promise<string | null> => {
+    if (!session?.user) return null;
+
+    try {
+      if (session.user.id) {
+        const { data: customerByUserId, error: userIdError } = await supabase
+          .from("customers")
+          .select("id, user_id")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+
+        if (!userIdError && customerByUserId?.id) {
+          return String(customerByUserId.id);
+        }
+      }
+
+      if (session.user.email) {
+        const { data: customersByEmail, error: emailError } = await supabase
+          .from("customers")
+          .select("id, user_id")
+          .eq("email", session.user.email);
+
+        if (!emailError && customersByEmail?.length) {
+          const matchedCustomer =
+            customersByEmail.find(
+              (c: { user_id?: string | null }) => c.user_id === session.user.id
+            ) || customersByEmail[0];
+
+          if (matchedCustomer?.id) {
+            return String(matchedCustomer.id);
+          }
+        }
+      }
+    } catch {
+      return null;
+    }
+
+    return null;
+  }, [session]);
+
+  const applyLatestPriceHistory = useCallback(
+    async (sourceProducts: Product[]): Promise<Product[]> => {
+      if (sourceProducts.length === 0) {
+        return sourceProducts;
+      }
+
+      const customerId = await resolveCustomerId();
+
+      const productIds = Array.from(new Set(sourceProducts.map((p) => p.id).filter(Boolean)));
+      if (productIds.length === 0) {
+        return sourceProducts;
+      }
+
+      try {
+        let historyQuery = supabase
+          .from("product_price_history")
+          .select("product_id, customer_id, original_price, last_price_update, created_at")
+          .in("product_id", productIds);
+
+        historyQuery = customerId
+          ? historyQuery.or(`customer_id.is.null,customer_id.eq.${customerId}`)
+          : historyQuery.is("customer_id", null);
+
+        const { data: priceHistoryRows, error: priceHistoryError } = await historyQuery;
+
+        if (priceHistoryError || !priceHistoryRows?.length) {
+          return sourceProducts;
+        }
+
+        const latestByProductId = new Map<
+          number,
+          { price: number; timestampMs: number; isSpecificCustomer: boolean }
+        >();
+
+        priceHistoryRows.forEach(
+          (row: {
+            product_id?: number;
+            customer_id?: string | null;
+            original_price?: number | null;
+            last_price_update?: string | null;
+            created_at?: string | null;
+          }) => {
+            if (!row.product_id) {
+              return;
+            }
+
+            const nextPrice = typeof row.original_price === "number" ? row.original_price : null;
+            if (typeof nextPrice !== "number" || Number.isNaN(nextPrice) || nextPrice <= 0) {
+              return;
+            }
+
+            const timestampMs = Date.parse(row.last_price_update || row.created_at || "");
+            const normalizedTimestampMs = Number.isNaN(timestampMs) ? 0 : timestampMs;
+            const nextIsSpecificCustomer = !!row.customer_id;
+
+            const existing = latestByProductId.get(row.product_id);
+
+            if (!existing) {
+              latestByProductId.set(row.product_id, {
+                price: nextPrice,
+                timestampMs: normalizedTimestampMs,
+                isSpecificCustomer: nextIsSpecificCustomer,
+              });
+              return;
+            }
+
+            const isNewer = normalizedTimestampMs > existing.timestampMs;
+            const isSameTimeButPreferGlobal =
+              normalizedTimestampMs === existing.timestampMs &&
+              !nextIsSpecificCustomer &&
+              existing.isSpecificCustomer;
+
+            if (isNewer || isSameTimeButPreferGlobal) {
+              latestByProductId.set(row.product_id, {
+                price: nextPrice,
+                timestampMs: normalizedTimestampMs,
+                isSpecificCustomer: nextIsSpecificCustomer,
+              });
+            }
+          }
+        );
+
+        if (!latestByProductId.size) {
+          return sourceProducts;
+        }
+
+        return sourceProducts.map((product) => {
+          const resolved = latestByProductId.get(product.id);
+          if (!resolved) {
+            return product;
+          }
+
+          if (typeof resolved.price !== "number") {
+            return product;
+          }
+
+          return {
+            ...product,
+            price: resolved.price,
+          };
+        });
+      } catch {
+        return sourceProducts;
+      }
+    },
+    [resolveCustomerId]
+  );
+
   // Memoized filtered products
   const filteredProducts = useMemo(() => {
     let filtered = products;
@@ -77,25 +224,27 @@ export const useProducts = (
         // Handle both category ID (number/string) and category name (string)
         const productCategory = product.Category;
         const selectedCategoryId = selectedCategory;
-        
+
         // Skip if product category is null/undefined
         if (!productCategory) {
           return false;
         }
-        
+
         // Check if it matches the category ID directly
-        if (productCategory === selectedCategoryId || 
-            String(productCategory) === selectedCategoryId ||
-            Number(productCategory) === Number(selectedCategoryId)) {
+        if (
+          productCategory === selectedCategoryId ||
+          String(productCategory) === selectedCategoryId ||
+          Number(productCategory) === Number(selectedCategoryId)
+        ) {
           return true;
         }
-        
+
         // Check if it matches the category name
         const categoryName = getCategoryName(selectedCategoryId);
         if (productCategory === categoryName) {
           return true;
         }
-        
+
         return false;
       });
     }
@@ -103,20 +252,19 @@ export const useProducts = (
     // Then filter by search term
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (product) => {
-          return (
-            (product.Product && String(product.Product).toLowerCase().includes(searchLower)) ||
-            (product.Product_CH && String(product.Product_CH).toLowerCase().includes(searchLower)) ||
-            (product["Item Code"] && String(product["Item Code"]).toLowerCase().includes(searchLower)) ||
-            (product.Category && String(product.Category).toLowerCase().includes(searchLower))
-          );
-        }
-      );
+      filtered = filtered.filter((product) => {
+        return (
+          (product.Product && String(product.Product).toLowerCase().includes(searchLower)) ||
+          (product.Product_CH && String(product.Product_CH).toLowerCase().includes(searchLower)) ||
+          (product["Item Code"] &&
+            String(product["Item Code"]).toLowerCase().includes(searchLower)) ||
+          (product.Category && String(product.Category).toLowerCase().includes(searchLower))
+        );
+      });
     }
 
     return filtered;
-  }, [products, selectedCategory, searchTerm]);
+  }, [products, selectedCategory, searchTerm, getCategoryName]);
 
   const productGroups = useMemo(() => {
     // First, group products by category
@@ -171,7 +319,7 @@ export const useProducts = (
       // Check if Supabase environment variables are configured
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-      
+
       if (!supabaseUrl || !supabaseKey) {
         setError("Supabase environment variables not configured. Please set up .env.local file.");
         setLoading(false);
@@ -190,9 +338,9 @@ export const useProducts = (
         throw productsError;
       }
 
-      setProducts(productsData || []);
+      const resolvedProducts = await applyLatestPriceHistory(productsData || []);
+      setProducts(resolvedProducts);
     } catch (error) {
-      
       // Use mock data when database fails
       const mockProducts = [
         // Dried Seafood (Category ID: 6)
@@ -212,7 +360,7 @@ export const useProducts = (
           price: 15.99,
           uom: "kg",
           stock_quantity: 50,
-          image_url: "/Img/Dried Seafood/Dried Anchovy.png"
+          image_url: "/Img/Dried Seafood/Dried Anchovy.png",
         },
         {
           id: 2,
@@ -227,10 +375,10 @@ export const useProducts = (
           Country_CH: "泰國",
           Variation: "Large",
           Variation_CH: "大號",
-          price: 22.50,
+          price: 22.5,
           uom: "kg",
           stock_quantity: 30,
-          image_url: "/Img/Dried Seafood/Dried Shrimp.png"
+          image_url: "/Img/Dried Seafood/Dried Shrimp.png",
         },
         {
           id: 3,
@@ -248,7 +396,7 @@ export const useProducts = (
           price: 28.99,
           uom: "kg",
           stock_quantity: 25,
-          image_url: "/Img/Dried Seafood/Dried Squid.png"
+          image_url: "/Img/Dried Seafood/Dried Squid.png",
         },
         {
           id: 4,
@@ -263,10 +411,10 @@ export const useProducts = (
           Country_CH: "馬來西亞",
           Variation: "Small",
           Variation_CH: "小號",
-          price: 18.50,
+          price: 18.5,
           uom: "kg",
           stock_quantity: 40,
-          image_url: "/Img/Dried Seafood/Dried Silverfish.png"
+          image_url: "/Img/Dried Seafood/Dried Silverfish.png",
         },
         // Dried Chilli (Category ID: 1) - 20+ products
         {
@@ -285,7 +433,7 @@ export const useProducts = (
           price: 8.99,
           uom: "kg",
           stock_quantity: 100,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         {
           id: 6,
@@ -303,7 +451,7 @@ export const useProducts = (
           price: 12.99,
           uom: "kg",
           stock_quantity: 75,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         {
           id: 13,
@@ -318,10 +466,10 @@ export const useProducts = (
           Country_CH: "印度",
           Variation: "Medium",
           Variation_CH: "中辣",
-          price: 9.50,
+          price: 9.5,
           uom: "kg",
           stock_quantity: 80,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         {
           id: 14,
@@ -339,7 +487,7 @@ export const useProducts = (
           price: 11.99,
           uom: "kg",
           stock_quantity: 60,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         {
           id: 15,
@@ -357,7 +505,7 @@ export const useProducts = (
           price: 15.99,
           uom: "kg",
           stock_quantity: 40,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         {
           id: 16,
@@ -372,10 +520,10 @@ export const useProducts = (
           Country_CH: "非洲",
           Variation: "Hot",
           Variation_CH: "辣",
-          price: 10.50,
+          price: 10.5,
           uom: "kg",
           stock_quantity: 70,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         {
           id: 17,
@@ -393,7 +541,7 @@ export const useProducts = (
           price: 9.99,
           uom: "kg",
           stock_quantity: 55,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         {
           id: 18,
@@ -408,10 +556,10 @@ export const useProducts = (
           Country_CH: "泰國",
           Variation: "Very Hot",
           Variation_CH: "很辣",
-          price: 13.50,
+          price: 13.5,
           uom: "kg",
           stock_quantity: 65,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         {
           id: 19,
@@ -429,7 +577,7 @@ export const useProducts = (
           price: 14.99,
           uom: "kg",
           stock_quantity: 45,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         {
           id: 20,
@@ -447,7 +595,7 @@ export const useProducts = (
           price: 11.25,
           uom: "kg",
           stock_quantity: 50,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         {
           id: 21,
@@ -465,7 +613,7 @@ export const useProducts = (
           price: 10.75,
           uom: "kg",
           stock_quantity: 60,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         {
           id: 22,
@@ -480,10 +628,10 @@ export const useProducts = (
           Country_CH: "墨西哥",
           Variation: "Mild",
           Variation_CH: "微辣",
-          price: 12.50,
+          price: 12.5,
           uom: "kg",
           stock_quantity: 35,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         {
           id: 23,
@@ -501,7 +649,7 @@ export const useProducts = (
           price: 13.25,
           uom: "kg",
           stock_quantity: 30,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         {
           id: 24,
@@ -519,7 +667,7 @@ export const useProducts = (
           price: 9.75,
           uom: "kg",
           stock_quantity: 55,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         {
           id: 25,
@@ -534,10 +682,10 @@ export const useProducts = (
           Country_CH: "墨西哥",
           Variation: "Mild",
           Variation_CH: "微辣",
-          price: 8.50,
+          price: 8.5,
           uom: "kg",
           stock_quantity: 70,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         {
           id: 26,
@@ -555,7 +703,7 @@ export const useProducts = (
           price: 16.99,
           uom: "kg",
           stock_quantity: 25,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         {
           id: 27,
@@ -573,7 +721,7 @@ export const useProducts = (
           price: 24.99,
           uom: "kg",
           stock_quantity: 15,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         {
           id: 28,
@@ -591,7 +739,7 @@ export const useProducts = (
           price: 29.99,
           uom: "kg",
           stock_quantity: 10,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         {
           id: 29,
@@ -606,10 +754,10 @@ export const useProducts = (
           Country_CH: "千里達",
           Variation: "Extreme Hot",
           Variation_CH: "極辣",
-          price: 27.50,
+          price: 27.5,
           uom: "kg",
           stock_quantity: 12,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         {
           id: 30,
@@ -627,7 +775,7 @@ export const useProducts = (
           price: 7.99,
           uom: "kg",
           stock_quantity: 90,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         {
           id: 31,
@@ -645,7 +793,7 @@ export const useProducts = (
           price: 18.99,
           uom: "kg",
           stock_quantity: 40,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         {
           id: 32,
@@ -660,10 +808,10 @@ export const useProducts = (
           Country_CH: "敘利亞",
           Variation: "Medium",
           Variation_CH: "中辣",
-          price: 14.50,
+          price: 14.5,
           uom: "kg",
           stock_quantity: 35,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         {
           id: 33,
@@ -681,7 +829,7 @@ export const useProducts = (
           price: 16.75,
           uom: "kg",
           stock_quantity: 28,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         {
           id: 34,
@@ -699,7 +847,7 @@ export const useProducts = (
           price: 22.99,
           uom: "kg",
           stock_quantity: 20,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         // Beans & Legumes (Category ID: 2)
         {
@@ -718,7 +866,7 @@ export const useProducts = (
           price: 6.99,
           uom: "kg",
           stock_quantity: 80,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         {
           id: 8,
@@ -733,10 +881,10 @@ export const useProducts = (
           Country_CH: "泰國",
           Variation: "Large",
           Variation_CH: "大號",
-          price: 7.50,
+          price: 7.5,
           uom: "kg",
           stock_quantity: 65,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         // Nuts & Seeds (Category ID: 3)
         {
@@ -755,7 +903,7 @@ export const useProducts = (
           price: 24.99,
           uom: "kg",
           stock_quantity: 35,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         {
           id: 10,
@@ -773,7 +921,7 @@ export const useProducts = (
           price: 32.99,
           uom: "kg",
           stock_quantity: 20,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         // Grains (Category ID: 5)
         {
@@ -792,7 +940,7 @@ export const useProducts = (
           price: 6.99,
           uom: "kg",
           stock_quantity: 80,
-          image_url: "/product-placeholder.png"
+          image_url: "/product-placeholder.png",
         },
         {
           id: 12,
@@ -810,16 +958,16 @@ export const useProducts = (
           price: 9.99,
           uom: "kg",
           stock_quantity: 55,
-          image_url: "/product-placeholder.png"
-        }
+          image_url: "/product-placeholder.png",
+        },
       ];
-      
+
       setProducts(mockProducts);
       return;
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory]);
+  }, [selectedCategory, applyLatestPriceHistory]);
 
   const refetchProducts = useCallback(async () => {
     setLoading(true);
@@ -832,12 +980,12 @@ export const useProducts = (
       try {
         await fetchProducts();
       } catch (error) {
-      setLoading(false);
+        setLoading(false);
       }
     };
-    
+
     loadProducts();
-  }, [selectedCategory]); // Only depend on selectedCategory, not session or fetchProducts
+  }, [fetchProducts]);
 
   return {
     products,

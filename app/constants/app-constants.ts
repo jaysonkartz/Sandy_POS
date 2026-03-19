@@ -13,7 +13,7 @@ export const WHATSAPP_DEFAULT_MESSAGE = "Hi, I would like to inquire about your 
 // Category mapping
 export const CATEGORY_MAP: { [key: string]: string } = {
   "1": "Dried Chilli",
-  "2": "Beans & Legumes", 
+  "2": "Beans & Legumes",
   "3": "Nuts & Seeds",
   "4": "Herbs and Spices",
   "5": "Grains",

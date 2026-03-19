@@ -7,7 +7,8 @@ import Link from "next/link";
 import { CldImage } from "next-cloudinary";
 
 export default function CartPage() {
-  const { cart, removeFromCart, updateQuantity, getCartTotal, clearCart } = useCart();
+  const { cart, removeFromCart, updateQuantity, getCartTotal, clearCart, resolveCartItemKey } =
+    useCart();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [removingItem, setRemovingItem] = useState<null | string | number>(null);
 
@@ -32,12 +33,16 @@ export default function CartPage() {
     }
   };
 
-  const handleRemoveItem = async (itemId: string | number) => {
-    setRemovingItem(itemId);
+  const getVariationLabel = (item: (typeof cart)[number]) => item.Variation ?? item.variation;
+  const getOriginLabel = (item: (typeof cart)[number]) =>
+    item.Country_of_origin ?? item.country_of_origin ?? item.origin;
+
+  const handleRemoveCartItem = async (item: (typeof cart)[number]) => {
+    const itemKey = resolveCartItemKey(item);
+    setRemovingItem(itemKey);
     try {
-      // Simulate API call delay
       await new Promise((resolve) => setTimeout(resolve, 300));
-      removeFromCart(itemId);
+      removeFromCart(item.id, itemKey);
     } finally {
       setRemovingItem(null);
     }
@@ -86,7 +91,7 @@ export default function CartPage() {
         <div className="lg:col-span-2 space-y-4">
           {cart.map((item) => (
             <div
-              key={item.id}
+              key={resolveCartItemKey(item)}
               className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow"
             >
               <div className="p-6">
@@ -97,9 +102,9 @@ export default function CartPage() {
                       <CldImage
                         alt={item.title}
                         className="w-24 h-24 object-cover rounded-lg"
+                        height={96}
                         src={item.imagesUrl}
                         width={96}
-                        height={96}
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
                           target.src = "/product-placeholder.png";
@@ -111,6 +116,26 @@ export default function CartPage() {
                   {/* Product Details */}
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-lg text-gray-800 mb-2">{item.title}</h3>
+                    {(getVariationLabel(item) || getOriginLabel(item)) && (
+                      <div className="mb-3 space-y-1 text-sm text-gray-600">
+                        {getVariationLabel(item) && (
+                          <p>
+                            Variation:{" "}
+                            <span className="font-medium text-gray-800">
+                              {getVariationLabel(item)}
+                            </span>
+                          </p>
+                        )}
+                        {getOriginLabel(item) && (
+                          <p>
+                            Origin:{" "}
+                            <span className="font-medium text-gray-800">
+                              {getOriginLabel(item)}
+                            </span>
+                          </p>
+                        )}
+                      </div>
+                    )}
                     <div className="text-2xl font-bold text-blue-600 mb-4">
                       ${(item.price ?? 0).toFixed(2)}/kg
                     </div>
@@ -123,7 +148,13 @@ export default function CartPage() {
                           <button
                             className="p-2 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             disabled={item.quantity <= 1}
-                            onClick={() => updateQuantity(item.id, Math.max(0, item.quantity - 1))}
+                            onClick={() =>
+                              updateQuantity(
+                                item.id,
+                                Math.max(0, item.quantity - 1),
+                                resolveCartItemKey(item)
+                              )
+                            }
                           >
                             <Minus className="w-4 h-4" />
                           </button>
@@ -134,7 +165,11 @@ export default function CartPage() {
                             className="p-2 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             disabled={item.quantity >= item.maxQuantity}
                             onClick={() =>
-                              updateQuantity(item.id, Math.min(item.maxQuantity, item.quantity + 1))
+                              updateQuantity(
+                                item.id,
+                                Math.min(item.maxQuantity, item.quantity + 1),
+                                resolveCartItemKey(item)
+                              )
                             }
                           >
                             <Plus className="w-4 h-4" />
@@ -145,11 +180,11 @@ export default function CartPage() {
 
                       <button
                         className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                        disabled={removingItem === item.id}
+                        disabled={removingItem === resolveCartItemKey(item)}
                         title="Remove item"
-                        onClick={() => handleRemoveItem(item.id)}
+                        onClick={() => handleRemoveCartItem(item)}
                       >
-                        {removingItem === item.id ? (
+                        {removingItem === resolveCartItemKey(item) ? (
                           <Loader2 className="w-5 h-5 animate-spin" />
                         ) : (
                           <Trash2 className="w-5 h-5" />
@@ -179,6 +214,26 @@ export default function CartPage() {
             <h2 className="text-xl font-bold text-gray-800 mb-6">Order Summary</h2>
 
             <div className="space-y-3 mb-6">
+              <div className="max-h-48 overflow-auto pr-1 space-y-2">
+                {cart.map((item) => (
+                  <div
+                    key={`summary-${resolveCartItemKey(item)}`}
+                    className="text-sm text-gray-700"
+                  >
+                    <div className="flex justify-between gap-2">
+                      <span className="truncate">{item.title}</span>
+                      <span>x{item.quantity}</span>
+                    </div>
+                    {(getVariationLabel(item) || getOriginLabel(item)) && (
+                      <p className="text-xs text-gray-500 truncate">
+                        {getVariationLabel(item) ? `Variation: ${getVariationLabel(item)}` : ""}
+                        {getVariationLabel(item) && getOriginLabel(item) ? " | " : ""}
+                        {getOriginLabel(item) ? `Origin: ${getOriginLabel(item)}` : ""}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
               <div className="flex justify-between text-gray-600">
                 <span>
                   Subtotal ({cart.length} {cart.length === 1 ? "item" : "items"})

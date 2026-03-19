@@ -18,7 +18,7 @@ export const useSession = (): UseSessionReturn => {
   const [isLoading, setIsLoading] = useState(true);
 
   const withTimeout = useCallback(
-    async <T,>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> => {
+    async <T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> => {
       let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
 
       const timeoutPromise = new Promise<never>((_, reject) => {

@@ -12,9 +12,35 @@ interface OrderDetails {
   }>;
 }
 
+interface ProductInquiryDetails {
+  productName: string;
+  variation?: string;
+  origin?: string;
+  weight?: string;
+}
+
 export const useWhatsApp = () => {
-  const handleCustomerService = useCallback(() => {
-    const whatsappUrl = `https://wa.me/${WHATSAPP_PHONE_NUMBER}?text=${encodeURIComponent(WHATSAPP_DEFAULT_MESSAGE)}`;
+  const handleCustomerService = useCallback((productDetails?: ProductInquiryDetails) => {
+    const inquiryLines = [WHATSAPP_DEFAULT_MESSAGE];
+
+    if (productDetails) {
+      inquiryLines.push("", "Product details:", `Product: ${productDetails.productName}`);
+
+      if (productDetails.variation) {
+        inquiryLines.push(`Variation: ${productDetails.variation}`);
+      }
+
+      if (productDetails.origin) {
+        inquiryLines.push(`Origin: ${productDetails.origin}`);
+      }
+
+      if (productDetails.weight) {
+        inquiryLines.push(`Weight: ${productDetails.weight}`);
+      }
+    }
+
+    const message = inquiryLines.join("\n");
+    const whatsappUrl = `https://wa.me/${WHATSAPP_PHONE_NUMBER}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, "_blank");
   }, []);
 

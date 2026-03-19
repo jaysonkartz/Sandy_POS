@@ -229,27 +229,24 @@ function HomeContent({
   return (
     <div className="w-full">
       {/* Shopee-like sticky filter bar (under the main header) */}
-      {/* IMPORTANT: make this full-width and allow wrap on small screens */}
       <div className="sticky top-14 sm:top-16 z-40 border-b border-gray-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
         <div className="w-full px-3 sm:px-6 py-2.5">
           <div className="flex flex-wrap items-center gap-2">
             <LanguageToggle isEnglish={isEnglish} onToggle={() => setIsEnglish(!isEnglish)} />
 
-            {/* Search should be flex-1 but not shrink to nothing */}
             <div className="flex-1 min-w-[160px]">
               <SearchBar
-                searchTerm={searchTerm}
                 isEnglish={isEnglish}
-                onSearchChange={handleSearchChange}
+                searchTerm={searchTerm}
                 onClearSearch={handleClearSearch}
+                onSearchChange={handleSearchChange}
               />
             </div>
 
-            {/* Category dropdown gets its own min width */}
             <div className="w-full sm:w-auto sm:min-w-[220px]">
               <CategoryFilter
-                selectedCategory={selectedCategory}
                 isEnglish={isEnglish}
+                selectedCategory={selectedCategory}
                 onCategoryChange={setSelectedCategory}
               />
             </div>
@@ -257,45 +254,46 @@ function HomeContent({
         </div>
       </div>
 
-      {/* Content area: full width on mobile, with bottom padding for bottom nav / floating btn */}
+      {/* Content area */}
       <div className="w-full px-3 sm:px-6 py-4 pb-24">
-        {/* Search Results Info */}
         {searchTerm && (
           <SearchResultsInfo
-            searchTerm={searchTerm}
-            resultsCount={productGroups.length}
             isEnglish={isEnglish}
+            resultsCount={productGroups.length}
+            searchTerm={searchTerm}
           />
         )}
 
-        {/* Product Grid */}
         <ProductGrid
-          productGroups={productGroups}
+          countryMap={countryMap}
           isEnglish={isEnglish}
+          isLoggingIn={isLoggingIn}
           isSessionValid={isSessionValid}
-          userRole={userRole}
+          productGroups={productGroups}
           selectedOptions={selectedOptions}
           selectedProducts={selectedProducts}
-          countryMap={countryMap}
-          isLoggingIn={isLoggingIn}
-          onOptionChange={handleOptionChange}
+          userRole={userRole}
           onAddToOrder={addToOrder}
-          onUpdateQuantity={updateOrderQuantity}
           onCustomerService={handleCustomerService}
           onOpenPhotoEditor={openPhotoEditor}
           onOpenSignupModal={() => setIsSignupModalOpen(true)}
+          onOptionChange={handleOptionChange}
+          onUpdateQuantity={updateOrderQuantity}
         />
 
         {/* No Results */}
-        {productGroups.length === 0 && !loading && !isInitialLoad && <NoResults isEnglish={isEnglish} />}
+        {productGroups.length === 0 && !loading && !isInitialLoad && (
+          <NoResults isEnglish={isEnglish} />
+        )}
 
-        {/* Fallback for stuck loading */}
         {productGroups.length === 0 && !loading && isInitialLoad && (
           <div className="text-center py-8">
-            <p className="text-gray-500 mb-4">{isEnglish ? "Loading products..." : "正在加载产品..."}</p>
+            <p className="text-gray-500 mb-4">
+              {isEnglish ? "Loading products..." : "正在加载产品..."}
+            </p>
             <button
-              onClick={() => window.location.reload()}
               className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              onClick={() => window.location.reload()}
             >
               {isEnglish ? "Refresh Page" : "刷新页面"}
             </button>
@@ -303,38 +301,36 @@ function HomeContent({
         )}
       </div>
 
-      {/* Floating Order Button */}
+      {/* Floating buttons */}
       <div className="fixed right-4 z-50 bottom-[calc(env(safe-area-inset-bottom)+6rem)] flex flex-col gap-3 items-end">
-  {selectedProducts.length > 0 && (
-    <FloatingOrderButton
-      selectedProductsCount={selectedProducts.length}
-      isEnglish={isEnglish}
-      onClick={() => setIsOrderPanelOpen(true)}
-    />
-  )}
+        {selectedProducts.length > 0 && (
+          <FloatingOrderButton
+            isEnglish={isEnglish}
+            selectedProductsCount={selectedProducts.length}
+            onClick={() => setIsOrderPanelOpen(true)}
+          />
+        )}
 
-<ScrollToTop show={showScrollTop} onClick={scrollToTop} />
-</div>
+        <ScrollToTop show={showScrollTop} onClick={scrollToTop} />
+      </div>
       {/* Order Panel */}
       <OrderPanel
-        isOpen={isOrderPanelOpen}
-        isEnglish={isEnglish}
-        selectedProducts={selectedProducts}
+        countryMap={countryMap}
+        customerAddress={customerAddress}
         customerName={customerName}
         customerPhone={customerPhone}
-        customerAddress={customerAddress}
+        isEnglish={isEnglish}
+        isOpen={isOrderPanelOpen}
         isSubmitting={isSubmitting}
+        selectedProducts={selectedProducts}
         session={session}
         onClose={() => setIsOrderPanelOpen(false)}
-        onUpdateQuantity={updateOrderQuantity}
+        onCustomerAddressChange={setCustomerAddress}
         onCustomerNameChange={setCustomerName}
         onCustomerPhoneChange={setCustomerPhone}
-        onCustomerAddressChange={setCustomerAddress}
         onSubmitOrder={handleSubmitOrder}
+        onUpdateQuantity={updateOrderQuantity}
       />
-
-      {/* Scroll to Top */}
-      <ScrollToTop show={showScrollTop} onClick={scrollToTop} />
 
       {/* Signup Modal */}
       <SignupModal
@@ -361,7 +357,10 @@ function HomeContent({
 export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [isEnglish, setIsEnglish] = useState(true);
+
+  // UI open/close comes from CartContext
   const { isOrderPanelOpen, setIsOrderPanelOpen } = useCart();
+
   const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [selectedOptions, setSelectedOptions] = useState<SelectedOptions>({});
@@ -371,18 +370,36 @@ export default function Home() {
     uploadedFiles: File[];
   } | null>(null);
 
-  const { session, userRole, isLoading: sessionLoading, isSessionValid, forceRefreshSession } =
-    useSession();
+  const {
+    session,
+    userRole,
+    isLoading: sessionLoading,
+    isSessionValid,
+    forceRefreshSession,
+  } = useSession();
 
-  const { products, loading, error, productGroups, setProducts, searchTerm, handleSearchChange, handleClearSearch } =
-    useProducts(selectedCategory, isEnglish, session);
+  const {
+    products,
+    loading,
+    error,
+    productGroups,
+    setProducts,
+    searchTerm,
+    handleSearchChange,
+    handleClearSearch,
+  } = useProducts(selectedCategory, isEnglish, session);
 
   const { countryMap } = useCountries();
   const { showScrollTop, scrollToTop } = useScroll();
   const { handleCustomerService, sendWhatsAppNotification } = useWhatsApp();
 
-  const { isPhotoEditorOpen, selectedProductForPhoto, openPhotoEditor, closePhotoEditor, handleImageUpdate } =
-    usePhotoEditor();
+  const {
+    isPhotoEditorOpen,
+    selectedProductForPhoto,
+    openPhotoEditor,
+    closePhotoEditor,
+    handleImageUpdate,
+  } = usePhotoEditor();
 
   const {
     selectedProducts,
@@ -399,58 +416,66 @@ export default function Home() {
     submitOrder,
   } = useOrder();
 
+  // ✅ FIX: when logout happens (session becomes null), clear order state
+  useEffect(() => {
+    if (!session) {
+      clearOrder(); // this clears selectedProducts (the floating button uses this)
+      setIsOrderPanelOpen(false);
+    }
+  }, [session, clearOrder, setIsOrderPanelOpen]);
+
   return (
     <Suspense fallback={<LoadingSkeleton />}>
       <HomeContent
-        selectedCategory={selectedCategory}
-        setSelectedCategory={setSelectedCategory}
-        isEnglish={isEnglish}
-        setIsEnglish={setIsEnglish}
-        isOrderPanelOpen={isOrderPanelOpen}
-        setIsOrderPanelOpen={setIsOrderPanelOpen}
-        isSignupModalOpen={isSignupModalOpen}
-        setIsSignupModalOpen={setIsSignupModalOpen}
-        isLoggingIn={isLoggingIn}
-        setIsLoggingIn={setIsLoggingIn}
-        selectedOptions={selectedOptions}
-        setSelectedOptions={setSelectedOptions}
-        reviewData={reviewData}
-        setReviewData={setReviewData}
-        session={session}
-        userRole={userRole}
-        sessionLoading={sessionLoading}
-        isSessionValid={isSessionValid}
-        forceRefreshSession={forceRefreshSession}
-        products={products}
-        loading={loading}
-        error={error}
-        productGroups={productGroups}
-        setProducts={setProducts}
-        searchTerm={searchTerm}
-        handleSearchChange={handleSearchChange}
-        handleClearSearch={handleClearSearch}
-        countryMap={countryMap}
-        showScrollTop={showScrollTop}
-        scrollToTop={scrollToTop}
-        handleCustomerService={handleCustomerService}
-        sendWhatsAppNotification={sendWhatsAppNotification}
-        isPhotoEditorOpen={isPhotoEditorOpen}
-        selectedProductForPhoto={selectedProductForPhoto}
-        openPhotoEditor={openPhotoEditor}
+        addToOrder={addToOrder}
+        clearOrder={clearOrder}
         closePhotoEditor={closePhotoEditor}
-        handleImageUpdate={handleImageUpdate}
-        selectedProducts={selectedProducts}
+        countryMap={countryMap}
+        customerAddress={customerAddress}
         customerName={customerName}
         customerPhone={customerPhone}
-        customerAddress={customerAddress}
+        error={error}
+        forceRefreshSession={forceRefreshSession}
+        handleClearSearch={handleClearSearch}
+        handleCustomerService={handleCustomerService}
+        handleImageUpdate={handleImageUpdate}
+        handleSearchChange={handleSearchChange}
+        isEnglish={isEnglish}
+        isLoggingIn={isLoggingIn}
+        isOrderPanelOpen={isOrderPanelOpen}
+        isPhotoEditorOpen={isPhotoEditorOpen}
+        isSessionValid={isSessionValid}
+        isSignupModalOpen={isSignupModalOpen}
         isSubmitting={isSubmitting}
+        loading={loading}
+        openPhotoEditor={openPhotoEditor}
+        productGroups={productGroups}
+        products={products}
+        reviewData={reviewData}
+        scrollToTop={scrollToTop}
+        searchTerm={searchTerm}
+        selectedCategory={selectedCategory}
+        selectedOptions={selectedOptions}
+        selectedProductForPhoto={selectedProductForPhoto}
+        selectedProducts={selectedProducts}
+        sendWhatsAppNotification={sendWhatsAppNotification}
+        session={session}
+        sessionLoading={sessionLoading}
+        setCustomerAddress={setCustomerAddress}
         setCustomerName={setCustomerName}
         setCustomerPhone={setCustomerPhone}
-        setCustomerAddress={setCustomerAddress}
-        addToOrder={addToOrder}
-        updateOrderQuantity={updateOrderQuantity}
-        clearOrder={clearOrder}
+        setIsEnglish={setIsEnglish}
+        setIsLoggingIn={setIsLoggingIn}
+        setIsOrderPanelOpen={setIsOrderPanelOpen}
+        setIsSignupModalOpen={setIsSignupModalOpen}
+        setProducts={setProducts}
+        setReviewData={setReviewData}
+        setSelectedCategory={setSelectedCategory}
+        setSelectedOptions={setSelectedOptions}
+        showScrollTop={showScrollTop}
         submitOrder={submitOrder}
+        updateOrderQuantity={updateOrderQuantity}
+        userRole={userRole}
       />
     </Suspense>
   );

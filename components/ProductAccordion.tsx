@@ -46,8 +46,9 @@ export default function ProductAccordion({ categories }: { categories: Category[
   };
 
   const getItemQuantityInCart = (productId: number) => {
-    const item = cart.find((item) => item.id === productId);
-    return item?.quantity || 0;
+    return cart
+      .filter((item) => item.id === productId)
+      .reduce((sum, item) => sum + (item.quantity || 0), 0);
   };
 
   return (

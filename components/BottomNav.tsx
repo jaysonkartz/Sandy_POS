@@ -18,10 +18,9 @@ const HIDE_ON_PREFIXES = [
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const { cartCount, openOrderPanel, isOrderPanelOpen } = useCart();
   const shouldHide = HIDE_ON_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
   if (shouldHide) return null;
-
-  const { cartCount, openOrderPanel, isOrderPanelOpen } = useCart();
 
   const items: Array<{
     href: string;
@@ -45,17 +44,17 @@ export default function BottomNav() {
               label === "Cart"
                 ? isOrderPanelOpen
                 : href === "/"
-                ? pathname === "/"
-                : pathname.startsWith(href);
+                  ? pathname === "/"
+                  : pathname.startsWith(href);
 
             // ✅ Cart: open panel, no navigation
             if (label === "Cart") {
               return (
                 <button
                   key={label}
+                  className="flex flex-col items-center justify-center gap-1 text-[11px] text-gray-600"
                   type="button"
                   onClick={openOrderPanel}
-                  className="flex flex-col items-center justify-center gap-1 text-[11px] text-gray-600"
                 >
                   <span className="relative">
                     <Icon className={active ? "h-5 w-5 text-blue-600" : "h-5 w-5"} />
@@ -74,8 +73,8 @@ export default function BottomNav() {
             return (
               <Link
                 key={label}
-                href={href}
                 className="flex flex-col items-center justify-center gap-1 text-[11px] text-gray-600"
+                href={href}
               >
                 <span className="relative">
                   <Icon className={active ? "h-5 w-5 text-blue-600" : "h-5 w-5"} />

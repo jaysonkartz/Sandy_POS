@@ -3,12 +3,21 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useSession } from "../useSession";
 import { Session } from "@supabase/supabase-js";
 
-const mockGetSession = vi.fn();
-const mockOnAuthStateChange = vi.fn();
-const mockSignOut = vi.fn();
-const mockFromSelect = vi.fn();
-const mockFromEq = vi.fn();
-const mockFromSingle = vi.fn();
+const {
+  mockGetSession,
+  mockOnAuthStateChange,
+  mockSignOut,
+  mockFromSelect,
+  mockFromEq,
+  mockFromSingle,
+} = vi.hoisted(() => ({
+  mockGetSession: vi.fn(),
+  mockOnAuthStateChange: vi.fn(),
+  mockSignOut: vi.fn(),
+  mockFromSelect: vi.fn(),
+  mockFromEq: vi.fn(),
+  mockFromSingle: vi.fn(),
+}));
 
 vi.mock("@/app/lib/supabaseClient", () => ({
   supabase: {
@@ -32,6 +41,7 @@ const buildSession = (overrides: Partial<Session> = {}): Session =>
     expires_at: 9999999999,
     expires_in: 3600,
     token_type: "bearer",
+
     user: {
       id: "user-1",
       email: "user@example.com",
@@ -40,8 +50,9 @@ const buildSession = (overrides: Partial<Session> = {}): Session =>
       aud: "authenticated",
       created_at: "2026-01-01T00:00:00.000Z",
     },
+
     ...overrides,
-  } as Session);
+  }) as Session;
 
 describe("useSession", () => {
   beforeEach(() => {

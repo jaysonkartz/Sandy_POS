@@ -39,11 +39,14 @@ interface OrderHistoryAnalyticsProps {
 
 export default function OrderHistoryAnalytics({ orders }: OrderHistoryAnalyticsProps) {
   const { sortedMonthlyData, statusData, totalSpent } = useMemo(() => {
-    const monthlyData = orders.reduce((acc: Record<string, number>, order) => {
-      const month = new Date(order.created_at).toLocaleString("default", { month: "short" });
-      acc[month] = (acc[month] || 0) + Number(order.total_amount || 0);
-      return acc;
-    }, {} as Record<string, number>);
+    const monthlyData = orders.reduce(
+      (acc: Record<string, number>, order) => {
+        const month = new Date(order.created_at).toLocaleString("default", { month: "short" });
+        acc[month] = (acc[month] || 0) + Number(order.total_amount || 0);
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
     const monthOrder = [
       "Jan",
@@ -60,15 +63,21 @@ export default function OrderHistoryAnalytics({ orders }: OrderHistoryAnalyticsP
       "Dec",
     ];
 
-    const sorted = monthOrder.reduce((acc: Record<string, number>, month: string) => {
-      if (monthlyData[month]) acc[month] = monthlyData[month];
-      return acc;
-    }, {} as Record<string, number>);
+    const sorted = monthOrder.reduce(
+      (acc: Record<string, number>, month: string) => {
+        if (monthlyData[month]) acc[month] = monthlyData[month];
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
-    const status = orders.reduce((acc: Record<string, number>, order) => {
-      acc[order.status] = (acc[order.status] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const status = orders.reduce(
+      (acc: Record<string, number>, order) => {
+        acc[order.status] = (acc[order.status] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
     const total = orders.reduce((sum, order) => sum + Number(order.total_amount || 0), 0);
 

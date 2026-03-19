@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/app/lib/supabaseClient';
-import { SignInLogger } from '@/app/lib/signin-logger';
+import { NextRequest, NextResponse } from "next/server";
+import { SignInLogger } from "@/app/lib/signin-logger";
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,15 +7,12 @@ export async function POST(request: NextRequest) {
     const { userId, email, success, failureReason, sessionId, userAgent } = body;
 
     if (!userId || !email) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     // Get client IP address
     const ipAddress = SignInLogger.getClientIP(request);
-    
+
     // Get device info from user agent
     const deviceInfo = SignInLogger.getDeviceInfo(userAgent);
 
@@ -34,10 +30,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error logging sign-in:', error);
-    return NextResponse.json(
-      { error: 'Failed to log sign-in' },
-      { status: 500 }
-    );
+    console.error("Error logging sign-in:", error);
+    return NextResponse.json({ error: "Failed to log sign-in" }, { status: 500 });
   }
 }

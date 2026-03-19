@@ -35,84 +35,95 @@ interface ProductGridProps {
   selectedProducts: { product: Product; quantity: number }[];
   countryMap: { [key: string]: { name: string; chineseName: string } };
   isLoggingIn: boolean;
-  onOptionChange: (title: string, type: "variation" | "countryId" | "weight", value: string) => void;
+  onOptionChange: (
+    title: string,
+    type: "variation" | "countryId" | "weight",
+    value: string
+  ) => void;
   onAddToOrder: (product: Product) => void;
   onUpdateQuantity: (productId: number, newQuantity: number) => void;
-  onCustomerService: () => void;
+  onCustomerService: (productDetails: {
+    productName: string;
+    variation?: string;
+    origin?: string;
+    weight?: string;
+  }) => void;
   onOpenPhotoEditor: (product: Product) => void;
   onOpenSignupModal: () => void;
 }
 
-export const ProductGrid = memo<ProductGridProps>(({
-  productGroups,
-  isEnglish,
-  isSessionValid,
-  userRole,
-  selectedOptions,
-  selectedProducts,
-  countryMap,
-  isLoggingIn,
-  onOptionChange,
-  onAddToOrder,
-  onUpdateQuantity,
-  onCustomerService,
-  onOpenPhotoEditor,
-  onOpenSignupModal,
-}) => {
-  const quantityByProductId = useMemo(() => {
-    const result: Record<number, number> = {};
-    selectedProducts.forEach(({ product, quantity }) => {
-      result[product.id] = quantity;
+export const ProductGrid = memo<ProductGridProps>(
+  ({
+    productGroups,
+    isEnglish,
+    isSessionValid,
+    userRole,
+    selectedOptions,
+    selectedProducts,
+    countryMap,
+    isLoggingIn,
+    onOptionChange,
+    onAddToOrder,
+    onUpdateQuantity,
+    onCustomerService,
+    onOpenPhotoEditor,
+    onOpenSignupModal,
+  }) => {
+    const quantityByProductId = useMemo(() => {
+      const result: Record<number, number> = {};
+      selectedProducts.forEach(({ product, quantity }) => {
+        result[product.id] = quantity;
+      });
+      return result;
+    }, [selectedProducts]);
+
+    // Group products by category for display
+    const categoryDisplayGroups: { [category: string]: typeof productGroups } = {};
+    productGroups.forEach((group) => {
+      if (!categoryDisplayGroups[group.category]) {
+        categoryDisplayGroups[group.category] = [];
+      }
+      categoryDisplayGroups[group.category].push(group);
     });
-    return result;
-  }, [selectedProducts]);
 
-  // Group products by category for display
-  const categoryDisplayGroups: { [category: string]: typeof productGroups } = {};
-  productGroups.forEach((group) => {
-    if (!categoryDisplayGroups[group.category]) {
-      categoryDisplayGroups[group.category] = [];
-    }
-    categoryDisplayGroups[group.category].push(group);
-  });
+    return (
+      <div className="space-y-8">
+        {Object.entries(categoryDisplayGroups).map(([category, groups]) => (
+          <div key={category} className="space-y-4">
+            {/* Category Header */}
+            <div className="border-b border-gray-200 pb-2">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
+                {isEnglish ? category : groups[0]?.products[0]?.Category_CH || category}
+              </h2>
+            </div>
 
-  return (
-    <div className="space-y-8">
-      {Object.entries(categoryDisplayGroups).map(([category, groups]) => (
-        <div key={category} className="space-y-4">
-          {/* Category Header */}
-          <div className="border-b border-gray-200 pb-2">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
-              {isEnglish ? category : groups[0]?.products[0]?.Category_CH || category}
-            </h2>
+            {/* Products in this category */}
+            <div className="grid grid-cols-2 [@media(min-width:480px)]:grid-cols-4 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+              {groups.map((group) => (
+                <ProductCard
+                  key={group.title}
+                  countryMap={countryMap}
+                  currentQuantityByProductId={quantityByProductId}
+                  group={group}
+                  isEnglish={isEnglish}
+                  isLoggingIn={isLoggingIn}
+                  isSessionValid={isSessionValid}
+                  selectedOptions={selectedOptions}
+                  userRole={userRole}
+                  onAddToOrder={onAddToOrder}
+                  onCustomerService={onCustomerService}
+                  onOpenPhotoEditor={onOpenPhotoEditor}
+                  onOpenSignupModal={onOpenSignupModal}
+                  onOptionChange={onOptionChange}
+                  onUpdateQuantity={onUpdateQuantity}
+                />
+              ))}
+            </div>
           </div>
-
-          {/* Products in this category */}
-          <div className="grid grid-cols-2 [@media(min-width:480px)]:grid-cols-4 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-            {groups.map((group) => (
-              <ProductCard
-                key={group.title}
-                group={group}
-                isEnglish={isEnglish}
-                isSessionValid={isSessionValid}
-                userRole={userRole}
-                selectedOptions={selectedOptions}
-                currentQuantityByProductId={quantityByProductId}
-                countryMap={countryMap}
-                isLoggingIn={isLoggingIn}
-                onOptionChange={onOptionChange}
-                onAddToOrder={onAddToOrder}
-                onUpdateQuantity={onUpdateQuantity}
-                onCustomerService={onCustomerService}
-                onOpenPhotoEditor={onOpenPhotoEditor}
-                onOpenSignupModal={onOpenSignupModal}
-              />
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-});
+        ))}
+      </div>
+    );
+  }
+);
 
 ProductGrid.displayName = "ProductGrid";

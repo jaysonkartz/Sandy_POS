@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { SignInLogger } from '@/app/lib/signin-logger';
-import { Database } from '@/types/supabase';
+import { useState, useEffect } from "react";
+import { SignInLogger } from "@/app/lib/signin-logger";
+import { Database } from "@/types/supabase";
 
-type SignInRecord = Database['public']['Tables']['sign_in_records']['Row'];
+type SignInRecord = Database["public"]["Tables"]["sign_in_records"]["Row"];
 
 interface SignInHistoryProps {
   userId?: string;
@@ -22,7 +22,7 @@ export default function SignInHistory({ userId, limit = 10, showAll = false }: S
       try {
         setLoading(true);
         let data: SignInRecord[];
-        
+
         if (showAll) {
           data = await SignInLogger.getRecentSignIns(limit);
         } else if (userId) {
@@ -30,11 +30,11 @@ export default function SignInHistory({ userId, limit = 10, showAll = false }: S
         } else {
           data = [];
         }
-        
+
         setRecords(data);
       } catch (err) {
-        setError('Failed to fetch sign-in history');
-        console.error('Error fetching sign-in history:', err);
+        setError("Failed to fetch sign-in history");
+        console.error("Error fetching sign-in history:", err);
       } finally {
         setLoading(false);
       }
@@ -49,12 +49,12 @@ export default function SignInHistory({ userId, limit = 10, showAll = false }: S
 
   const getStatusBadge = (success: boolean) => {
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-        success 
-          ? 'bg-green-100 text-green-800' 
-          : 'bg-red-100 text-red-800'
-      }`}>
-        {success ? 'Success' : 'Failed'}
+      <span
+        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+          success ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+        }`}
+      >
+        {success ? "Success" : "Failed"}
       </span>
     );
   };
@@ -68,28 +68,20 @@ export default function SignInHistory({ userId, limit = 10, showAll = false }: S
   }
 
   if (error) {
-    return (
-      <div className="text-red-600 text-center p-4">
-        {error}
-      </div>
-    );
+    return <div className="text-red-600 text-center p-4">{error}</div>;
   }
 
   if (records.length === 0) {
-    return (
-      <div className="text-gray-500 text-center p-4">
-        No sign-in records found
-      </div>
-    );
+    return <div className="text-gray-500 text-center p-4">No sign-in records found</div>;
   }
 
   return (
     <div className="bg-white shadow rounded-lg">
       <div className="px-4 py-5 sm:p-6">
         <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-          {showAll ? 'Recent Sign-ins' : 'Sign-in History'}
+          {showAll ? "Recent Sign-ins" : "Sign-in History"}
         </h3>
-        
+
         <div className="overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -125,26 +117,24 @@ export default function SignInHistory({ userId, limit = 10, showAll = false }: S
                   <td className="px-6 py-4 whitespace-nowrap">
                     {getStatusBadge(record.success)}
                     {record.failure_reason && (
-                      <div className="text-xs text-red-600 mt-1">
-                        {record.failure_reason}
-                      </div>
+                      <div className="text-xs text-red-600 mt-1">{record.failure_reason}</div>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {formatDate(record.sign_in_at)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {record.ip_address || 'N/A'}
+                    {record.ip_address || "N/A"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {record.device_info ? (
                       <div className="text-xs">
-                        <div>{(record.device_info as any)?.browser || 'Unknown'}</div>
-                        <div>{(record.device_info as any)?.os || 'Unknown'}</div>
-                        <div>{(record.device_info as any)?.deviceType || 'Unknown'}</div>
+                        <div>{(record.device_info as any)?.browser || "Unknown"}</div>
+                        <div>{(record.device_info as any)?.os || "Unknown"}</div>
+                        <div>{(record.device_info as any)?.deviceType || "Unknown"}</div>
                       </div>
                     ) : (
-                      'N/A'
+                      "N/A"
                     )}
                   </td>
                   {showAll && (

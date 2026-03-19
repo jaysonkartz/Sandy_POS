@@ -75,9 +75,9 @@ export default function Categories() {
               <CldImage
                 alt={category.title}
                 className="w-full h-full object-cover"
+                height={384}
                 src={category.imageUrl}
                 width={640}
-                height={384}
               />
             </div>
             <div className="p-4">

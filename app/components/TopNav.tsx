@@ -35,10 +35,10 @@ export default function TopNav() {
     try {
       // Reset local state first
       setIsLoggedIn(false);
-      
+
       // Perform comprehensive logout
       await performLogout();
-      
+
       // Navigate to home page
       router.push("/");
     } catch (error) {

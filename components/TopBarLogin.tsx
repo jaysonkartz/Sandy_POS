@@ -13,7 +13,11 @@ interface TopBarLoginProps {
   onLoginSuccess?: () => void;
 }
 
-export default function TopBarLogin({ session, userRole: propUserRole, onLoginSuccess }: TopBarLoginProps) {
+export default function TopBarLogin({
+  session,
+  userRole: propUserRole,
+  onLoginSuccess,
+}: TopBarLoginProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -75,7 +79,7 @@ export default function TopBarLogin({ session, userRole: propUserRole, onLoginSu
       setUserRole("");
       setCustomerName("");
       setIsDropdownOpen(false);
-      
+
       // Perform comprehensive logout
       await performLogoutWithReload();
     } catch (error) {
@@ -170,8 +174,8 @@ export default function TopBarLogin({ session, userRole: propUserRole, onLoginSu
         </button>
       )}
 
-      <CustomerLoginModal 
-        isOpen={isModalOpen} 
+      <CustomerLoginModal
+        isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onLoginSuccess={() => {
           onLoginSuccess?.();

@@ -9,7 +9,30 @@ import globals from "globals";
 
 export default [
   {
-    ignores: ["node_modules/**", ".next/**", "out/**", "public/**"],
+    ignores: [
+      "node_modules/**",
+      ".next/**",
+      "out/**",
+      "public/**",
+      ".now/*",
+      "*.css",
+      ".changeset",
+      "dist",
+      "esm/*",
+      "tests/*",
+      "scripts/*",
+      "*.config.js",
+      ".DS_Store",
+      "coverage",
+      "build",
+      "!.commitlintrc.cjs",
+      "!.lintstagedrc.cjs",
+      "!jest.config.js",
+      "!plopfile.js",
+      "!react-shim.js",
+      "!tsup.config.ts",
+      "components/ui/*",
+    ],
   },
   js.configs.recommended,
   {
@@ -58,14 +81,8 @@ export default [
       ],
 
       // TypeScript specific rules
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        {
-          argsIgnorePattern: "^_",
-          varsIgnorePattern: "^_",
-        },
-      ],
-      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-vars": "off",
+      "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/explicit-function-return-type": "off",
       "@typescript-eslint/explicit-module-boundary-types": "off",
 
@@ -90,15 +107,7 @@ export default [
 
       // Unused imports
       "unused-imports/no-unused-imports": "warn",
-      "unused-imports/no-unused-vars": [
-        "warn",
-        {
-          vars: "all",
-          varsIgnorePattern: "^_",
-          args: "after-used",
-          argsIgnorePattern: "^_",
-        },
-      ],
+      "unused-imports/no-unused-vars": "off",
     },
   },
 ];

@@ -24,7 +24,10 @@ interface UsePhotoEditorReturn {
   selectedProductForPhoto: Product | null;
   openPhotoEditor: (product: Product) => void;
   closePhotoEditor: () => void;
-  handleImageUpdate: (imageUrl: string, setProducts: React.Dispatch<React.SetStateAction<Product[]>>) => void;
+  handleImageUpdate: (
+    imageUrl: string,
+    setProducts: React.Dispatch<React.SetStateAction<Product[]>>
+  ) => void;
 }
 
 export const usePhotoEditor = (): UsePhotoEditorReturn => {
@@ -41,15 +44,18 @@ export const usePhotoEditor = (): UsePhotoEditorReturn => {
     setSelectedProductForPhoto(null);
   }, []);
 
-  const handleImageUpdate = useCallback((imageUrl: string, setProducts: React.Dispatch<React.SetStateAction<Product[]>>) => {
-    if (selectedProductForPhoto) {
-      setProducts((prevProducts) =>
-        prevProducts.map((p) =>
-          p.id === selectedProductForPhoto.id ? { ...p, image_url: imageUrl } : p
-        )
-      );
-    }
-  }, [selectedProductForPhoto]);
+  const handleImageUpdate = useCallback(
+    (imageUrl: string, setProducts: React.Dispatch<React.SetStateAction<Product[]>>) => {
+      if (selectedProductForPhoto) {
+        setProducts((prevProducts) =>
+          prevProducts.map((p) =>
+            p.id === selectedProductForPhoto.id ? { ...p, image_url: imageUrl } : p
+          )
+        );
+      }
+    },
+    [selectedProductForPhoto]
+  );
 
   return {
     isPhotoEditorOpen,

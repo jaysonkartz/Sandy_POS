@@ -9,8 +9,8 @@ type OptionPickerProps = {
   onChange: (next: string) => void;
 
   // behavior tweaks
-  emptyMode?: "hide" | "na";      // default "hide"
-  disabledWhenSingle?: boolean;    // default true (shows pill)
+  emptyMode?: "hide" | "na"; // default "hide"
+  disabledWhenSingle?: boolean; // default true (shows pill)
   className?: string;
 };
 
@@ -53,9 +53,7 @@ export default function OptionPicker({
     return (
       <div className={`text-sm text-gray-600 ${className}`}>
         <span className="mr-2">{label}:</span>
-        <span className="inline-flex items-center px-2 py-0.5 bg-gray-100 rounded">
-          {single}
-        </span>
+        <span className="inline-flex items-center px-2 py-0.5 bg-gray-100 rounded">{single}</span>
       </div>
     );
   }
@@ -67,9 +65,9 @@ export default function OptionPicker({
     <label className={`block text-sm ${className}`}>
       <div className="mb-1 text-gray-600">{label}</div>
       <select
+        className="w-full border border-gray-300 rounded px-2 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
         value={safeValue}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full border border-gray-300 rounded px-2 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
       >
         {list.map((o) => (
           <option key={o} value={o}>

@@ -28,9 +28,9 @@ export function ProductCard({ product }: ProductCardProps) {
         <CldImage
           alt={product.name}
           className="w-full h-full object-cover"
+          height={600}
           src={product.imageUrl || "/placeholder-image.jpg"}
           width={600}
-          height={600}
         />
         <button
           className="absolute top-2 right-2 p-1.5 rounded-full bg-white/80 hover:bg-white transition-colors duration-200"

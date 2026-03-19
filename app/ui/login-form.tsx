@@ -37,11 +37,7 @@ export default function LoginForm() {
 
       if (data?.user) {
         // Log successful sign-in
-        await logSignInSuccess(
-          data.user.id, 
-          data.user.email || email,
-          data.session?.access_token
-        );
+        await logSignInSuccess(data.user.id, data.user.email || email, data.session?.access_token);
 
         router.push("/dashboard");
         router.refresh();
@@ -88,16 +84,12 @@ export default function LoginForm() {
                 type={showPassword ? "text" : "password"}
               />
               <button
-                type="button"
-                className="absolute right-3 top-1/2 -translate-y-1/2 z-10 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded p-1"
-                onClick={() => setShowPassword(!showPassword)}
                 aria-label={showPassword ? "Hide password" : "Show password"}
+                className="absolute right-3 top-1/2 -translate-y-1/2 z-10 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded p-1"
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
               >
-                {showPassword ? (
-                  <EyeOff className="h-5 w-5" />
-                ) : (
-                  <Eye className="h-5 w-5" />
-                )}
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
             </div>
           </div>
@@ -106,8 +98,8 @@ export default function LoginForm() {
         <div className="text-right mt-2">
           <button
             className="text-sm text-blue-600 hover:text-blue-500 transition-colors duration-200"
-            onClick={() => router.push("/forgot-password")}
             type="button"
+            onClick={() => router.push("/forgot-password")}
           >
             Forgot password?
           </button>

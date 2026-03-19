@@ -11,12 +11,12 @@ export default function ProductMultiImageUpload({
 }) {
   return (
     <CldUploadWidget
-      uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!}
       options={{
         multiple: true,
         maxFiles: 10,
         folder: `products/${productId}`,
       }}
+      uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!}
       onSuccess={(result: any, { widget }) => {
         // Cloudinary fires once per file; easiest is to use "queuesEnd"
         // But quick approach: capture URL on each success and let parent handle batching if needed.
@@ -26,9 +26,9 @@ export default function ProductMultiImageUpload({
     >
       {({ open }) => (
         <button
+          className="px-3 py-2 rounded-md bg-blue-600 text-white"
           type="button"
           onClick={() => open()}
-          className="px-3 py-2 rounded-md bg-blue-600 text-white"
         >
           Upload Photos
         </button>

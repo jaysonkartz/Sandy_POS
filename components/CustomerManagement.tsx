@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 import { LazyMotion, domAnimation, m } from "framer-motion";
 
@@ -47,13 +47,10 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
 
   const [error, setError] = useState<string | null>(null);
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = useCallback(async () => {
     setIsLoading(true);
     try {
-      let query = supabase
-        .from("customers")
-        .select("*")
-        .order("created_at", { ascending: false });
+      let query = supabase.from("customers").select("*").order("created_at", { ascending: false });
 
       // Approval workflow: pending customers are stored as status=false
       if (view === "pending") {
@@ -110,11 +107,11 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [view]);
 
   useEffect(() => {
     fetchCustomers();
-  }, [view]);
+  }, [fetchCustomers]);
 
   // Reset to first page if current page exceeds total pages
   useEffect(() => {
@@ -168,23 +165,25 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
 
         if (error) {
           console.error("Error adding customer:", error);
-          
+
           // Handle PGRST204 error for missing columns
           if (error.code === "PGRST204") {
             let retryData = { ...customerData };
             let errorMessage = "";
-            
+
             if (error.message?.includes("customer_code")) {
-              errorMessage = "The customer_code column doesn't exist in the database. Please run the migration script 'scripts/add-customer-code-column.sql' in your Supabase SQL Editor, or try adding the customer without a code.";
+              errorMessage =
+                "The customer_code column doesn't exist in the database. Please run the migration script 'scripts/add-customer-code-column.sql' in your Supabase SQL Editor, or try adding the customer without a code.";
               delete retryData.customer_code;
             } else if (error.message?.includes("whatsapp_notifications")) {
-              errorMessage = "The whatsapp_notifications column doesn't exist in the database. Please run the migration script 'scripts/add-whatsapp-notifications-column.sql' in your Supabase SQL Editor.";
+              errorMessage =
+                "The whatsapp_notifications column doesn't exist in the database. Please run the migration script 'scripts/add-whatsapp-notifications-column.sql' in your Supabase SQL Editor.";
               delete retryData.whatsapp_notifications;
             }
-            
+
             if (errorMessage) {
               setError(errorMessage);
-              
+
               // Retry without the problematic column as a fallback
               const { error: retryError } = await supabase.from("customers").insert([retryData]);
               if (!retryError) {
@@ -255,7 +254,7 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
     try {
       // Clear any previous errors
       setError(null);
-      
+
       // Validate input data before sending
       if (!editingCustomer.id) {
         setError("Invalid customer ID. Please refresh and try again.");
@@ -284,7 +283,7 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
         updateData.customer_code = null;
       }
 
-      console.log("Updating customer with data:", {
+      console.warn("Updating customer with data:", {
         id: editingCustomer.id,
         ...updateData,
       });
@@ -305,7 +304,7 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
           errorString: String(error),
           errorToString: error.toString(),
         };
-        
+
         try {
           // Try to access all known Supabase error properties
           errorInfo.message = error.message;
@@ -314,7 +313,7 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
           errorInfo.code = error.code;
           errorInfo.statusCode = (error as any).statusCode;
           errorInfo.status = (error as any).status;
-          
+
           // Try to serialize the entire error object
           try {
             errorInfo.fullError = JSON.parse(JSON.stringify(error));
@@ -322,22 +321,22 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
             errorInfo.fullError = String(error);
             errorInfo.serializationError = String(e);
           }
-          
+
           // Try to get all enumerable properties
           errorInfo.allProperties = Object.keys(error);
           errorInfo.propertyCount = Object.keys(error).length;
-          
+
           for (const key in error) {
             if (Object.prototype.hasOwnProperty.call(error, key)) {
               errorInfo[`prop_${key}`] = (error as any)[key];
             }
           }
-          
+
           // Try Object.getOwnPropertyNames for non-enumerable properties
           try {
             const allProps = Object.getOwnPropertyNames(error);
             errorInfo.allOwnPropertyNames = allProps;
-            allProps.forEach(prop => {
+            allProps.forEach((prop) => {
               try {
                 errorInfo[`ownProp_${prop}`] = (error as any)[prop];
               } catch (e) {
@@ -350,14 +349,14 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
         } catch (e) {
           errorInfo.serializationError = String(e);
         }
-        
+
         console.error("Supabase error updating customer - Full details:", errorInfo);
         console.error("Raw error object:", error);
         console.error("Error JSON:", JSON.stringify(error, null, 2));
-        
+
         // Extract meaningful error message
         let errorMessage = "Failed to update customer";
-        
+
         // Try multiple ways to extract the message
         if (error.message) {
           errorMessage = error.message;
@@ -374,46 +373,50 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
           const keys = Object.keys(error);
           if (keys.length === 0) {
             errorMessage = "An unknown error occurred. Please check the console for details.";
-            console.warn("Empty error object detected. This might indicate a Supabase connection issue.");
+            console.warn(
+              "Empty error object detected. This might indicate a Supabase connection issue."
+            );
           } else {
             errorMessage = `Update failed: ${keys.join(", ")}`;
           }
         }
-        
+
         // Handle specific error codes
         const errorCode = error.code || (error as any).statusCode;
         if (errorCode === "PGRST204") {
           let retryUpdateData = { ...updateData };
           let columnName = "";
-          
+
           if (error.message?.includes("customer_code")) {
             columnName = "customer_code";
             delete retryUpdateData.customer_code;
-            errorMessage = "The customer_code column doesn't exist in the database. The customer was updated without the code. Please run the migration script 'scripts/add-customer-code-column.sql' in your Supabase SQL Editor to enable customer codes.";
+            errorMessage =
+              "The customer_code column doesn't exist in the database. The customer was updated without the code. Please run the migration script 'scripts/add-customer-code-column.sql' in your Supabase SQL Editor to enable customer codes.";
           } else if (error.message?.includes("whatsapp_notifications")) {
             columnName = "whatsapp_notifications";
             delete retryUpdateData.whatsapp_notifications;
-            errorMessage = "The whatsapp_notifications column doesn't exist in the database. The customer was updated without this preference. Please run the migration script 'scripts/add-whatsapp-notifications-column.sql' in your Supabase SQL Editor.";
+            errorMessage =
+              "The whatsapp_notifications column doesn't exist in the database. The customer was updated without this preference. Please run the migration script 'scripts/add-whatsapp-notifications-column.sql' in your Supabase SQL Editor.";
           } else {
             errorMessage = `Database schema error: ${error.message || "Column not found"}. Please check your database schema.`;
           }
-          
+
           if (columnName) {
             // Try to retry the update without the problematic column
-            console.log(`Retrying update without ${columnName}...`);
+            console.warn(`Retrying update without ${columnName}...`);
             const { data: retryData, error: retryError } = await supabase
               .from("customers")
               .update(retryUpdateData)
               .eq("id", editingCustomer.id)
               .select();
-            
+
             if (!retryError && retryData && retryData.length > 0) {
               // Success! Update worked without the problematic column
               setEditingCustomer(null);
               await fetchCustomers();
               return; // Exit early on success
             }
-            
+
             // If retry also failed, show that error instead
             if (retryError) {
               errorMessage = `Update partially completed. Customer info updated but ${columnName} failed: ${retryError.message || "Column not found"}. Please run the appropriate migration script in your Supabase SQL Editor.`;
@@ -434,7 +437,7 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
         } else if (errorCode === 401 || errorCode === 403) {
           errorMessage = "You don't have permission to update this customer.";
         }
-        
+
         setError(errorMessage);
         return;
       }
@@ -449,7 +452,7 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
       await fetchCustomers();
     } catch (error) {
       console.error("Unexpected error updating customer:", error);
-      
+
       // Handle various error types
       let errorMessage = "Failed to update customer";
       if (error instanceof Error) {
@@ -463,7 +466,7 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
           errorMessage = err.details;
         }
       }
-      
+
       setError(errorMessage);
     }
   };
@@ -532,13 +535,17 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Customer Code</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Customer Code
+                  </label>
                   <input
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter customer code (optional)"
                     type="text"
                     value={newCustomer.customer_code || ""}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, customer_code: e.target.value })}
+                    onChange={(e) =>
+                      setNewCustomer({ ...newCustomer, customer_code: e.target.value })
+                    }
                   />
                 </div>
                 <div>
@@ -574,13 +581,18 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
                 </div>
                 <div className="flex items-center">
                   <input
-                    type="checkbox"
-                    id="new_whatsapp_notifications"
                     checked={newCustomer.whatsapp_notifications ?? true}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, whatsapp_notifications: e.target.checked })}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    id="new_whatsapp_notifications"
+                    type="checkbox"
+                    onChange={(e) =>
+                      setNewCustomer({ ...newCustomer, whatsapp_notifications: e.target.checked })
+                    }
                   />
-                  <label htmlFor="new_whatsapp_notifications" className="ml-2 block text-sm text-gray-700">
+                  <label
+                    className="ml-2 block text-sm text-gray-700"
+                    htmlFor="new_whatsapp_notifications"
+                  >
                     Enable WhatsApp notifications
                   </label>
                 </div>
@@ -655,11 +667,15 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
                     placeholder="Enter customer name"
                     type="text"
                     value={editingCustomer.name}
-                    onChange={(e) => setEditingCustomer({ ...editingCustomer, name: e.target.value })}
+                    onChange={(e) =>
+                      setEditingCustomer({ ...editingCustomer, name: e.target.value })
+                    }
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Customer Code</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Customer Code
+                  </label>
                   <input
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter customer code (optional)"
@@ -709,15 +725,21 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
                 </div>
                 <div className="flex items-center">
                   <input
-                    type="checkbox"
-                    id="edit_whatsapp_notifications"
                     checked={editingCustomer.whatsapp_notifications ?? true}
-                    onChange={(e) =>
-                      setEditingCustomer({ ...editingCustomer, whatsapp_notifications: e.target.checked })
-                    }
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    id="edit_whatsapp_notifications"
+                    type="checkbox"
+                    onChange={(e) =>
+                      setEditingCustomer({
+                        ...editingCustomer,
+                        whatsapp_notifications: e.target.checked,
+                      })
+                    }
                   />
-                  <label htmlFor="edit_whatsapp_notifications" className="ml-2 block text-sm text-gray-700">
+                  <label
+                    className="ml-2 block text-sm text-gray-700"
+                    htmlFor="edit_whatsapp_notifications"
+                  >
                     Enable WhatsApp notifications
                   </label>
                 </div>
@@ -746,7 +768,9 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         <div className="p-4 bg-gray-50">
           <h2 className="text-lg font-semibold text-gray-900">Customers List</h2>
-          <p className="text-sm text-gray-500 mt-1">{customers.length} customer{customers.length !== 1 ? 's' : ''} total</p>
+          <p className="text-sm text-gray-500 mt-1">
+            {customers.length} customer{customers.length !== 1 ? "s" : ""} total
+          </p>
         </div>
         {error ? (
           <div className="p-4 text-red-500">Error loading customers: {error}</div>
@@ -764,7 +788,7 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
                 </p>
               </div>
             ) : (
-              <table className="w-full divide-y divide-gray-200" style={{ minWidth: '100%' }}>
+              <table className="w-full divide-y divide-gray-200" style={{ minWidth: "100%" }}>
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -788,7 +812,10 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       WhatsApp
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ minWidth: '200px', width: '200px' }}>
+                    <th
+                      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      style={{ minWidth: "200px", width: "200px" }}
+                    >
                       Actions
                     </th>
                   </tr>
@@ -797,81 +824,96 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
                   {customers
                     .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
                     .map((customer) => (
-                    <tr key={customer.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`font-medium ${customer.customer_code ? "text-gray-900" : "text-gray-400"}`}>
-                          {customer.customer_code || "-"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{customer.name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-600">{customer.email}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-600">{customer.phone || "-"}</td>
-                      <td className="px-6 py-4 text-gray-600">{customer.address || "-"}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            customer.status
-                              ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
-                          }`}
-                        >
-                          {customer.status ? "Active" : "Inactive"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            customer.whatsapp_notifications !== false
-                              ? "bg-green-100 text-green-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
-                        >
-                          {customer.whatsapp_notifications !== false ? "Enabled" : "Disabled"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 text-left" style={{ minWidth: '200px', width: '200px' }}>
-                        <div className="flex items-center gap-3">
-                          <button
-                            className="text-blue-600 hover:text-blue-900 font-medium text-sm whitespace-nowrap"
-                            onClick={() => handleEdit(customer)}
+                      <tr key={customer.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`font-medium ${customer.customer_code ? "text-gray-900" : "text-gray-400"}`}
                           >
-                            Edit
-                          </button>
-                          <button
-                            className={`font-medium text-sm whitespace-nowrap ${
+                            {customer.customer_code || "-"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
+                          {customer.name}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-gray-600">
+                          {customer.email}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-gray-600">
+                          {customer.phone || "-"}
+                        </td>
+                        <td className="px-6 py-4 text-gray-600">{customer.address || "-"}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                               customer.status
-                                ? "text-red-600 hover:text-red-900"
-                                : "text-green-600 hover:text-green-900"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
                             }`}
-                            onClick={() => handleStatusToggle(customer.id, customer.status)}
                           >
-                            {customer.status ? "Deactivate" : "Activate"}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                            {customer.status ? "Active" : "Inactive"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              customer.whatsapp_notifications !== false
+                                ? "bg-green-100 text-green-800"
+                                : "bg-gray-100 text-gray-800"
+                            }`}
+                          >
+                            {customer.whatsapp_notifications !== false ? "Enabled" : "Disabled"}
+                          </span>
+                        </td>
+                        <td
+                          className="px-4 py-4 text-left"
+                          style={{ minWidth: "200px", width: "200px" }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <button
+                              className="text-blue-600 hover:text-blue-900 font-medium text-sm whitespace-nowrap"
+                              onClick={() => handleEdit(customer)}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className={`font-medium text-sm whitespace-nowrap ${
+                                customer.status
+                                  ? "text-red-600 hover:text-red-900"
+                                  : "text-green-600 hover:text-green-900"
+                              }`}
+                              onClick={() => handleStatusToggle(customer.id, customer.status)}
+                            >
+                              {customer.status ? "Deactivate" : "Activate"}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             )}
           </div>
         )}
-        
+
         {/* Pagination */}
         {!isLoading && customers.length > 0 && (
           <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
             <div className="flex-1 flex justify-between sm:hidden">
               <button
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
                 className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
               >
                 Previous
               </button>
               <button
-                onClick={() => setCurrentPage(prev => Math.min(Math.ceil(customers.length / itemsPerPage), prev + 1))}
-                disabled={currentPage >= Math.ceil(customers.length / itemsPerPage)}
                 className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={currentPage >= Math.ceil(customers.length / itemsPerPage)}
+                onClick={() =>
+                  setCurrentPage((prev) =>
+                    Math.min(Math.ceil(customers.length / itemsPerPage), prev + 1)
+                  )
+                }
               >
                 Next
               </button>
@@ -879,32 +921,44 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
             <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm text-gray-700">
-                  Showing{' '}
-                  <span className="font-medium">
-                    {(currentPage - 1) * itemsPerPage + 1}
-                  </span>{' '}
-                  to{' '}
+                  Showing{" "}
+                  <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to{" "}
                   <span className="font-medium">
                     {Math.min(currentPage * itemsPerPage, customers.length)}
-                  </span>{' '}
-                  of{' '}
-                  <span className="font-medium">{customers.length}</span> results
+                  </span>{" "}
+                  of <span className="font-medium">{customers.length}</span> results
                 </p>
               </div>
               <div>
-                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                <nav
+                  aria-label="Pagination"
+                  className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
+                >
                   <button
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
                     className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                   >
                     <span className="sr-only">Previous</span>
-                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                    <svg
+                      aria-hidden="true"
+                      className="h-5 w-5"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        clipRule="evenodd"
+                        d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+                        fillRule="evenodd"
+                      />
                     </svg>
                   </button>
-                  {Array.from({ length: Math.ceil(customers.length / itemsPerPage) }, (_, i) => i + 1)
-                    .filter(page => {
+                  {Array.from(
+                    { length: Math.ceil(customers.length / itemsPerPage) },
+                    (_, i) => i + 1
+                  )
+                    .filter((page) => {
                       const totalPages = Math.ceil(customers.length / itemsPerPage);
                       if (totalPages <= 7) return true;
                       if (page === 1 || page === totalPages) return true;
@@ -914,8 +968,9 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
                     .map((page, index, array) => {
                       const totalPages = Math.ceil(customers.length / itemsPerPage);
                       const showEllipsisBefore = index > 0 && array[index - 1] !== page - 1;
-                      const showEllipsisAfter = index < array.length - 1 && array[index + 1] !== page + 1;
-                      
+                      const showEllipsisAfter =
+                        index < array.length - 1 && array[index + 1] !== page + 1;
+
                       return (
                         <div key={page} className="flex items-center">
                           {showEllipsisBefore && (
@@ -924,12 +979,12 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
                             </span>
                           )}
                           <button
-                            onClick={() => setCurrentPage(page)}
                             className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
                               currentPage === page
-                                ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                                : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                                ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
+                                : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
                             }`}
+                            onClick={() => setCurrentPage(page)}
                           >
                             {page}
                           </button>
@@ -942,13 +997,27 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
                       );
                     })}
                   <button
-                    onClick={() => setCurrentPage(prev => Math.min(Math.ceil(customers.length / itemsPerPage), prev + 1))}
-                    disabled={currentPage >= Math.ceil(customers.length / itemsPerPage)}
                     className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={currentPage >= Math.ceil(customers.length / itemsPerPage)}
+                    onClick={() =>
+                      setCurrentPage((prev) =>
+                        Math.min(Math.ceil(customers.length / itemsPerPage), prev + 1)
+                      )
+                    }
                   >
                     <span className="sr-only">Next</span>
-                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                    <svg
+                      aria-hidden="true"
+                      className="h-5 w-5"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        clipRule="evenodd"
+                        d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                        fillRule="evenodd"
+                      />
                     </svg>
                   </button>
                 </nav>

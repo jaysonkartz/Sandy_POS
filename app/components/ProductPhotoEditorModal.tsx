@@ -43,7 +43,7 @@ export default function ProductPhotoEditorModal({
     let alive = true;
 
     (async () => {
-      console.log("[PhotoEditor] loading images for product:", productId);
+      console.warn("[PhotoEditor] loading images for product:", productId);
       setLoading(true);
 
       const { data, error } = await supabase
@@ -61,7 +61,7 @@ export default function ProductPhotoEditorModal({
         setImages([]);
       } else {
         const list = (data as ProductImageRow[]) || [];
-        console.log("[PhotoEditor] loaded images:", list);
+        console.warn("[PhotoEditor] loaded images:", list);
         setImages(list);
 
         // ✅ initialize counter based on current max sort_order
@@ -85,7 +85,7 @@ export default function ProductPhotoEditorModal({
   if (!isOpen) return null;
 
   async function setAsCover(url: string) {
-    console.log("[PhotoEditor] setAsCover:", url);
+    console.warn("[PhotoEditor] setAsCover:", url);
 
     // 1) mark all as not cover
     const { error: clearErr } = await supabase
@@ -120,7 +120,7 @@ export default function ProductPhotoEditorModal({
   }
 
   async function insertImage(url: string) {
-    console.log("[PhotoEditor] insertImage called with:", url);
+    console.warn("[PhotoEditor] insertImage called with:", url);
 
     const sortOrder = nextSortRef.current++;
     const makeCover = images.length === 0 && !currentImageUrl && sortOrder === 0;
@@ -141,7 +141,7 @@ export default function ProductPhotoEditorModal({
       throw error;
     }
 
-    console.log("[PhotoEditor] inserted row:", data);
+    console.warn("[PhotoEditor] inserted row:", data);
 
     setImages((prev) => [...prev, data as ProductImageRow]);
 
@@ -149,7 +149,7 @@ export default function ProductPhotoEditorModal({
   }
 
   async function deleteImage(row: ProductImageRow) {
-    console.log("[PhotoEditor] deleteImage:", row);
+    console.warn("[PhotoEditor] deleteImage:", row);
 
     const { error } = await supabase.from("product_images").delete().eq("id", row.id);
     if (error) {
@@ -172,7 +172,7 @@ export default function ProductPhotoEditorModal({
             <div className="font-semibold">Edit Product Photo</div>
             <div className="text-sm text-gray-500">{productName}</div>
           </div>
-          <button onClick={onClose} className="p-2 rounded hover:bg-gray-100">
+          <button className="p-2 rounded hover:bg-gray-100" onClick={onClose}>
             <X size={18} />
           </button>
         </div>
@@ -183,66 +183,68 @@ export default function ProductPhotoEditorModal({
             <div className="text-sm font-medium mb-2">Cover</div>
             {coverUrl ? (
               <CldImage
-                src={coverUrl}
                 alt={`${productName} cover image`}
-                width={1200}
-                height={560}
                 className="w-full h-56 object-contain bg-white rounded"
+                height={560}
+                src={coverUrl}
+                width={1200}
               />
             ) : (
-              <div className="h-56 flex items-center justify-center text-gray-400">No image yet</div>
+              <div className="h-56 flex items-center justify-center text-gray-400">
+                No image yet
+              </div>
             )}
           </div>
 
           {/* Upload */}
           <div className="flex items-center gap-3 flex-wrap">
-          <CldUploadWidget
-  uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!}
-  options={{
-    multiple: true,
-    maxFiles: 10,
-    folder: `products/${productId}`,
-    resourceType: "image",
-  }}
-  onUpload={async (result: any) => {
-    // ✅ you should now see MANY events, not just "Uploading to Cloudinary"
-    console.log("[Cloudinary] event:", result?.event);
-    if (result?.event === "success") {
-      console.log("[Cloudinary] full success result:", result);
-      const url = result?.info?.secure_url;
-      console.log("[Cloudinary] secure_url:", url);
+            <CldUploadWidget
+              options={{
+                multiple: true,
+                maxFiles: 10,
+                folder: `products/${productId}`,
+                resourceType: "image",
+              }}
+              uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!}
+              onUpload={async (result: any) => {
+                // ✅ you should now see MANY events, not just "Uploading to Cloudinary"
+                console.warn("[Cloudinary] event:", result?.event);
+                if (result?.event === "success") {
+                  console.warn("[Cloudinary] full success result:", result);
+                  const url = result?.info?.secure_url;
+                  console.warn("[Cloudinary] secure_url:", url);
 
-      if (!url) return;
+                  if (!url) return;
 
-      try {
-        setIsUploading(true);
-        await insertImage(url);
-      } catch (e) {
-        console.error("[Supabase] insertImage failed:", e);
-      } finally {
-        setIsUploading(false);
-      }
-    }
+                  try {
+                    setIsUploading(true);
+                    await insertImage(url);
+                  } catch (e) {
+                    console.error("[Supabase] insertImage failed:", e);
+                  } finally {
+                    setIsUploading(false);
+                  }
+                }
 
-    if (result?.event === "error") {
-      console.error("[Cloudinary] upload error:", result);
-      setIsUploading(false);
-    }
-  }}
->
-  {({ open }) => (
-    <button
-      type="button"
-      onClick={() => {
-        console.log("[Cloudinary] open clicked");
-        open?.();
-      }}
-      className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700"
-    >
-      Upload Photos (Multiple)
-    </button>
-  )}
-</CldUploadWidget>
+                if (result?.event === "error") {
+                  console.error("[Cloudinary] upload error:", result);
+                  setIsUploading(false);
+                }
+              }}
+            >
+              {({ open }) => (
+                <button
+                  className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700"
+                  type="button"
+                  onClick={() => {
+                    console.warn("[Cloudinary] open clicked");
+                    open?.();
+                  }}
+                >
+                  Upload Photos (Multiple)
+                </button>
+              )}
+            </CldUploadWidget>
 
             {loading && <div className="text-sm text-gray-500">Loading...</div>}
             {isUploading && <div className="text-sm text-blue-600">Uploading…</div>}
@@ -251,13 +253,16 @@ export default function ProductPhotoEditorModal({
           {/* Thumbnails */}
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
             {images.map((img) => (
-              <div key={img.id} className="relative group rounded-lg border overflow-hidden bg-white">
+              <div
+                key={img.id}
+                className="relative group rounded-lg border overflow-hidden bg-white"
+              >
                 <CldImage
-                  src={img.image_url}
                   alt={`${productName} thumbnail`}
-                  width={320}
-                  height={192}
                   className="w-full h-24 object-cover"
+                  height={192}
+                  src={img.image_url}
+                  width={320}
                 />
 
                 <div className="absolute inset-x-0 bottom-0 p-1 flex gap-1 bg-black/40 opacity-0 group-hover:opacity-100 transition">
@@ -270,8 +275,8 @@ export default function ProductPhotoEditorModal({
 
                   <button
                     className="p-2 bg-white/90 rounded"
-                    onClick={() => deleteImage(img)}
                     title="Delete"
+                    onClick={() => deleteImage(img)}
                   >
                     <Trash2 size={14} />
                   </button>
