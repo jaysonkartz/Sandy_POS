@@ -17,7 +17,6 @@ interface CustomerLoginModalProps {
 export default function CustomerLoginModal({
   isOpen,
   onClose,  
-  onClose,  
   onLoginSuccess,
 }: CustomerLoginModalProps) {
   const router = useRouter();
@@ -652,6 +651,7 @@ export default function CustomerLoginModal({
               {isRegistering && (
                 <>
                   <div>
+                  <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="phone">
                     Mobile Number
                   </label>
@@ -702,7 +702,21 @@ export default function CustomerLoginModal({
                     </p>
                   )}
                 </div>
+                </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="unit_number">
+                    Unit Number (Optional)
+                  </label>
+                  <input
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    id="unit_number"
+                    placeholder="Enter unit number (e.g., 01-123)"
+                    type="text"
+                    value={unitNumber}
+                    onChange={(e) => setUnitNumber(e.target.value)}
+                  />
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="unit_number">
                     Unit Number (Optional)
@@ -731,6 +745,61 @@ export default function CustomerLoginModal({
                       {isGettingLocation ? "Getting..." : "Use My Location"}
                     </button>
                   </div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700" htmlFor="address">
+                      Address
+                    </label>
+                    <button
+                      type="button"
+                      onClick={getCurrentLocation}
+                      disabled={isGettingLocation}
+                      className="px-3 py-1.5 text-xs bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-green-400"
+                    >
+                      {isGettingLocation ? "Getting..." : "Use My Location"}
+                    </button>
+                  </div>
+
+                  <textarea
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    id="address"
+                    placeholder="Enter your address"
+                    rows={3}
+                    value={(() => {
+                      // Combine address with unit number for display
+                      let displayAddress = formData.address;
+                      if (unitNumber && unitNumber.trim() && displayAddress) {
+                        // Check if unit number is already in address
+                        if (!displayAddress.includes(unitNumber.trim())) {
+                          if (displayAddress.includes("Singapore")) {
+                            displayAddress = displayAddress.replace(
+                              "Singapore",
+                              `#${unitNumber.trim()}, Singapore`
+                            );
+                          } else {
+                            displayAddress = `${displayAddress}, #${unitNumber.trim()}`;
+                          }
+                        }
+                      }
+                      return displayAddress;
+                    })()}
+                    onChange={(e) => {
+                      // Extract base address (remove unit number if user edits)
+                      let baseAddress = e.target.value;
+                      if (unitNumber && unitNumber.trim()) {
+                        baseAddress = baseAddress
+                          .replace(`#${unitNumber.trim()}, `, "")
+                          .replace(`, #${unitNumber.trim()}`, "")
+                          .trim();
+                      }
+                      setLocationError("");
+                      setAddressSource("manual");
+                      setFormData((prev) => ({ ...prev, address: baseAddress }));
+                    }}
+                  />
+                  {locationError && <p className="text-xs text-red-600 mt-1">{locationError}</p>}
+                </div>
 
                   <textarea
                     required
@@ -934,6 +1003,7 @@ export default function CustomerLoginModal({
         </div>
       </div>
     </div>,
+   
     portalEl
   );
 }
