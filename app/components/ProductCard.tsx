@@ -146,27 +146,12 @@ export const ProductCard = memo<ProductCardProps>(
         : countryMap[productOrigin]?.chineseName || productOrigin
       : "";
 
-    const handleOptionChange = useCallback(
-      (type: "variation" | "countryId" | "weight", value: string) => {
-        const current = selectedOptions[title] || {};
-        const next = { ...current, [type]: value };
-
-        const exactMatch = products.find((p) => matchBySelection(p, next));
-        const targetedMatch =
-          products.find((p) => {
-            if (type === "variation") return getValue(p.Variation) === getValue(value);
-            if (type === "countryId") return getValue(p.Country) === getValue(value);
-            return getValue(p.weight) === getValue(value);
-          }) || products[0];
-
-        const resolvedProduct = exactMatch || targetedMatch;
-
-        onOptionChange(title, "variation", getValue(resolvedProduct?.Variation));
-        onOptionChange(title, "countryId", getValue(resolvedProduct?.Country));
-        onOptionChange(title, "weight", getValue(resolvedProduct?.weight));
-      },
-      [onOptionChange, products, selectedOptions, title, matchBySelection, getValue]
-    );
+  const handleOptionChange = useCallback(
+    (type: "variation" | "countryId" | "weight", value: string) => {
+      onOptionChange(title, type, value);
+    },
+    [onOptionChange, title]
+  );
 
   const fallbackImage = `/Img/${getCategoryName(product.Category)}/${product.Product}${
     product.Variation ? ` (${product.Variation})` : ""

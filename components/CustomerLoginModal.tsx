@@ -17,6 +17,7 @@ interface CustomerLoginModalProps {
 export default function CustomerLoginModal({
   isOpen,
   onClose,  
+  onClose,  
   onLoginSuccess,
 }: CustomerLoginModalProps) {
   const router = useRouter();
