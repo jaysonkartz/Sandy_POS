@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { X, Trash2 } from "lucide-react";
+import { X, Trash2, Pencil } from "lucide-react";
 import { CldImage, CldUploadWidget } from "next-cloudinary";
 import { supabase } from "@/app/lib/supabaseClient";
+import ImageCropEditor from "@/components/ImageCropEditor";
 
 type ProductImageRow = {
   id: number;
@@ -33,9 +34,13 @@ export default function ProductPhotoEditorModal({
   const [images, setImages] = useState<ProductImageRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [cropOpen, setCropOpen] = useState(false);
+  const [cropSource, setCropSource] = useState<string | null>(null);
+  const [editingRow, setEditingRow] = useState<ProductImageRow | null>(null);
+  const [pendingFileName, setPendingFileName] = useState<string>("edited-image.jpg");
 
-  // ✅ atomic sort order counter for multi-upload
   const nextSortRef = useRef(0);
+  const editOneInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isOpen || !productId) return;
@@ -43,7 +48,6 @@ export default function ProductPhotoEditorModal({
     let alive = true;
 
     (async () => {
-      console.warn("[PhotoEditor] loading images for product:", productId);
       setLoading(true);
 
       const { data, error } = await supabase
@@ -61,10 +65,8 @@ export default function ProductPhotoEditorModal({
         setImages([]);
       } else {
         const list = (data as ProductImageRow[]) || [];
-        console.warn("[PhotoEditor] loaded images:", list);
         setImages(list);
 
-        // ✅ initialize counter based on current max sort_order
         const maxSort = list.reduce((m, x) => Math.max(m, x.sort_order ?? 0), -1);
         nextSortRef.current = maxSort + 1;
       }
@@ -84,10 +86,34 @@ export default function ProductPhotoEditorModal({
 
   if (!isOpen) return null;
 
-  async function setAsCover(url: string) {
-    console.warn("[PhotoEditor] setAsCover:", url);
+  async function uploadBlobToCloudinary(blob: Blob, fileName: string) {
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
-    // 1) mark all as not cover
+    if (!cloudName || !uploadPreset) {
+      throw new Error("Cloudinary configuration missing.");
+    }
+
+    const formData = new FormData();
+    formData.append("file", blob, fileName);
+    formData.append("upload_preset", uploadPreset);
+    formData.append("folder", `products/${productId}`);
+
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Cloudinary upload failed: ${response.status} - ${text}`);
+    }
+
+    const json = await response.json();
+    return json.secure_url as string;
+  }
+
+  async function setAsCover(url: string) {
     const { error: clearErr } = await supabase
       .from("product_images")
       .update({ is_cover: false })
@@ -95,7 +121,6 @@ export default function ProductPhotoEditorModal({
 
     if (clearErr) console.error("[PhotoEditor] clear cover error:", clearErr);
 
-    // 2) mark chosen url as cover
     const { error: setErr } = await supabase
       .from("product_images")
       .update({ is_cover: true })
@@ -104,7 +129,6 @@ export default function ProductPhotoEditorModal({
 
     if (setErr) console.error("[PhotoEditor] set cover error:", setErr);
 
-    // 3) update products.image_url
     const { error: prodErr } = await supabase
       .from("products")
       .update({ image_url: url })
@@ -120,10 +144,9 @@ export default function ProductPhotoEditorModal({
   }
 
   async function insertImage(url: string) {
-    console.warn("[PhotoEditor] insertImage called with:", url);
-
     const sortOrder = nextSortRef.current++;
-    const makeCover = images.length === 0 && !currentImageUrl && sortOrder === 0;
+    const hasCover = images.some((x) => x.is_cover) || !!currentImageUrl;
+    const makeCover = !hasCover;
 
     const { data, error } = await supabase
       .from("product_images")
@@ -141,155 +164,269 @@ export default function ProductPhotoEditorModal({
       throw error;
     }
 
-    console.warn("[PhotoEditor] inserted row:", data);
-
     setImages((prev) => [...prev, data as ProductImageRow]);
 
-    if (makeCover) await setAsCover(url);
+    if (makeCover) {
+      await setAsCover(url);
+    }
   }
 
   async function deleteImage(row: ProductImageRow) {
-    console.warn("[PhotoEditor] deleteImage:", row);
-
     const { error } = await supabase.from("product_images").delete().eq("id", row.id);
     if (error) {
       console.error("[PhotoEditor] delete error:", error);
       return;
     }
 
-    setImages((prev) => prev.filter((x) => x.id !== row.id));
+    const nextImages = images.filter((x) => x.id !== row.id);
+    setImages(nextImages);
+
+    if (row.is_cover) {
+      if (nextImages.length === 0) {
+        const { error: prodErr } = await supabase
+          .from("products")
+          .update({ image_url: null })
+          .eq("id", productId);
+
+        if (prodErr) {
+          console.error("[PhotoEditor] clear cover in products error:", prodErr);
+        } else {
+          onImageUpdate("");
+        }
+      } else {
+        await setAsCover(nextImages[0].image_url);
+      }
+    }
+  }
+
+  function openBeforeUploadEditor(file: File) {
+    const blobUrl = URL.createObjectURL(file);
+    setPendingFileName(file.name || `edited-${Date.now()}.jpg`);
+    setEditingRow(null);
+    setCropSource(blobUrl);
+    setCropOpen(true);
+  }
+
+  async function replaceExistingImage(row: ProductImageRow, blob: Blob) {
+    const newUrl = await uploadBlobToCloudinary(blob, `edited-${row.id}-${Date.now()}.jpg`);
+
+    const { error } = await supabase
+      .from("product_images")
+      .update({ image_url: newUrl })
+      .eq("id", row.id);
+
+    if (error) {
+      throw error;
+    }
+
+    if (row.is_cover) {
+      const { error: prodErr } = await supabase
+        .from("products")
+        .update({ image_url: newUrl })
+        .eq("id", productId);
+
+      if (prodErr) {
+        throw prodErr;
+      }
+      onImageUpdate(newUrl);
+    }
+
+    setImages((prev) =>
+      prev.map((img) => (img.id === row.id ? { ...img, image_url: newUrl } : img))
+    );
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div className="w-full max-w-3xl rounded-xl bg-white shadow-lg overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <div>
-            <div className="font-semibold">Edit Product Photo</div>
-            <div className="text-sm text-gray-500">{productName}</div>
-          </div>
-          <button className="p-2 rounded hover:bg-gray-100" onClick={onClose}>
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="p-4 space-y-4">
-          {/* Cover preview */}
-          <div className="rounded-lg border bg-gray-50 p-3">
-            <div className="text-sm font-medium mb-2">Cover</div>
-            {coverUrl ? (
-              <CldImage
-                alt={`${productName} cover image`}
-                className="w-full h-56 object-contain bg-white rounded"
-                height={560}
-                src={coverUrl}
-                width={1200}
-              />
-            ) : (
-              <div className="h-56 flex items-center justify-center text-gray-400">
-                No image yet
-              </div>
-            )}
+    <>
+      <div
+        className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
+        onClick={(e) => e.target === e.currentTarget && onClose()}
+      >
+        <div className="w-full max-w-3xl overflow-hidden rounded-xl bg-white shadow-lg">
+          <div className="flex items-center justify-between border-b p-4">
+            <div>
+              <div className="font-semibold">Edit Product Photo</div>
+              <div className="text-sm text-gray-500">{productName}</div>
+            </div>
+            <button onClick={onClose} className="rounded p-2 hover:bg-gray-100">
+              <X size={18} />
+            </button>
           </div>
 
-          {/* Upload */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <CldUploadWidget
-              options={{
-                multiple: true,
-                maxFiles: 10,
-                folder: `products/${productId}`,
-                resourceType: "image",
-              }}
-              uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!}
-              onUpload={async (result: any) => {
-                // ✅ you should now see MANY events, not just "Uploading to Cloudinary"
-                console.warn("[Cloudinary] event:", result?.event);
-                if (result?.event === "success") {
-                  console.warn("[Cloudinary] full success result:", result);
+          <div className="space-y-4 p-4">
+            <div className="rounded-lg border bg-gray-50 p-3">
+              <div className="mb-2 text-sm font-medium">Cover</div>
+              {coverUrl ? (
+                <CldImage
+                  src={coverUrl}
+                  alt={`${productName} cover image`}
+                  width={1200}
+                  height={560}
+                  className="h-56 w-full rounded bg-white object-contain"
+                />
+              ) : (
+                <div className="flex h-56 items-center justify-center text-gray-400">
+                  No image yet
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <CldUploadWidget
+                uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!}
+                options={{
+                  multiple: true,
+                  maxFiles: 10,
+                  folder: `products/${productId}`,
+                  resourceType: "image",
+                  sources: ["local", "camera"],
+                  clientAllowedFormats: ["jpg", "jpeg", "png", "webp"],
+                  cropping: false,
+                }}
+                onSuccess={async (result: any) => {
                   const url = result?.info?.secure_url;
-                  console.warn("[Cloudinary] secure_url:", url);
-
                   if (!url) return;
 
                   try {
                     setIsUploading(true);
                     await insertImage(url);
-                  } catch (e) {
-                    console.error("[Supabase] insertImage failed:", e);
+                  } catch (err) {
+                    console.error("Insert error:", err);
                   } finally {
                     setIsUploading(false);
                   }
-                }
-
-                if (result?.event === "error") {
-                  console.error("[Cloudinary] upload error:", result);
+                }}
+                onError={(err) => {
+                  console.error("Upload error:", err);
                   setIsUploading(false);
-                }
-              }}
-            >
-              {({ open }) => (
-                <button
-                  className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700"
-                  type="button"
-                  onClick={() => {
-                    console.warn("[Cloudinary] open clicked");
-                    open?.();
-                  }}
-                >
-                  Upload Photos (Multiple)
-                </button>
-              )}
-            </CldUploadWidget>
-
-            {loading && <div className="text-sm text-gray-500">Loading...</div>}
-            {isUploading && <div className="text-sm text-blue-600">Uploading…</div>}
-          </div>
-
-          {/* Thumbnails */}
-          <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-            {images.map((img) => (
-              <div
-                key={img.id}
-                className="relative group rounded-lg border overflow-hidden bg-white"
+                }}
               >
-                <CldImage
-                  alt={`${productName} thumbnail`}
-                  className="w-full h-24 object-cover"
-                  height={192}
-                  src={img.image_url}
-                  width={320}
-                />
-
-                <div className="absolute inset-x-0 bottom-0 p-1 flex gap-1 bg-black/40 opacity-0 group-hover:opacity-100 transition">
+                {({ open }) => (
                   <button
-                    className="flex-1 text-xs bg-white/90 rounded px-2 py-1"
-                    onClick={() => setAsCover(img.image_url)}
+                    type="button"
+                    onClick={() => open?.()}
+                    className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
                   >
-                    {img.is_cover ? "Cover" : "Set cover"}
+                    Upload Photos
                   </button>
+                )}
+              </CldUploadWidget>
 
-                  <button
-                    className="p-2 bg-white/90 rounded"
-                    title="Delete"
-                    onClick={() => deleteImage(img)}
-                  >
-                    <Trash2 size={14} />
-                  </button>
+              <button
+                type="button"
+                onClick={() => editOneInputRef.current?.click()}
+                className="rounded bg-gray-700 px-4 py-2 text-white hover:bg-gray-800"
+              >
+                Edit One Before Upload
+              </button>
+
+              <input
+                ref={editOneInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  openBeforeUploadEditor(file);
+                  e.target.value = "";
+                }}
+              />
+
+              {loading && <div className="text-sm text-gray-500">Loading...</div>}
+              {isUploading && <div className="text-sm text-blue-600">Uploading...</div>}
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
+              {images.map((img) => (
+                <div key={img.id} className="group relative overflow-hidden rounded-lg border bg-white">
+                  <CldImage
+                    src={img.image_url}
+                    alt={`${productName} thumbnail`}
+                    width={320}
+                    height={192}
+                    className="h-24 w-full object-cover"
+                  />
+
+                  <div className="absolute inset-x-0 bottom-0 flex gap-1 bg-black/40 p-1 opacity-0 transition group-hover:opacity-100">
+                    <button
+                      className="flex-1 rounded bg-white/90 px-2 py-1 text-xs"
+                      onClick={() => setAsCover(img.image_url)}
+                    >
+                      {img.is_cover ? "Cover" : "Set cover"}
+                    </button>
+
+                    <button
+                      className="rounded bg-white/90 p-2"
+                      onClick={() => {
+                        setEditingRow(img);
+                        setPendingFileName(`edited-${img.id}-${Date.now()}.jpg`);
+                        setCropSource(img.image_url);
+                        setCropOpen(true);
+                      }}
+                      title="Edit"
+                    >
+                      <Pencil size={14} />
+                    </button>
+
+                    <button
+                      className="rounded bg-white/90 p-2"
+                      onClick={() => deleteImage(img)}
+                      title="Delete"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
 
-          {images.length === 0 && !loading && (
-            <div className="text-sm text-gray-500">No extra photos yet. Upload some!</div>
-          )}
+            {images.length === 0 && !loading && (
+              <div className="text-sm text-gray-500">No extra photos yet. Upload some!</div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      {cropSource && (
+        <ImageCropEditor
+          isOpen={cropOpen}
+          imageSrc={cropSource}
+          title={editingRow ? "Edit Uploaded Photo" : "Edit Before Upload"}
+          onClose={() => {
+            if (cropSource.startsWith("blob:")) {
+              URL.revokeObjectURL(cropSource);
+            }
+            setCropOpen(false);
+            setCropSource(null);
+            setEditingRow(null);
+          }}
+          onConfirm={async (croppedBlob) => {
+            try {
+              setIsUploading(true);
+
+              if (editingRow) {
+                await replaceExistingImage(editingRow, croppedBlob);
+              } else {
+                const newUrl = await uploadBlobToCloudinary(croppedBlob, pendingFileName);
+                await insertImage(newUrl);
+              }
+
+              if (cropSource.startsWith("blob:")) {
+                URL.revokeObjectURL(cropSource);
+              }
+
+              setCropOpen(false);
+              setCropSource(null);
+              setEditingRow(null);
+            } catch (err) {
+              console.error("[PhotoEditor] crop save failed:", err);
+            } finally {
+              setIsUploading(false);
+            }
+          }}
+        />
+      )}
+    </>
   );
 }

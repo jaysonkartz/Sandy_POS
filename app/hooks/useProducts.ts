@@ -1,6 +1,17 @@
+"use client";
+
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase, supabasePublic } from "@/app/lib/supabaseClient";
 import { CATEGORY_ID_NAME_MAP } from "@/app/(admin)/const/category";
+import { Session } from "@supabase/supabase-js";
+
+interface ProductImageRow {
+  id: number;
+  product_id: number;
+  image_url: string;
+  sort_order: number;
+  is_cover: boolean;
+}
 
 interface Product {
   id: number;
@@ -19,6 +30,7 @@ interface Product {
   uom: string;
   stock_quantity: number;
   image_url?: string;
+  product_images?: ProductImageRow[];
 }
 
 interface ProductGroup {
@@ -40,8 +52,6 @@ interface UseProductsReturn {
   refetchProducts: () => Promise<void>;
 }
 
-import { Session } from "@supabase/supabase-js";
-
 export const useProducts = (
   selectedCategory: string,
   isEnglish: boolean,
@@ -52,7 +62,6 @@ export const useProducts = (
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Get category name by id
   const getCategoryName = useCallback((category: string | number) => {
     return CATEGORY_ID_NAME_MAP[String(category)] || "Unknown Category";
   }, []);
@@ -61,176 +70,20 @@ export const useProducts = (
     setSearchTerm(value);
   }, []);
 
-  // Clear search handler
   const handleClearSearch = useCallback(() => {
     setSearchTerm("");
   }, []);
 
-  const resolveCustomerId = useCallback(async (): Promise<string | null> => {
-    if (!session?.user) return null;
-
-    try {
-      if (session.user.id) {
-        const { data: customerByUserId, error: userIdError } = await supabase
-          .from("customers")
-          .select("id, user_id")
-          .eq("user_id", session.user.id)
-          .maybeSingle();
-
-        if (!userIdError && customerByUserId?.id) {
-          return String(customerByUserId.id);
-        }
-      }
-
-      if (session.user.email) {
-        const { data: customersByEmail, error: emailError } = await supabase
-          .from("customers")
-          .select("id, user_id")
-          .eq("email", session.user.email);
-
-        if (!emailError && customersByEmail?.length) {
-          const matchedCustomer =
-            customersByEmail.find(
-              (c: { user_id?: string | null }) => c.user_id === session.user.id
-            ) || customersByEmail[0];
-
-          if (matchedCustomer?.id) {
-            return String(matchedCustomer.id);
-          }
-        }
-      }
-    } catch {
-      return null;
-    }
-
-    return null;
-  }, [session]);
-
-  const applyLatestPriceHistory = useCallback(
-    async (sourceProducts: Product[]): Promise<Product[]> => {
-      if (sourceProducts.length === 0) {
-        return sourceProducts;
-      }
-
-      const customerId = await resolveCustomerId();
-
-      const productIds = Array.from(new Set(sourceProducts.map((p) => p.id).filter(Boolean)));
-      if (productIds.length === 0) {
-        return sourceProducts;
-      }
-
-      try {
-        let historyQuery = supabase
-          .from("product_price_history")
-          .select("product_id, customer_id, original_price, last_price_update, created_at")
-          .in("product_id", productIds);
-
-        historyQuery = customerId
-          ? historyQuery.or(`customer_id.is.null,customer_id.eq.${customerId}`)
-          : historyQuery.is("customer_id", null);
-
-        const { data: priceHistoryRows, error: priceHistoryError } = await historyQuery;
-
-        if (priceHistoryError || !priceHistoryRows?.length) {
-          return sourceProducts;
-        }
-
-        const latestByProductId = new Map<
-          number,
-          { price: number; timestampMs: number; isSpecificCustomer: boolean }
-        >();
-
-        priceHistoryRows.forEach(
-          (row: {
-            product_id?: number;
-            customer_id?: string | null;
-            original_price?: number | null;
-            last_price_update?: string | null;
-            created_at?: string | null;
-          }) => {
-            if (!row.product_id) {
-              return;
-            }
-
-            const nextPrice = typeof row.original_price === "number" ? row.original_price : null;
-            if (typeof nextPrice !== "number" || Number.isNaN(nextPrice) || nextPrice <= 0) {
-              return;
-            }
-
-            const timestampMs = Date.parse(row.last_price_update || row.created_at || "");
-            const normalizedTimestampMs = Number.isNaN(timestampMs) ? 0 : timestampMs;
-            const nextIsSpecificCustomer = !!row.customer_id;
-
-            const existing = latestByProductId.get(row.product_id);
-
-            if (!existing) {
-              latestByProductId.set(row.product_id, {
-                price: nextPrice,
-                timestampMs: normalizedTimestampMs,
-                isSpecificCustomer: nextIsSpecificCustomer,
-              });
-              return;
-            }
-
-            const isNewer = normalizedTimestampMs > existing.timestampMs;
-            const isSameTimeButPreferGlobal =
-              normalizedTimestampMs === existing.timestampMs &&
-              !nextIsSpecificCustomer &&
-              existing.isSpecificCustomer;
-
-            if (isNewer || isSameTimeButPreferGlobal) {
-              latestByProductId.set(row.product_id, {
-                price: nextPrice,
-                timestampMs: normalizedTimestampMs,
-                isSpecificCustomer: nextIsSpecificCustomer,
-              });
-            }
-          }
-        );
-
-        if (!latestByProductId.size) {
-          return sourceProducts;
-        }
-
-        return sourceProducts.map((product) => {
-          const resolved = latestByProductId.get(product.id);
-          if (!resolved) {
-            return product;
-          }
-
-          if (typeof resolved.price !== "number") {
-            return product;
-          }
-
-          return {
-            ...product,
-            price: resolved.price,
-          };
-        });
-      } catch {
-        return sourceProducts;
-      }
-    },
-    [resolveCustomerId]
-  );
-
-  // Memoized filtered products
   const filteredProducts = useMemo(() => {
     let filtered = products;
 
-    // Filter by category first
     if (selectedCategory && selectedCategory !== "all") {
       filtered = filtered.filter((product) => {
-        // Handle both category ID (number/string) and category name (string)
         const productCategory = product.Category;
         const selectedCategoryId = selectedCategory;
 
-        // Skip if product category is null/undefined
-        if (!productCategory) {
-          return false;
-        }
+        if (!productCategory) return false;
 
-        // Check if it matches the category ID directly
         if (
           productCategory === selectedCategoryId ||
           String(productCategory) === selectedCategoryId ||
@@ -239,7 +92,6 @@ export const useProducts = (
           return true;
         }
 
-        // Check if it matches the category name
         const categoryName = getCategoryName(selectedCategoryId);
         if (productCategory === categoryName) {
           return true;
@@ -249,16 +101,18 @@ export const useProducts = (
       });
     }
 
-    // Then filter by search term
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter((product) => {
         return (
-          (product.Product && String(product.Product).toLowerCase().includes(searchLower)) ||
-          (product.Product_CH && String(product.Product_CH).toLowerCase().includes(searchLower)) ||
+          (product.Product &&
+            String(product.Product).toLowerCase().includes(searchLower)) ||
+          (product.Product_CH &&
+            String(product.Product_CH).toLowerCase().includes(searchLower)) ||
           (product["Item Code"] &&
             String(product["Item Code"]).toLowerCase().includes(searchLower)) ||
-          (product.Category && String(product.Category).toLowerCase().includes(searchLower))
+          (product.Category &&
+            String(product.Category).toLowerCase().includes(searchLower))
         );
       });
     }
@@ -267,43 +121,41 @@ export const useProducts = (
   }, [products, selectedCategory, searchTerm, getCategoryName]);
 
   const productGroups = useMemo(() => {
-    // First, group products by category
     const categoryGroups: { [category: string]: Product[] } = {};
+
     filteredProducts.forEach((p) => {
       const category = isEnglish
         ? getCategoryName(p.Category)
         : p.Category_CH || getCategoryName(p.Category);
+
       if (!categoryGroups[category]) {
         categoryGroups[category] = [];
       }
       categoryGroups[category].push(p);
     });
 
-    // Then, within each category, group by product name
     const result: ProductGroup[] = [];
 
     Object.entries(categoryGroups).forEach(([category, categoryProducts]) => {
-      const productGroups: { [title: string]: Product[] } = {};
+      const groupedByTitle: { [title: string]: Product[] } = {};
 
       categoryProducts.forEach((p) => {
         const title = isEnglish ? p.Product : p.Product_CH || p.Product;
-        if (!productGroups[title]) {
-          productGroups[title] = [];
+        if (!groupedByTitle[title]) {
+          groupedByTitle[title] = [];
         }
-        productGroups[title].push(p);
+        groupedByTitle[title].push(p);
       });
 
-      // Add each product group with category info
-      Object.values(productGroups).forEach((products) => {
+      Object.values(groupedByTitle).forEach((products) => {
         result.push({
           title: isEnglish ? products[0].Product : products[0].Product_CH || products[0].Product,
           products,
-          category: category,
+          category,
         });
       });
     });
 
-    // Sort by category first, then by product name
     return result.sort((a, b) => {
       if (a.category !== b.category) {
         return a.category.localeCompare(b.category);
@@ -316,7 +168,6 @@ export const useProducts = (
     try {
       setError(null);
 
-      // Check if Supabase environment variables are configured
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -326,7 +177,18 @@ export const useProducts = (
         return;
       }
 
-      let query = supabasePublic.from("products").select("*");
+      let query = supabasePublic
+        .from("products")
+        .select(`
+          *,
+          product_images (
+            id,
+            product_id,
+            image_url,
+            sort_order,
+            is_cover
+          )
+        `);
 
       if (selectedCategory !== "all") {
         query = query.eq("Category", selectedCategory);
@@ -338,12 +200,19 @@ export const useProducts = (
         throw productsError;
       }
 
-      const resolvedProducts = await applyLatestPriceHistory(productsData || []);
-      setProducts(resolvedProducts);
+      const normalizedProducts: Product[] = ((productsData as any[]) || []).map((product) => ({
+        ...product,
+        product_images: [...(product.product_images || [])].sort((a: ProductImageRow, b: ProductImageRow) => {
+          if (a.is_cover !== b.is_cover) return a.is_cover ? -1 : 1;
+          return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+        }),
+      }));
+
+      setProducts(normalizedProducts);
     } catch (error) {
-      // Use mock data when database fails
-      const mockProducts = [
-        // Dried Seafood (Category ID: 6)
+      console.error("Error fetching products:", error);
+
+      const mockProducts: Product[] = [
         {
           id: 1,
           "Item Code": "DA001",
@@ -361,6 +230,7 @@ export const useProducts = (
           uom: "kg",
           stock_quantity: 50,
           image_url: "/Img/Dried Seafood/Dried Anchovy.png",
+          product_images: [],
         },
         {
           id: 2,
@@ -379,457 +249,7 @@ export const useProducts = (
           uom: "kg",
           stock_quantity: 30,
           image_url: "/Img/Dried Seafood/Dried Shrimp.png",
-        },
-        {
-          id: 3,
-          "Item Code": "DS003",
-          Product: "Dried Squid",
-          Category: "6",
-          weight: "400g",
-          UOM: "kg",
-          Country: "Japan",
-          Product_CH: "乾魷魚",
-          Category_CH: "乾海產",
-          Country_CH: "日本",
-          Variation: "Medium",
-          Variation_CH: "中號",
-          price: 28.99,
-          uom: "kg",
-          stock_quantity: 25,
-          image_url: "/Img/Dried Seafood/Dried Squid.png",
-        },
-        {
-          id: 4,
-          "Item Code": "DS004",
-          Product: "Dried Silverfish",
-          Category: "6",
-          weight: "250g",
-          UOM: "kg",
-          Country: "Malaysia",
-          Product_CH: "乾銀魚",
-          Category_CH: "乾海產",
-          Country_CH: "馬來西亞",
-          Variation: "Small",
-          Variation_CH: "小號",
-          price: 18.5,
-          uom: "kg",
-          stock_quantity: 40,
-          image_url: "/Img/Dried Seafood/Dried Silverfish.png",
-        },
-        // Dried Chilli (Category ID: 1) - 20+ products
-        {
-          id: 5,
-          "Item Code": "DC001",
-          Product: "Dried Red Chilli",
-          Category: "1",
-          weight: "200g",
-          UOM: "kg",
-          Country: "China",
-          Product_CH: "乾紅辣椒",
-          Category_CH: "乾辣椒",
-          Country_CH: "中國",
-          Variation: "Hot",
-          Variation_CH: "辣",
-          price: 8.99,
-          uom: "kg",
-          stock_quantity: 100,
-          image_url: "/product-placeholder.png",
-        },
-        {
-          id: 6,
-          "Item Code": "DC002",
-          Product: "Dried Bird's Eye Chilli",
-          Category: "1",
-          weight: "150g",
-          UOM: "kg",
-          Country: "Thailand",
-          Product_CH: "乾指天椒",
-          Category_CH: "乾辣椒",
-          Country_CH: "泰國",
-          Variation: "Extra Hot",
-          Variation_CH: "超辣",
-          price: 12.99,
-          uom: "kg",
-          stock_quantity: 75,
-          image_url: "/product-placeholder.png",
-        },
-        {
-          id: 13,
-          "Item Code": "DC003",
-          Product: "Dried Green Chilli",
-          Category: "1",
-          weight: "250g",
-          UOM: "kg",
-          Country: "India",
-          Product_CH: "乾青辣椒",
-          Category_CH: "乾辣椒",
-          Country_CH: "印度",
-          Variation: "Medium",
-          Variation_CH: "中辣",
-          price: 9.5,
-          uom: "kg",
-          stock_quantity: 80,
-          image_url: "/product-placeholder.png",
-        },
-        {
-          id: 14,
-          "Item Code": "DC004",
-          Product: "Dried Jalapeño",
-          Category: "1",
-          weight: "300g",
-          UOM: "kg",
-          Country: "Mexico",
-          Product_CH: "乾墨西哥辣椒",
-          Category_CH: "乾辣椒",
-          Country_CH: "墨西哥",
-          Variation: "Mild",
-          Variation_CH: "微辣",
-          price: 11.99,
-          uom: "kg",
-          stock_quantity: 60,
-          image_url: "/product-placeholder.png",
-        },
-        {
-          id: 15,
-          "Item Code": "DC005",
-          Product: "Dried Habanero",
-          Category: "1",
-          weight: "100g",
-          UOM: "kg",
-          Country: "Caribbean",
-          Product_CH: "乾哈瓦那辣椒",
-          Category_CH: "乾辣椒",
-          Country_CH: "加勒比海",
-          Variation: "Very Hot",
-          Variation_CH: "很辣",
-          price: 15.99,
-          uom: "kg",
-          stock_quantity: 40,
-          image_url: "/product-placeholder.png",
-        },
-        {
-          id: 16,
-          "Item Code": "DC006",
-          Product: "Dried Cayenne Pepper",
-          Category: "1",
-          weight: "180g",
-          UOM: "kg",
-          Country: "Africa",
-          Product_CH: "乾卡宴辣椒",
-          Category_CH: "乾辣椒",
-          Country_CH: "非洲",
-          Variation: "Hot",
-          Variation_CH: "辣",
-          price: 10.5,
-          uom: "kg",
-          stock_quantity: 70,
-          image_url: "/product-placeholder.png",
-        },
-        {
-          id: 17,
-          "Item Code": "DC007",
-          Product: "Dried Serrano Chilli",
-          Category: "1",
-          weight: "220g",
-          UOM: "kg",
-          Country: "Mexico",
-          Product_CH: "乾塞拉諾辣椒",
-          Category_CH: "乾辣椒",
-          Country_CH: "墨西哥",
-          Variation: "Hot",
-          Variation_CH: "辣",
-          price: 9.99,
-          uom: "kg",
-          stock_quantity: 55,
-          image_url: "/product-placeholder.png",
-        },
-        {
-          id: 18,
-          "Item Code": "DC008",
-          Product: "Dried Thai Chilli",
-          Category: "1",
-          weight: "120g",
-          UOM: "kg",
-          Country: "Thailand",
-          Product_CH: "乾泰式辣椒",
-          Category_CH: "乾辣椒",
-          Country_CH: "泰國",
-          Variation: "Very Hot",
-          Variation_CH: "很辣",
-          price: 13.5,
-          uom: "kg",
-          stock_quantity: 65,
-          image_url: "/product-placeholder.png",
-        },
-        {
-          id: 19,
-          "Item Code": "DC009",
-          Product: "Dried Chipotle",
-          Category: "1",
-          weight: "160g",
-          UOM: "kg",
-          Country: "Mexico",
-          Product_CH: "乾奇波雷辣椒",
-          Category_CH: "乾辣椒",
-          Country_CH: "墨西哥",
-          Variation: "Smoky Hot",
-          Variation_CH: "煙熏辣",
-          price: 14.99,
-          uom: "kg",
-          stock_quantity: 45,
-          image_url: "/product-placeholder.png",
-        },
-        {
-          id: 20,
-          "Item Code": "DC010",
-          Product: "Dried Ancho Chilli",
-          Category: "1",
-          weight: "200g",
-          UOM: "kg",
-          Country: "Mexico",
-          Product_CH: "乾安喬辣椒",
-          Category_CH: "乾辣椒",
-          Country_CH: "墨西哥",
-          Variation: "Mild",
-          Variation_CH: "微辣",
-          price: 11.25,
-          uom: "kg",
-          stock_quantity: 50,
-          image_url: "/product-placeholder.png",
-        },
-        {
-          id: 21,
-          "Item Code": "DC011",
-          Product: "Dried Guajillo Chilli",
-          Category: "1",
-          weight: "170g",
-          UOM: "kg",
-          Country: "Mexico",
-          Product_CH: "乾瓜希洛辣椒",
-          Category_CH: "乾辣椒",
-          Country_CH: "墨西哥",
-          Variation: "Medium",
-          Variation_CH: "中辣",
-          price: 10.75,
-          uom: "kg",
-          stock_quantity: 60,
-          image_url: "/product-placeholder.png",
-        },
-        {
-          id: 22,
-          "Item Code": "DC012",
-          Product: "Dried Pasilla Chilli",
-          Category: "1",
-          weight: "190g",
-          UOM: "kg",
-          Country: "Mexico",
-          Product_CH: "乾帕西拉辣椒",
-          Category_CH: "乾辣椒",
-          Country_CH: "墨西哥",
-          Variation: "Mild",
-          Variation_CH: "微辣",
-          price: 12.5,
-          uom: "kg",
-          stock_quantity: 35,
-          image_url: "/product-placeholder.png",
-        },
-        {
-          id: 23,
-          "Item Code": "DC013",
-          Product: "Dried Mulato Chilli",
-          Category: "1",
-          weight: "210g",
-          UOM: "kg",
-          Country: "Mexico",
-          Product_CH: "乾穆拉托辣椒",
-          Category_CH: "乾辣椒",
-          Country_CH: "墨西哥",
-          Variation: "Mild",
-          Variation_CH: "微辣",
-          price: 13.25,
-          uom: "kg",
-          stock_quantity: 30,
-          image_url: "/product-placeholder.png",
-        },
-        {
-          id: 24,
-          "Item Code": "DC014",
-          Product: "Dried New Mexico Chilli",
-          Category: "1",
-          weight: "240g",
-          UOM: "kg",
-          Country: "USA",
-          Product_CH: "乾新墨西哥辣椒",
-          Category_CH: "乾辣椒",
-          Country_CH: "美國",
-          Variation: "Medium",
-          Variation_CH: "中辣",
-          price: 9.75,
-          uom: "kg",
-          stock_quantity: 55,
-          image_url: "/product-placeholder.png",
-        },
-        {
-          id: 25,
-          "Item Code": "DC015",
-          Product: "Dried Poblano Chilli",
-          Category: "1",
-          weight: "280g",
-          UOM: "kg",
-          Country: "Mexico",
-          Product_CH: "乾波布拉諾辣椒",
-          Category_CH: "乾辣椒",
-          Country_CH: "墨西哥",
-          Variation: "Mild",
-          Variation_CH: "微辣",
-          price: 8.5,
-          uom: "kg",
-          stock_quantity: 70,
-          image_url: "/product-placeholder.png",
-        },
-        {
-          id: 26,
-          "Item Code": "DC016",
-          Product: "Dried Scotch Bonnet",
-          Category: "1",
-          weight: "110g",
-          UOM: "kg",
-          Country: "Jamaica",
-          Product_CH: "乾蘇格蘭帽辣椒",
-          Category_CH: "乾辣椒",
-          Country_CH: "牙買加",
-          Variation: "Very Hot",
-          Variation_CH: "很辣",
-          price: 16.99,
-          uom: "kg",
-          stock_quantity: 25,
-          image_url: "/product-placeholder.png",
-        },
-        {
-          id: 27,
-          "Item Code": "DC017",
-          Product: "Dried Ghost Pepper",
-          Category: "1",
-          weight: "80g",
-          UOM: "kg",
-          Country: "India",
-          Product_CH: "乾鬼椒",
-          Category_CH: "乾辣椒",
-          Country_CH: "印度",
-          Variation: "Extreme Hot",
-          Variation_CH: "極辣",
-          price: 24.99,
-          uom: "kg",
-          stock_quantity: 15,
-          image_url: "/product-placeholder.png",
-        },
-        {
-          id: 28,
-          "Item Code": "DC018",
-          Product: "Dried Carolina Reaper",
-          Category: "1",
-          weight: "70g",
-          UOM: "kg",
-          Country: "USA",
-          Product_CH: "乾卡羅來納死神椒",
-          Category_CH: "乾辣椒",
-          Country_CH: "美國",
-          Variation: "Extreme Hot",
-          Variation_CH: "極辣",
-          price: 29.99,
-          uom: "kg",
-          stock_quantity: 10,
-          image_url: "/product-placeholder.png",
-        },
-        {
-          id: 29,
-          "Item Code": "DC019",
-          Product: "Dried Trinidad Scorpion",
-          Category: "1",
-          weight: "90g",
-          UOM: "kg",
-          Country: "Trinidad",
-          Product_CH: "乾千里達毒蠍椒",
-          Category_CH: "乾辣椒",
-          Country_CH: "千里達",
-          Variation: "Extreme Hot",
-          Variation_CH: "極辣",
-          price: 27.5,
-          uom: "kg",
-          stock_quantity: 12,
-          image_url: "/product-placeholder.png",
-        },
-        {
-          id: 30,
-          "Item Code": "DC020",
-          Product: "Dried Korean Gochugaru",
-          Category: "1",
-          weight: "300g",
-          UOM: "kg",
-          Country: "Korea",
-          Product_CH: "乾韓國辣椒粉",
-          Category_CH: "乾辣椒",
-          Country_CH: "韓國",
-          Variation: "Medium",
-          Variation_CH: "中辣",
-          price: 7.99,
-          uom: "kg",
-          stock_quantity: 90,
-          image_url: "/product-placeholder.png",
-        },
-        {
-          id: 31,
-          "Item Code": "DC021",
-          Product: "Dried Sichuan Peppercorn",
-          Category: "1",
-          weight: "150g",
-          UOM: "kg",
-          Country: "China",
-          Product_CH: "乾四川花椒",
-          Category_CH: "乾辣椒",
-          Country_CH: "中國",
-          Variation: "Numbing",
-          Variation_CH: "麻",
-          price: 18.99,
-          uom: "kg",
-          stock_quantity: 40,
-          image_url: "/product-placeholder.png",
-        },
-        {
-          id: 32,
-          "Item Code": "DC022",
-          Product: "Dried Aleppo Pepper",
-          Category: "1",
-          weight: "200g",
-          UOM: "kg",
-          Country: "Syria",
-          Product_CH: "乾阿勒頗辣椒",
-          Category_CH: "乾辣椒",
-          Country_CH: "敘利亞",
-          Variation: "Medium",
-          Variation_CH: "中辣",
-          price: 14.5,
-          uom: "kg",
-          stock_quantity: 35,
-          image_url: "/product-placeholder.png",
-        },
-        {
-          id: 33,
-          "Item Code": "DC023",
-          Product: "Dried Urfa Biber",
-          Category: "1",
-          weight: "180g",
-          UOM: "kg",
-          Country: "Turkey",
-          Product_CH: "乾烏爾法辣椒",
-          Category_CH: "乾辣椒",
-          Country_CH: "土耳其",
-          Variation: "Smoky",
-          Variation_CH: "煙熏",
-          price: 16.75,
-          uom: "kg",
-          stock_quantity: 28,
-          image_url: "/product-placeholder.png",
+          product_images: [],
         },
         {
           id: 34,
@@ -848,122 +268,11 @@ export const useProducts = (
           uom: "kg",
           stock_quantity: 20,
           image_url: "/product-placeholder.png",
-        },
-        // Beans & Legumes (Category ID: 2)
-        {
-          id: 7,
-          "Item Code": "BL001",
-          Product: "Dried Mung Beans",
-          Category: "2",
-          weight: "500g",
-          UOM: "kg",
-          Country: "China",
-          Product_CH: "乾綠豆",
-          Category_CH: "豆類",
-          Country_CH: "中國",
-          Variation: "Premium",
-          Variation_CH: "優質",
-          price: 6.99,
-          uom: "kg",
-          stock_quantity: 80,
-          image_url: "/product-placeholder.png",
-        },
-        {
-          id: 8,
-          "Item Code": "BL002",
-          Product: "Dried Red Beans",
-          Category: "2",
-          weight: "400g",
-          UOM: "kg",
-          Country: "Thailand",
-          Product_CH: "乾紅豆",
-          Category_CH: "豆類",
-          Country_CH: "泰國",
-          Variation: "Large",
-          Variation_CH: "大號",
-          price: 7.5,
-          uom: "kg",
-          stock_quantity: 65,
-          image_url: "/product-placeholder.png",
-        },
-        // Nuts & Seeds (Category ID: 3)
-        {
-          id: 9,
-          "Item Code": "NS001",
-          Product: "Cashew Nuts",
-          Category: "3",
-          weight: "500g",
-          UOM: "kg",
-          Country: "Vietnam",
-          Product_CH: "腰果",
-          Category_CH: "堅果種子",
-          Country_CH: "越南",
-          Variation: "Roasted",
-          Variation_CH: "烤",
-          price: 24.99,
-          uom: "kg",
-          stock_quantity: 35,
-          image_url: "/product-placeholder.png",
-        },
-        {
-          id: 10,
-          "Item Code": "NS002",
-          Product: "Almonds",
-          Category: "3",
-          weight: "400g",
-          UOM: "kg",
-          Country: "USA",
-          Product_CH: "杏仁",
-          Category_CH: "堅果種子",
-          Country_CH: "美國",
-          Variation: "Raw",
-          Variation_CH: "生",
-          price: 32.99,
-          uom: "kg",
-          stock_quantity: 20,
-          image_url: "/product-placeholder.png",
-        },
-        // Grains (Category ID: 5)
-        {
-          id: 11,
-          "Item Code": "GR001",
-          Product: "Jasmine Rice",
-          Category: "5",
-          weight: "1kg",
-          UOM: "kg",
-          Country: "Thailand",
-          Product_CH: "茉莉香米",
-          Category_CH: "穀物",
-          Country_CH: "泰國",
-          Variation: "Premium",
-          Variation_CH: "優質",
-          price: 6.99,
-          uom: "kg",
-          stock_quantity: 80,
-          image_url: "/product-placeholder.png",
-        },
-        {
-          id: 12,
-          "Item Code": "GR002",
-          Product: "Black Rice",
-          Category: "5",
-          weight: "500g",
-          UOM: "kg",
-          Country: "China",
-          Product_CH: "黑米",
-          Category_CH: "穀物",
-          Country_CH: "中國",
-          Variation: "Organic",
-          Variation_CH: "有機",
-          price: 9.99,
-          uom: "kg",
-          stock_quantity: 55,
-          image_url: "/product-placeholder.png",
+          product_images: [],
         },
       ];
 
       setProducts(mockProducts);
-      return;
     } finally {
       setLoading(false);
     }
@@ -975,7 +284,6 @@ export const useProducts = (
   }, [fetchProducts]);
 
   useEffect(() => {
-    // Always fetch products, regardless of session state
     const loadProducts = async () => {
       try {
         await fetchProducts();
@@ -985,7 +293,7 @@ export const useProducts = (
     };
 
     loadProducts();
-  }, [fetchProducts]);
+  }, [selectedCategory, fetchProducts]);
 
   return {
     products,

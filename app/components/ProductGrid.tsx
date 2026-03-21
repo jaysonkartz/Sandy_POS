@@ -1,6 +1,14 @@
 import React, { memo, useMemo } from "react";
 import { ProductCard } from "./ProductCard";
 
+interface ProductImageRow {
+  id: number;
+  product_id: number;
+  image_url: string;
+  sort_order: number;
+  is_cover: boolean;
+}
+
 interface Product {
   id: number;
   "Item Code": string;
@@ -18,6 +26,7 @@ interface Product {
   uom: string;
   stock_quantity: number;
   image_url?: string;
+  product_images?: ProductImageRow[];
 }
 
 interface ProductGroup {
@@ -77,53 +86,49 @@ export const ProductGrid = memo<ProductGridProps>(
       return result;
     }, [selectedProducts]);
 
-    // Group products by category for display
-    const categoryDisplayGroups: { [category: string]: typeof productGroups } = {};
-    productGroups.forEach((group) => {
-      if (!categoryDisplayGroups[group.category]) {
-        categoryDisplayGroups[group.category] = [];
-      }
-      categoryDisplayGroups[group.category].push(group);
-    });
+  const categoryDisplayGroups: { [category: string]: typeof productGroups } = {};
+  productGroups.forEach((group) => {
+    if (!categoryDisplayGroups[group.category]) {
+      categoryDisplayGroups[group.category] = [];
+    }
+    categoryDisplayGroups[group.category].push(group);
+  });
 
-    return (
-      <div className="space-y-8">
-        {Object.entries(categoryDisplayGroups).map(([category, groups]) => (
-          <div key={category} className="space-y-4">
-            {/* Category Header */}
-            <div className="border-b border-gray-200 pb-2">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
-                {isEnglish ? category : groups[0]?.products[0]?.Category_CH || category}
-              </h2>
-            </div>
-
-            {/* Products in this category */}
-            <div className="grid grid-cols-2 [@media(min-width:480px)]:grid-cols-4 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-              {groups.map((group) => (
-                <ProductCard
-                  key={group.title}
-                  countryMap={countryMap}
-                  currentQuantityByProductId={quantityByProductId}
-                  group={group}
-                  isEnglish={isEnglish}
-                  isLoggingIn={isLoggingIn}
-                  isSessionValid={isSessionValid}
-                  selectedOptions={selectedOptions}
-                  userRole={userRole}
-                  onAddToOrder={onAddToOrder}
-                  onCustomerService={onCustomerService}
-                  onOpenPhotoEditor={onOpenPhotoEditor}
-                  onOpenSignupModal={onOpenSignupModal}
-                  onOptionChange={onOptionChange}
-                  onUpdateQuantity={onUpdateQuantity}
-                />
-              ))}
-            </div>
+  return (
+    <div className="space-y-8">
+      {Object.entries(categoryDisplayGroups).map(([category, groups]) => (
+        <div key={category} className="space-y-4">
+          <div className="border-b border-gray-200 pb-2">
+            <h2 className="text-xl font-bold text-gray-800 sm:text-2xl">
+              {isEnglish ? category : groups[0]?.products[0]?.Category_CH || category}
+            </h2>
           </div>
-        ))}
-      </div>
-    );
-  }
-);
+
+          <div className="grid grid-cols-2 gap-3 [@media(min-width:480px)]:grid-cols-4 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
+            {groups.map((group) => (
+              <ProductCard
+                key={group.title}
+                group={group}
+                isEnglish={isEnglish}
+                isSessionValid={isSessionValid}
+                userRole={userRole}
+                selectedOptions={selectedOptions}
+                currentQuantityByProductId={quantityByProductId}
+                countryMap={countryMap}
+                isLoggingIn={isLoggingIn}
+                onOptionChange={onOptionChange}
+                onAddToOrder={onAddToOrder}
+                onUpdateQuantity={onUpdateQuantity}
+                onCustomerService={onCustomerService}
+                onOpenPhotoEditor={onOpenPhotoEditor}
+                onOpenSignupModal={onOpenSignupModal}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+});
 
 ProductGrid.displayName = "ProductGrid";

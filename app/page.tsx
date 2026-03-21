@@ -33,7 +33,6 @@ import { FORCE_LOADING_RESET_DELAY } from "@/app/constants/app-constants";
 import { SelectedOptions } from "@/app/types/product";
 import { OrderReviewData } from "@/app/types/common";
 
-// Component that handles search params (needs to be wrapped in Suspense)
 function HomeContent({
   selectedCategory,
   setSelectedCategory,
@@ -59,6 +58,7 @@ function HomeContent({
   error,
   productGroups,
   setProducts,
+  refetchProducts,
   searchTerm,
   handleSearchChange,
   handleClearSearch,
@@ -87,7 +87,6 @@ function HomeContent({
 }: any) {
   const searchParams = useSearchParams();
 
-  // Load reorder data from localStorage if reorder parameter is present
   useEffect(() => {
     const reorderParam = searchParams.get("reorder");
     if (reorderParam === "true" && typeof window !== "undefined") {
@@ -147,7 +146,6 @@ function HomeContent({
     setIsOrderPanelOpen,
   ]);
 
-  // Auto-open order panel if order query parameter is present and items are already loaded
   useEffect(() => {
     const orderParam = searchParams.get("order");
     if (
@@ -164,7 +162,6 @@ function HomeContent({
     }
   }, [searchParams, selectedProducts.length, setIsOrderPanelOpen]);
 
-  // Callbacks
   const handleOptionChange = useCallback(
     (title: string, type: "variation" | "countryId" | "weight", value: string) => {
       setSelectedOptions((prev: SelectedOptions) => ({
@@ -205,7 +202,6 @@ function HomeContent({
     }
   }, [forceRefreshSession, setIsLoggingIn, setIsSignupModalOpen]);
 
-  // Loading state
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const isLoading = loading || sessionLoading;
 
@@ -228,7 +224,6 @@ function HomeContent({
 
   return (
     <div className="w-full">
-      {/* Shopee-like sticky filter bar (under the main header) */}
       <div className="sticky top-14 sm:top-16 z-40 border-b border-gray-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
         <div className="w-full px-3 sm:px-6 py-2.5">
           <div className="flex flex-wrap items-center gap-2">
@@ -254,7 +249,6 @@ function HomeContent({
         </div>
       </div>
 
-      {/* Content area */}
       <div className="w-full px-3 sm:px-6 py-4 pb-24">
         {searchTerm && (
           <SearchResultsInfo
@@ -301,7 +295,6 @@ function HomeContent({
         )}
       </div>
 
-      {/* Floating buttons */}
       <div className="fixed right-4 z-50 bottom-[calc(env(safe-area-inset-bottom)+6rem)] flex flex-col gap-3 items-end">
         {selectedProducts.length > 0 && (
           <FloatingOrderButton
@@ -313,7 +306,7 @@ function HomeContent({
 
         <ScrollToTop show={showScrollTop} onClick={scrollToTop} />
       </div>
-      {/* Order Panel */}
+
       <OrderPanel
         countryMap={countryMap}
         customerAddress={customerAddress}
@@ -332,22 +325,23 @@ function HomeContent({
         onUpdateQuantity={updateOrderQuantity}
       />
 
-      {/* Signup Modal */}
       <SignupModal
         isOpen={isSignupModalOpen}
         onClose={() => setIsSignupModalOpen(false)}
         onLoginSuccess={handleLoginSuccess}
       />
 
-      {/* Photo Editor */}
       {selectedProductForPhoto && (
         <ProductPhotoEditor
           currentImageUrl={selectedProductForPhoto.image_url}
           isOpen={isPhotoEditorOpen}
           productId={selectedProductForPhoto.id}
           productName={selectedProductForPhoto.Product}
-          onClose={closePhotoEditor}
+          onClose={() => {
+            closePhotoEditor();
+          }}
           onImageUpdate={handleImageUpdateCallback}
+          onRefetchProducts={refetchProducts}
         />
       )}
     </div>
@@ -358,7 +352,6 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [isEnglish, setIsEnglish] = useState(true);
 
-  // UI open/close comes from CartContext
   const { isOrderPanelOpen, setIsOrderPanelOpen } = useCart();
 
   const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
@@ -384,6 +377,7 @@ export default function Home() {
     error,
     productGroups,
     setProducts,
+    refetchProducts,
     searchTerm,
     handleSearchChange,
     handleClearSearch,
@@ -416,10 +410,9 @@ export default function Home() {
     submitOrder,
   } = useOrder();
 
-  // ✅ FIX: when logout happens (session becomes null), clear order state
   useEffect(() => {
     if (!session) {
-      clearOrder(); // this clears selectedProducts (the floating button uses this)
+      clearOrder();
       setIsOrderPanelOpen(false);
     }
   }, [session, clearOrder, setIsOrderPanelOpen]);
@@ -450,8 +443,13 @@ export default function Home() {
         loading={loading}
         openPhotoEditor={openPhotoEditor}
         productGroups={productGroups}
-        products={products}
-        reviewData={reviewData}
+        setProducts={setProducts}
+        refetchProducts={refetchProducts}
+        searchTerm={searchTerm}
+        handleSearchChange={handleSearchChange}
+        handleClearSearch={handleClearSearch}
+        countryMap={countryMap}
+        showScrollTop={showScrollTop}
         scrollToTop={scrollToTop}
         searchTerm={searchTerm}
         selectedCategory={selectedCategory}

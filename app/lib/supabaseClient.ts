@@ -7,6 +7,38 @@ const getSupabaseAnonKey = (): string =>
 const supabaseUrl = getSupabaseUrl();
 const supabaseAnonKey = getSupabaseAnonKey();
 
+const createSafeFetch = () => {
+  return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    try {
+      return await fetch(input, init);
+    } catch (error: unknown) {
+      const errorStack = error instanceof Error ? error.stack || "" : "";
+      const isExtensionError =
+        errorStack.includes("chrome-extension://") ||
+        errorStack.includes("moz-extension://") ||
+        errorStack.includes("safari-extension://") ||
+        errorStack.includes("extension://");
+
+      if (isExtensionError) {
+        console.warn(
+          "⚠️ Browser extension may be interfering with network requests.",
+          "The app will continue, but some operations may be limited.",
+          "Consider disabling extensions that modify network requests."
+        );
+        return new Response(
+          JSON.stringify({
+            error: "extension_fetch_failed",
+            message: "Fetch failed due to browser extension interference.",
+          }),
+          { status: 503, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      throw error;
+    }
+  };
+};
+
 if (!supabaseUrl) {
   const error = "NEXT_PUBLIC_SUPABASE_URL is not set. Please check your environment variables.";
   if (typeof window === "undefined") {
@@ -31,6 +63,9 @@ export const supabase = createBrowserClient(supabaseUrl || "", supabaseAnonKey |
     persistSession: true,
     detectSessionInUrl: true,
   },
+  global: {
+    fetch: createSafeFetch(),
+  },
   cookieOptions: {
     path: "/",
     sameSite: "lax",
@@ -44,6 +79,9 @@ export const supabasePublic = createBrowserClient(supabaseUrl || "", supabaseAno
     autoRefreshToken: false,
     persistSession: false,
     detectSessionInUrl: false,
+  },
+  global: {
+    fetch: createSafeFetch(),
   },
   cookieOptions: {
     path: "/",
