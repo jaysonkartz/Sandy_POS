@@ -416,6 +416,7 @@ export default function ProductManagement() {
             setIsEditModalOpen(false);
           }}
           onUpdate={handleProductUpdate}
+          onRefetchProducts={fetchProducts}
         />
       )}
 
@@ -431,6 +432,7 @@ export default function ProductManagement() {
             setIsPhotoEditorOpen(false);
           }}
           onImageUpdate={handleImageUpdate}
+          onRefetchProducts={fetchProducts}
         />
       )}
     </div>

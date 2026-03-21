@@ -16,12 +16,14 @@ interface VariantManagerProps {
   productId: number;
   variants: ProductVariant[];
   onVariantsChange: (variants: ProductVariant[]) => void;
+  onRefetchProducts: () => Promise<void>;
 }
 
 export default function VariantManager({
   productId,
   variants,
   onVariantsChange,
+  onRefetchProducts,
 }: VariantManagerProps) {
   const [isAddingVariant, setIsAddingVariant] = useState(false);
   const [editingVariant, setEditingVariant] = useState<ProductVariant | null>(null);
@@ -243,6 +245,7 @@ export default function VariantManager({
             handleUpdateVariant(selectedVariantForPhoto.id, { image_url: imageUrl });
           }
         }}
+        onRefetchProducts={onRefetchProducts}
       />
     </div>
   );

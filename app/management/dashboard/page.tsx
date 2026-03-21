@@ -2115,6 +2115,7 @@ export default function ManagementDashboard() {
                                 }))
                               );
                             }}
+                            onRefetchProducts={fetchCategories}
                           />
                         ) : (
                           <VariantExtractor

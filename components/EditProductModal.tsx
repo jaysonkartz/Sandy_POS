@@ -327,6 +327,7 @@ export default function EditProductModal({
                 productId={product.id}
                 variants={variants}
                 onVariantsChange={setVariants}
+                onRefetchProducts={onRefetchProducts}
               />
             </div>
 
