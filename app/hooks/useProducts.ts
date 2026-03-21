@@ -276,7 +276,7 @@ export const useProducts = (
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory, applyLatestPriceHistory]);
+  }, [selectedCategory]);
 
   const refetchProducts = useCallback(async () => {
     setLoading(true);

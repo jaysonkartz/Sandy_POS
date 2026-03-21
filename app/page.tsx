@@ -211,7 +211,7 @@ function HomeContent({
   }, []);
 
   useEffect(() => {
-    if (products.length > 0 || error || !sessionLoading) setIsInitialLoad(false);
+    if ((products?.length ?? 0) > 0 || error || !sessionLoading) setIsInitialLoad(false);
   }, [products.length, error, sessionLoading]);
 
   if (isLoading && isInitialLoad) return <LoadingSkeleton />;
@@ -420,61 +420,57 @@ export default function Home() {
   return (
     <Suspense fallback={<LoadingSkeleton />}>
       <HomeContent
-        addToOrder={addToOrder}
-        clearOrder={clearOrder}
-        closePhotoEditor={closePhotoEditor}
-        countryMap={countryMap}
-        customerAddress={customerAddress}
-        customerName={customerName}
-        customerPhone={customerPhone}
-        error={error}
-        forceRefreshSession={forceRefreshSession}
-        handleClearSearch={handleClearSearch}
-        handleCustomerService={handleCustomerService}
-        handleImageUpdate={handleImageUpdate}
-        handleSearchChange={handleSearchChange}
-        isEnglish={isEnglish}
-        isLoggingIn={isLoggingIn}
-        isOrderPanelOpen={isOrderPanelOpen}
-        isPhotoEditorOpen={isPhotoEditorOpen}
-        isSessionValid={isSessionValid}
-        isSignupModalOpen={isSignupModalOpen}
-        isSubmitting={isSubmitting}
-        loading={loading}
-        openPhotoEditor={openPhotoEditor}
-        productGroups={productGroups}
-        setProducts={setProducts}
-        refetchProducts={refetchProducts}
-        searchTerm={searchTerm}
-        handleSearchChange={handleSearchChange}
-        handleClearSearch={handleClearSearch}
-        countryMap={countryMap}
-        showScrollTop={showScrollTop}
-        scrollToTop={scrollToTop}
-        searchTerm={searchTerm}
-        selectedCategory={selectedCategory}
-        selectedOptions={selectedOptions}
-        selectedProductForPhoto={selectedProductForPhoto}
-        selectedProducts={selectedProducts}
-        sendWhatsAppNotification={sendWhatsAppNotification}
-        session={session}
-        sessionLoading={sessionLoading}
-        setCustomerAddress={setCustomerAddress}
-        setCustomerName={setCustomerName}
-        setCustomerPhone={setCustomerPhone}
-        setIsEnglish={setIsEnglish}
-        setIsLoggingIn={setIsLoggingIn}
-        setIsOrderPanelOpen={setIsOrderPanelOpen}
-        setIsSignupModalOpen={setIsSignupModalOpen}
-        setProducts={setProducts}
-        setReviewData={setReviewData}
-        setSelectedCategory={setSelectedCategory}
-        setSelectedOptions={setSelectedOptions}
-        showScrollTop={showScrollTop}
-        submitOrder={submitOrder}
-        updateOrderQuantity={updateOrderQuantity}
-        userRole={userRole}
-      />
+  addToOrder={addToOrder}
+  clearOrder={clearOrder}
+  closePhotoEditor={closePhotoEditor}
+  countryMap={countryMap}
+  customerAddress={customerAddress}
+  customerName={customerName}
+  customerPhone={customerPhone}
+  error={error}
+  forceRefreshSession={forceRefreshSession}
+  handleClearSearch={handleClearSearch}
+  handleCustomerService={handleCustomerService}
+  handleImageUpdate={handleImageUpdate}
+  handleSearchChange={handleSearchChange}
+  isEnglish={isEnglish}
+  isLoggingIn={isLoggingIn}
+  isOrderPanelOpen={isOrderPanelOpen}
+  isPhotoEditorOpen={isPhotoEditorOpen}
+  isSessionValid={isSessionValid}
+  isSignupModalOpen={isSignupModalOpen}
+  isSubmitting={isSubmitting}
+  loading={loading}
+  openPhotoEditor={openPhotoEditor}
+  products={products}
+  productGroups={productGroups}
+  reviewData={reviewData}
+  setProducts={setProducts}
+  refetchProducts={refetchProducts}
+  searchTerm={searchTerm}
+  scrollToTop={scrollToTop}
+  selectedCategory={selectedCategory}
+  selectedOptions={selectedOptions}
+  selectedProductForPhoto={selectedProductForPhoto}
+  selectedProducts={selectedProducts}
+  sendWhatsAppNotification={sendWhatsAppNotification}
+  session={session}
+  sessionLoading={sessionLoading}
+  setCustomerAddress={setCustomerAddress}
+  setCustomerName={setCustomerName}
+  setCustomerPhone={setCustomerPhone}
+  setIsEnglish={setIsEnglish}
+  setIsLoggingIn={setIsLoggingIn}
+  setIsOrderPanelOpen={setIsOrderPanelOpen}
+  setIsSignupModalOpen={setIsSignupModalOpen}
+  setReviewData={setReviewData}
+  setSelectedCategory={setSelectedCategory}
+  setSelectedOptions={setSelectedOptions}
+  showScrollTop={showScrollTop}
+  submitOrder={submitOrder}
+  updateOrderQuantity={updateOrderQuantity}
+  userRole={userRole}
+/>
     </Suspense>
   );
 }
