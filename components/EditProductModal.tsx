@@ -31,9 +31,15 @@ interface EditProductModalProps {
   product: Product;
   onClose: () => void;
   onUpdate: (productId: number, updatedData: Partial<Product>) => Promise<void>;
+  onRefetchProducts: () => Promise<void>;
 }
 
-export default function EditProductModal({ product, onClose, onUpdate }: EditProductModalProps) {
+export default function EditProductModal({
+  product,
+  onClose,
+  onUpdate,
+  onRefetchProducts,
+}: EditProductModalProps) {
   const [editedProduct, setEditedProduct] = useState({ ...product });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +47,6 @@ export default function EditProductModal({ product, onClose, onUpdate }: EditPro
   const [currentImageUrl, setCurrentImageUrl] = useState(product.image_url || "");
   const [variants, setVariants] = useState<ProductVariant[]>(product.variants || []);
 
-  // Fetch variants when component mounts
   useEffect(() => {
     const fetchVariants = async () => {
       try {
@@ -68,6 +73,7 @@ export default function EditProductModal({ product, onClose, onUpdate }: EditPro
 
     try {
       await onUpdate(product.id, editedProduct);
+      await onRefetchProducts();
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update product");
@@ -83,79 +89,75 @@ export default function EditProductModal({ product, onClose, onUpdate }: EditPro
 
   return (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
         <motion.div
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white p-6 rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto"
           initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-lg"
         >
-          <div className="flex items-center justify-between mb-6">
+          <div className="mb-6 flex items-center justify-between">
             <h2 className="text-xl font-bold">Edit Product</h2>
             <button
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-gray-400 transition-colors hover:text-gray-600"
               onClick={onClose}
             >
-              <X className="w-6 h-6" />
+              <X className="h-6 w-6" />
             </button>
           </div>
 
           <form className="space-y-6" onSubmit={handleSubmit}>
-            {/* Product Image Section */}
-            <div className="border rounded-lg p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <ImageIcon className="w-5 h-5" />
+            <div className="rounded-lg border p-4">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="flex items-center gap-2 text-lg font-semibold">
+                  <ImageIcon className="h-5 w-5" />
                   Product Image
                 </h3>
                 <button
-                  className="flex items-center gap-2 bg-blue-500 text-white px-3 py-2 rounded-md hover:bg-blue-600 transition-colors"
+                  className="flex items-center gap-2 rounded-md bg-blue-500 px-3 py-2 text-white transition-colors hover:bg-blue-600"
                   type="button"
                   onClick={() => setIsPhotoEditorOpen(true)}
                 >
-                  <Camera className="w-4 h-4" />
+                  <Camera className="h-4 w-4" />
                   {currentImageUrl ? "Edit Photo" : "Add Photo"}
                 </button>
               </div>
 
-              {/* Current Image Preview */}
               {currentImageUrl ? (
                 <div className="relative inline-block">
                   <CldImage
                     unoptimized
                     alt={editedProduct.Product}
-                    className="w-32 h-32 object-cover rounded-lg border"
-                    height={128}
+                    className="h-32 w-32 rounded-lg border object-cover"
                     src={currentImageUrl}
                     width={128}
                   />
-                  <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-20 transition-all rounded-lg flex items-center justify-center">
-                    <Edit3 className="w-6 h-6 text-white opacity-0 hover:opacity-100 transition-opacity" />
+                  <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black bg-opacity-0 transition-all hover:bg-opacity-20">
+                    <Edit3 className="h-6 w-6 text-white opacity-0 transition-opacity hover:opacity-100" />
                   </div>
                 </div>
               ) : (
-                <div className="w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
+                <div className="flex h-32 w-32 items-center justify-center rounded-lg border-2 border-dashed border-gray-300">
                   <div className="text-center">
-                    <ImageIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                    <ImageIcon className="mx-auto mb-2 h-8 w-8 text-gray-400" />
                     <p className="text-sm text-gray-500">No image</p>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Product Details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  className="mb-1 block text-sm font-medium text-gray-700"
                   htmlFor="edit-product-name"
                 >
                   Product Name (English)
                 </label>
                 <input
                   required
-                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   id="edit-product-name"
                   type="text"
+                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   value={editedProduct.Product}
                   onChange={(e) => setEditedProduct({ ...editedProduct, Product: e.target.value })}
                 />
@@ -163,15 +165,15 @@ export default function EditProductModal({ product, onClose, onUpdate }: EditPro
 
               <div>
                 <label
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  className="mb-1 block text-sm font-medium text-gray-700"
                   htmlFor="edit-product-name-ch"
                 >
                   Product Name (Chinese)
                 </label>
                 <input
-                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   id="edit-product-name-ch"
                   type="text"
+                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   value={editedProduct.Product_CH || ""}
                   onChange={(e) =>
                     setEditedProduct({ ...editedProduct, Product_CH: e.target.value })
@@ -181,16 +183,16 @@ export default function EditProductModal({ product, onClose, onUpdate }: EditPro
 
               <div>
                 <label
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  className="mb-1 block text-sm font-medium text-gray-700"
                   htmlFor="edit-item-code"
                 >
                   Item Code
                 </label>
                 <input
                   required
-                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   id="edit-item-code"
                   type="text"
+                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   value={editedProduct["Item Code"]}
                   onChange={(e) =>
                     setEditedProduct({ ...editedProduct, "Item Code": e.target.value })
@@ -200,16 +202,16 @@ export default function EditProductModal({ product, onClose, onUpdate }: EditPro
 
               <div>
                 <label
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  className="mb-1 block text-sm font-medium text-gray-700"
                   htmlFor="edit-category"
                 >
                   Category
                 </label>
                 <input
                   required
-                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   id="edit-category"
                   type="text"
+                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   value={editedProduct.Category}
                   onChange={(e) => setEditedProduct({ ...editedProduct, Category: e.target.value })}
                 />
@@ -217,18 +219,18 @@ export default function EditProductModal({ product, onClose, onUpdate }: EditPro
 
               <div>
                 <label
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  className="mb-1 block text-sm font-medium text-gray-700"
                   htmlFor="edit-price"
                 >
                   Price
                 </label>
                 <input
                   required
-                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   id="edit-price"
+                  type="number"
                   min="0"
                   step="0.01"
-                  type="number"
+                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   value={editedProduct.price}
                   onChange={(e) =>
                     setEditedProduct({ ...editedProduct, price: Number(e.target.value) })
@@ -237,14 +239,14 @@ export default function EditProductModal({ product, onClose, onUpdate }: EditPro
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="edit-uom">
+                <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="edit-uom">
                   Unit of Measure
                 </label>
                 <input
                   required
-                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   id="edit-uom"
                   type="text"
+                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   value={editedProduct.UOM}
                   onChange={(e) => setEditedProduct({ ...editedProduct, UOM: e.target.value })}
                 />
@@ -252,15 +254,15 @@ export default function EditProductModal({ product, onClose, onUpdate }: EditPro
 
               <div>
                 <label
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  className="mb-1 block text-sm font-medium text-gray-700"
                   htmlFor="edit-country"
                 >
                   Country of Origin
                 </label>
                 <input
-                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   id="edit-country"
                   type="text"
+                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   value={editedProduct.Country}
                   onChange={(e) => setEditedProduct({ ...editedProduct, Country: e.target.value })}
                 />
@@ -268,15 +270,15 @@ export default function EditProductModal({ product, onClose, onUpdate }: EditPro
 
               <div>
                 <label
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  className="mb-1 block text-sm font-medium text-gray-700"
                   htmlFor="edit-variation"
                 >
                   Variation
                 </label>
                 <input
-                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   id="edit-variation"
                   type="text"
+                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   value={editedProduct.Variation || ""}
                   onChange={(e) =>
                     setEditedProduct({ ...editedProduct, Variation: e.target.value })
@@ -286,15 +288,15 @@ export default function EditProductModal({ product, onClose, onUpdate }: EditPro
 
               <div>
                 <label
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  className="mb-1 block text-sm font-medium text-gray-700"
                   htmlFor="edit-weight"
                 >
                   Weight
                 </label>
                 <input
-                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   id="edit-weight"
                   type="text"
+                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   value={editedProduct.weight || ""}
                   onChange={(e) => setEditedProduct({ ...editedProduct, weight: e.target.value })}
                 />
@@ -302,16 +304,16 @@ export default function EditProductModal({ product, onClose, onUpdate }: EditPro
 
               <div>
                 <label
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  className="mb-1 block text-sm font-medium text-gray-700"
                   htmlFor="edit-stock"
                 >
                   Stock Quantity
                 </label>
                 <input
-                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   id="edit-stock"
-                  min="0"
                   type="number"
+                  min="0"
+                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   value={editedProduct.stock_quantity || 0}
                   onChange={(e) =>
                     setEditedProduct({ ...editedProduct, stock_quantity: Number(e.target.value) })
@@ -320,45 +322,43 @@ export default function EditProductModal({ product, onClose, onUpdate }: EditPro
               </div>
             </div>
 
-            {/* Variant Management Section */}
-            <div className="border rounded-lg p-4">
+            <div className="rounded-lg border p-4">
               <VariantManager
                 productId={product.id}
                 variants={variants}
                 onVariantsChange={setVariants}
+                onRefetchProducts={onRefetchProducts}
               />
             </div>
 
-            {/* Error Message */}
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                <p className="text-red-600 text-sm">{error}</p>
+              <div className="rounded-md border border-red-200 bg-red-50 p-3">
+                <p className="text-sm text-red-600">{error}</p>
               </div>
             )}
 
-            {/* Action Buttons */}
-            <div className="flex justify-end space-x-3 pt-4 border-t">
+            <div className="flex justify-end space-x-3 border-t pt-4">
               <button
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
-                disabled={isLoading}
                 type="button"
+                disabled={isLoading}
                 onClick={onClose}
+                className="rounded-md border border-gray-300 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-                disabled={isLoading}
                 type="submit"
+                disabled={isLoading}
+                className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
               >
                 {isLoading ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                     Saving...
                   </>
                 ) : (
                   <>
-                    <Save className="w-4 h-4" />
+                    <Save className="h-4 w-4" />
                     Save Changes
                   </>
                 )}
@@ -368,14 +368,16 @@ export default function EditProductModal({ product, onClose, onUpdate }: EditPro
         </motion.div>
       </div>
 
-      {/* Photo Editor Modal */}
       <ProductPhotoEditor
         currentImageUrl={currentImageUrl}
         isOpen={isPhotoEditorOpen}
         productId={product.id}
-        productName={editedProduct.Product}
-        onClose={() => setIsPhotoEditorOpen(false)}
+        productName={product.Product}
+        onClose={() => {
+          setIsPhotoEditorOpen(false);
+        }}
         onImageUpdate={handleImageUpdate}
+        onRefetchProducts={onRefetchProducts}
       />
     </>
   );

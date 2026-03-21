@@ -1,11 +1,9 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
-import { CldImage } from "next-cloudinary";
-import { ImageIcon } from "lucide-react";
+import React, { useEffect, useState } from "react";
 
 interface ProductImageProps {
-  src: string;
+  src?: string;
   alt: string;
   className?: string;
 }
@@ -13,61 +11,43 @@ interface ProductImageProps {
 export default function ProductImage({
   src,
   alt,
-  className = "w-full h-full object-cover",
+  className = "",
 }: ProductImageProps) {
-  const [imageSrc, setImageSrc] = useState(src);
-  const [hasError, setHasError] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const handleError = useCallback(() => {
-    if (!hasError) {
-      setHasError(true);
-      setIsLoading(false);
-    }
-  }, [hasError]);
-
-  const handleLoad = useCallback(() => {
-    setIsLoading(false);
-  }, []);
+  const placeholder = "/product-placeholder.svg";
+  const [imgSrc, setImgSrc] = useState(src || placeholder);
+  const [loading, setLoading] = useState(true);
+  const [triedFallback, setTriedFallback] = useState(false);
 
   useEffect(() => {
-    setImageSrc(src);
-    setIsLoading(true);
-    setHasError(false);
+    setImgSrc(src || placeholder);
+    setLoading(true);
+    setTriedFallback(false);
   }, [src]);
 
   return (
-    <div className="relative w-full h-full">
-      {isLoading && (
-        <div className="absolute inset-0 bg-gray-200 animate-pulse flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+    <div className={`relative ${className}`}>
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500" />
         </div>
       )}
 
-      {!hasError && (
-        <CldImage
-          unoptimized
-          alt={alt}
-          className={`${className} ${isLoading ? "opacity-0" : "opacity-100"} transition-opacity duration-200`}
-          decoding="async"
-          fetchPriority="low"
-          height={800}
-          loading="lazy"
-          src={imageSrc}
-          width={800}
-          onError={handleError}
-          onLoad={handleLoad}
-        />
-      )}
-
-      {hasError && (
-        <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
-          <div className="text-center">
-            <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-            <p className="text-xs text-gray-500">No Image</p>
-          </div>
-        </div>
-      )}
+      <img
+        src={imgSrc}
+        alt={alt}
+        className={`h-full w-full object-cover transition-opacity ${
+          loading ? "opacity-0" : "opacity-100"
+        }`}
+        onLoad={() => setLoading(false)}
+        onError={() => {
+          if (!triedFallback && imgSrc !== placeholder) {
+            setTriedFallback(true);
+            setImgSrc(placeholder);
+            return;
+          }
+          setLoading(false);
+        }}
+      />
     </div>
   );
 }

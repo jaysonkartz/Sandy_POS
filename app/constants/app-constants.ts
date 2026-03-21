@@ -6,6 +6,16 @@ export const SESSION_TIMEOUT_MS = 4000;
 export const LOGOUT_TIMEOUT_MS = SESSION_TIMEOUT_MS;
 export const FORCE_LOADING_RESET_DELAY = SESSION_TIMEOUT_MS;
 
+// Session constants
+export const SESSION_REFRESH_INTERVAL = 60 * 1000; // 1 minute
+export const SESSION_CHECK_INTERVAL = 30 * 1000; // 30 seconds
+export const USER_ACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes
+
+export const STORAGE_KEYS = {
+  SESSION: "supabase_session",
+  SUPABASE_PREFIX: "sb-",
+} as const;
+
 // WhatsApp constants
 export const WHATSAPP_PHONE_NUMBER = "6593254825";
 export const WHATSAPP_DEFAULT_MESSAGE = "Hi, I would like to inquire about your products.";
