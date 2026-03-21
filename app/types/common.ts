@@ -1,5 +1,7 @@
 import { Session } from "@supabase/supabase-js";
 
+export type { Session };
+
 /**
  * Type for authenticated session with user
  */

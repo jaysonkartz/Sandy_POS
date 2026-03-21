@@ -1,8 +1,12 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { X, Trash2 } from "lucide-react";
-import { CldImage } from "next-cloudinary";
+import { X, Trash2 } from "@/app/lib/icons";
+import {
+  CldImage,
+  getCloudinaryCloudName,
+  getCloudinaryUploadPreset,
+} from "@/app/lib/cloudinary";
 import { supabase } from "@/app/lib/supabaseClient";
 import ImageCropEditor from "@/components/ImageCropEditor";
 
@@ -127,8 +131,8 @@ export default function ProductPhotoEditor({
   }, [images, currentImageUrl]);
 
   async function uploadBlobToCloudinary(blob: Blob, fileName: string) {
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+    const cloudName = getCloudinaryCloudName();
+    const uploadPreset = getCloudinaryUploadPreset();
 
     console.log("[Cloudinary] cloudName:", cloudName);
     console.log("[Cloudinary] uploadPreset:", uploadPreset);
