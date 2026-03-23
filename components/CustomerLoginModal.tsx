@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/app/lib/navigation";
 import { createPortal } from "react-dom";
 import { supabase } from "@/app/lib/supabaseClient";
 import { useSignInLogging } from "@/app/hooks/useSignInLogging";
 import { USER_ROLES } from "@/app/constants/app-constants";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "@/app/lib/icons";
 
 interface CustomerLoginModalProps {
   isOpen: boolean;

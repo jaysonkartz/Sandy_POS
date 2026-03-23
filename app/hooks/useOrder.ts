@@ -24,8 +24,10 @@ interface Product {
   image_url?: string;
 }
 
+type CartItem = { product: Product; quantity: number };
+
 interface UseOrderReturn {
-  selectedProducts: { product: Product; quantity: number }[];
+  selectedProducts: CartItem[];
   customerName: string;
   customerPhone: string;
   customerAddress: string;
@@ -36,6 +38,12 @@ interface UseOrderReturn {
   addToOrder: (product: Product) => void;
   updateQuantity: (productId: number, newQuantity: number) => void;
   clearOrder: () => void;
+  replaceOrder: (payload: {
+    selectedProducts: CartItem[];
+    customerName?: string;
+    customerPhone?: string;
+    customerAddress?: string;
+  }) => void;
   submitOrder: (
     session: Session | null,
     isEnglish: boolean,
@@ -47,7 +55,7 @@ interface UseOrderReturn {
 const STORAGE_KEY = "pendingOrder_v1";
 
 type StoredOrder = {
-  selectedProducts: { product: Product; quantity: number }[];
+  selectedProducts: CartItem[];
   customerName: string;
   customerPhone: string;
   customerAddress: string;
@@ -76,15 +84,14 @@ const clearStored = () => {
 export const useOrder = (): UseOrderReturn => {
   const stored = readStored();
 
-  const [selectedProducts, setSelectedProducts] = useState<
-    { product: Product; quantity: number }[]
-  >(stored?.selectedProducts ?? []);
+  const [selectedProducts, setSelectedProducts] = useState<CartItem[]>(
+    stored?.selectedProducts ?? []
+  );
   const [customerName, setCustomerName] = useState(stored?.customerName ?? "");
   const [customerPhone, setCustomerPhone] = useState(stored?.customerPhone ?? "");
   const [customerAddress, setCustomerAddress] = useState(stored?.customerAddress ?? "");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Persist with a short delay to reduce write pressure during rapid input changes.
   useEffect(() => {
     const timeout = setTimeout(() => {
       writeStored({
@@ -127,8 +134,30 @@ export const useOrder = (): UseOrderReturn => {
     setCustomerName("");
     setCustomerPhone("");
     setCustomerAddress("");
-    clearStored(); // ✅ also clear localStorage
+    clearStored();
   }, []);
+
+  const replaceOrder = useCallback(
+    (payload: {
+      selectedProducts: CartItem[];
+      customerName?: string;
+      customerPhone?: string;
+      customerAddress?: string;
+    }) => {
+      setSelectedProducts(payload.selectedProducts || []);
+      setCustomerName(payload.customerName || "");
+      setCustomerPhone(payload.customerPhone || "");
+      setCustomerAddress(payload.customerAddress || "");
+
+      writeStored({
+        selectedProducts: payload.selectedProducts || [],
+        customerName: payload.customerName || "",
+        customerPhone: payload.customerPhone || "",
+        customerAddress: payload.customerAddress || "",
+      });
+    },
+    []
+  );
 
   const submitOrder = useCallback(
     async (
@@ -166,13 +195,12 @@ export const useOrder = (): UseOrderReturn => {
           0
         );
 
-        // Upload files if any
         let uploadedFileUrls: string[] = [];
         if (reviewData?.uploadedFiles && reviewData.uploadedFiles.length > 0) {
           const uploadPromises = reviewData.uploadedFiles.map(async (file) => {
             const fileExt = file.name.split(".").pop();
             const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-            const filePath = `orders/${session.user.id}/${fileName}`;
+            const filePath = `orders/${session!.user.id}/${fileName}`;
 
             const { error: uploadError } = await supabase.storage
               .from("order-files")
@@ -197,7 +225,7 @@ export const useOrder = (): UseOrderReturn => {
             {
               status: "pending",
               total_amount: totalAmount,
-              user_id: session.user.id,
+              user_id: session!.user.id,
               customer_name: customerName,
               customer_phone: customerPhone,
               customer_address: customerAddress,
@@ -263,6 +291,7 @@ export const useOrder = (): UseOrderReturn => {
     addToOrder,
     updateQuantity,
     clearOrder,
+    replaceOrder,
     submitOrder,
   };
 };

@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { supabase, supabasePublic } from "@/app/lib/supabaseClient";
+import { supabase, supabasePublic, isSupabaseConfigured } from "@/app/lib/supabaseClient";
 import { CATEGORY_ID_NAME_MAP } from "@/app/(admin)/const/category";
-import { Session } from "@supabase/supabase-js";
+import type { Session } from "@/app/types/common";
 
 interface ProductImageRow {
   id: number;
@@ -168,10 +168,7 @@ export const useProducts = (
     try {
       setError(null);
 
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-      if (!supabaseUrl || !supabaseKey) {
+      if (!isSupabaseConfigured()) {
         setError("Supabase environment variables not configured. Please set up .env.local file.");
         setLoading(false);
         return;
