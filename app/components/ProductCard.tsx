@@ -51,6 +51,7 @@ interface ProductCardProps {
   currentQuantityByProductId: Record<number, number>;
   countryMap: { [key: string]: { name: string; chineseName: string } };
   isLoggingIn: boolean;
+  reorderedProductIds?: number[];
   onOptionChange: (
     title: string,
     type: "variation" | "countryId" | "weight",
@@ -58,12 +59,7 @@ interface ProductCardProps {
   ) => void;
   onAddToOrder: (product: Product) => void;
   onUpdateQuantity: (productId: number, newQuantity: number) => void;
-  onCustomerService: (productDetails: {
-    productName: string;
-    variation?: string;
-    origin?: string;
-    weight?: string;
-  }) => void;
+  onCustomerService: () => void;
   onOpenPhotoEditor: (product: Product) => void;
   onOpenSignupModal: () => void;
 }
@@ -71,80 +67,47 @@ interface ProductCardProps {
 const getCategoryName = (category: string | number) =>
   CATEGORY_ID_NAME_MAP[String(category)] || "Unknown Category";
 
-export const ProductCard = memo<ProductCardProps>(
-  ({
-    group,
-    isEnglish,
-    isSessionValid,
-    userRole,
-    selectedOptions,
-    currentQuantityByProductId,
-    countryMap,
-    isLoggingIn,
-    onOptionChange,
-    onAddToOrder,
-    onUpdateQuantity,
-    onCustomerService,
-    onOpenPhotoEditor,
-    onOpenSignupModal,
-  }) => {
-    const { title, products } = group;
-    const optionIdPrefix = `product-${String(title).toLowerCase().replace(/\s+/g, "-")}`;
+export const ProductCard = memo<ProductCardProps>(({
+  group,
+  isEnglish,
+  isSessionValid,
+  userRole,
+  selectedOptions,
+  currentQuantityByProductId,
+  countryMap,
+  isLoggingIn,
+  reorderedProductIds = [],
+  onOptionChange,
+  onAddToOrder,
+  onUpdateQuantity,
+  onCustomerService,
+  onOpenPhotoEditor,
+  onOpenSignupModal,
+}) => {
+  const { title, products } = group;
 
-    const getValue = useCallback(
-      (value?: string | null) => (value ? String(value).trim() : ""),
-      []
+  const getSelectedProduct = useCallback(() => {
+    const selected = selectedOptions[title] || {};
+    return (
+      products.find(
+        (p) =>
+          (!selected.variation || p.Variation === selected.variation) &&
+          (!selected.countryId || p.Country === selected.countryId) &&
+          (!selected.weight || p.weight === selected.weight)
+      ) || products[0]
     );
-    const matchBySelection = useCallback(
-      (p: Product, selection: { variation?: string; countryId?: string; weight?: string }) => {
-        const variation = getValue(selection.variation);
-        const countryId = getValue(selection.countryId);
-        const weight = getValue(selection.weight);
+  }, [products, selectedOptions, title]);
 
-        if (variation && getValue(p.Variation) !== variation) return false;
-        if (countryId && getValue(p.Country) !== countryId) return false;
-        if (weight && getValue(p.weight) !== weight) return false;
+  const product = getSelectedProduct();
+  const currentQuantity = currentQuantityByProductId[product.id] ?? 0;
+  const isReordered = reorderedProductIds.includes(product.id);
 
-        return true;
-      },
-      [getValue]
-    );
+  const uniq = (arr: Array<string | undefined | null>) =>
+    Array.from(new Set(arr.filter(Boolean).map((v) => String(v).trim()))).filter(Boolean);
 
-    const getSelectedProduct = useCallback(() => {
-      const selected = selectedOptions[title] || {};
-      return (
-        products.find((p) => matchBySelection(p, selected)) ||
-        products.find((p) => {
-          const normalizedCountry = getValue(selected.countryId);
-          return normalizedCountry ? getValue(p.Country) === normalizedCountry : false;
-        }) ||
-        products.find((p) => {
-          const normalizedVariation = getValue(selected.variation);
-          return normalizedVariation ? getValue(p.Variation) === normalizedVariation : false;
-        }) ||
-        products.find((p) => {
-          const normalizedWeight = getValue(selected.weight);
-          return normalizedWeight ? getValue(p.weight) === normalizedWeight : false;
-        }) ||
-        products[0]
-      );
-    }, [products, selectedOptions, title, matchBySelection, getValue]);
-
-    const product = getSelectedProduct();
-    const currentQuantity = currentQuantityByProductId[product.id] ?? 0;
-
-    const uniq = (arr: Array<string | undefined | null>) =>
-      Array.from(new Set(arr.filter(Boolean).map((v) => String(v).trim()))).filter(Boolean);
-
-    const variations = uniq(products.map((p) => p.Variation));
-    const origins = uniq(products.map((p) => p.Country));
-    const weights = uniq(products.map((p) => p.weight));
-    const productOrigin = getValue(product.Country);
-    const originDisplayName = productOrigin
-      ? isEnglish
-        ? countryMap[productOrigin]?.name || productOrigin
-        : countryMap[productOrigin]?.chineseName || productOrigin
-      : "";
+  const variations = uniq(products.map((p) => p.Variation));
+  const origins = uniq(products.map((p) => p.Country));
+  const weights = uniq(products.map((p) => p.weight));
 
   const handleOptionChange = useCallback(
     (type: "variation" | "countryId" | "weight", value: string) => {
@@ -162,37 +125,39 @@ export const ProductCard = memo<ProductCardProps>(
       if (a.is_cover !== b.is_cover) return a.is_cover ? -1 : 1;
       return (a.sort_order ?? 0) - (b.sort_order ?? 0);
     });
-  
+
     const urls = productImages.map((img) => img.image_url).filter(Boolean);
-  
-    // If products.image_url exists but is missing from product_images, prepend it
+
     if (product.image_url && product.image_url.trim() !== "") {
       if (!urls.includes(product.image_url)) {
         urls.unshift(product.image_url);
       }
     }
-  
+
     if (urls.length > 0) return urls;
     return [fallbackImage];
   }, [product.product_images, product.image_url, fallbackImage]);
+
   const [selectedImage, setSelectedImage] = useState(galleryImages[0]);
 
   useEffect(() => {
     setSelectedImage(galleryImages[0]);
   }, [galleryImages, product.id]);
-  console.log("[ProductCard]", {
-    productId: product.id,
-    productName: product.Product,
-    image_url: product.image_url,
-    product_images: product.product_images,
-    galleryImages,
-  });
+
   return (
     <div
-      className="flex flex-col overflow-hidden rounded-xl bg-white shadow-sm transition-shadow hover:shadow-md"
+      className={`relative flex flex-col overflow-hidden rounded-xl bg-white shadow-sm transition-all duration-300 hover:shadow-md ${
+        isReordered ? "ring-2 ring-green-400 shadow-lg animate-[pulse_1.6s_ease-in-out_3]" : ""
+      }`}
       role="article"
       aria-label={isEnglish ? product.Product : product.Product_CH}
     >
+      {isReordered && (
+        <div className="absolute left-2 top-2 z-10 rounded-full bg-green-500 px-2 py-1 text-xs font-semibold text-white shadow">
+          Reordered
+        </div>
+      )}
+
       <div className="relative bg-gray-100">
         <div className="relative h-24 bg-gray-100 sm:h-48">
           <ProductImage
@@ -219,7 +184,7 @@ export const ProductCard = memo<ProductCardProps>(
                 key={`${img}-${index}`}
                 type="button"
                 onClick={() => setSelectedImage(img)}
-                className={`shrink-0 overflow-hidden rounded border-2 ${
+                className={`shrink-0 overflow-hidden rounded border-2 transition ${
                   selectedImage === img ? "border-blue-500" : "border-gray-200"
                 }`}
               >
@@ -330,15 +295,15 @@ export const ProductCard = memo<ProductCardProps>(
                   ? "Logging in..."
                   : "登录中..."
                 : isEnglish
-                ? "Login to see price"
-                : "登录查看价格"}
+                  ? "Login to see price"
+                  : "登录查看价格"}
             </button>
           ) : (
             <div className="flex items-center gap-2 rounded-lg px-1 py-3 sm:px-3">
               <div className="flex items-center">
-              <div className="flex items-stretch overflow-hidden rounded-md border bg-white w-fit">
+                <div className="flex w-fit items-stretch overflow-hidden rounded-md border bg-white">
                   <button
-                    className="flex h-10 w-10 shrink-0 items-center justify-center bg-gray-100 text-base font-semibold hover:bg-gray-200"
+                    className="flex h-10 w-10 items-center justify-center bg-gray-100 text-base font-semibold hover:bg-gray-200"
                     onClick={() => {
                       if (currentQuantity > 1) onUpdateQuantity(product.id, currentQuantity - 1);
                       else if (currentQuantity === 1) onUpdateQuantity(product.id, 0);
@@ -351,7 +316,7 @@ export const ProductCard = memo<ProductCardProps>(
                     type="number"
                     inputMode="numeric"
                     min={0}
-                    className="w-16 border-x bg-white text-center text-base font-semibold outline-none [appearance:textfield] sm:w-20 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    className="w-12 bg-white text-center text-base font-semibold outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     value={currentQuantity}
                     onChange={(e) => {
                       const newQuantity = parseInt(e.target.value) || 0;
@@ -365,7 +330,7 @@ export const ProductCard = memo<ProductCardProps>(
                   />
 
                   <button
-                    className="flex h-10 w-10 shrink-0 items-center justify-center bg-gray-100 text-base font-semibold hover:bg-gray-200"
+                    className="flex h-10 w-10 items-center justify-center bg-gray-100 text-base font-semibold hover:bg-gray-200"
                     onClick={() => {
                       if (currentQuantity > 0) onUpdateQuantity(product.id, currentQuantity + 1);
                       else onAddToOrder(product);
@@ -377,16 +342,9 @@ export const ProductCard = memo<ProductCardProps>(
               </div>
 
               <button
-                className="flex h-10 items-center justify-center rounded-md bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 lg:h-10 lg:w-10"
+                className="flex h-10 w-10 items-center justify-center rounded-md bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200"
                 title={isEnglish ? "Inquire via WhatsApp" : "通过WhatsApp询价"}
-                onClick={() =>
-                  onCustomerService({
-                    productName: product.Product,
-                    variation: product.Variation,
-                    origin: originDisplayName || product.Country,
-                    weight: product.weight,
-                  })
-                }
+                onClick={onCustomerService}
               >
                 <WhatsAppIcon className="h-4 w-4" />
               </button>

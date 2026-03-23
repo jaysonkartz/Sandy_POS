@@ -44,47 +44,39 @@ interface ProductGridProps {
   selectedProducts: { product: Product; quantity: number }[];
   countryMap: { [key: string]: { name: string; chineseName: string } };
   isLoggingIn: boolean;
-  onOptionChange: (
-    title: string,
-    type: "variation" | "countryId" | "weight",
-    value: string
-  ) => void;
+  reorderedProductIds?: number[];
+  onOptionChange: (title: string, type: "variation" | "countryId" | "weight", value: string) => void;
   onAddToOrder: (product: Product) => void;
   onUpdateQuantity: (productId: number, newQuantity: number) => void;
-  onCustomerService: (productDetails: {
-    productName: string;
-    variation?: string;
-    origin?: string;
-    weight?: string;
-  }) => void;
+  onCustomerService: () => void;
   onOpenPhotoEditor: (product: Product) => void;
   onOpenSignupModal: () => void;
 }
 
-export const ProductGrid = memo<ProductGridProps>(
-  ({
-    productGroups,
-    isEnglish,
-    isSessionValid,
-    userRole,
-    selectedOptions,
-    selectedProducts,
-    countryMap,
-    isLoggingIn,
-    onOptionChange,
-    onAddToOrder,
-    onUpdateQuantity,
-    onCustomerService,
-    onOpenPhotoEditor,
-    onOpenSignupModal,
-  }) => {
-    const quantityByProductId = useMemo(() => {
-      const result: Record<number, number> = {};
-      selectedProducts.forEach(({ product, quantity }) => {
-        result[product.id] = quantity;
-      });
-      return result;
-    }, [selectedProducts]);
+export const ProductGrid = memo<ProductGridProps>(({
+  productGroups,
+  isEnglish,
+  isSessionValid,
+  userRole,
+  selectedOptions,
+  selectedProducts,
+  countryMap,
+  isLoggingIn,
+  reorderedProductIds = [],
+  onOptionChange,
+  onAddToOrder,
+  onUpdateQuantity,
+  onCustomerService,
+  onOpenPhotoEditor,
+  onOpenSignupModal,
+}) => {
+  const quantityByProductId = useMemo(() => {
+    const result: Record<number, number> = {};
+    selectedProducts.forEach(({ product, quantity }) => {
+      result[product.id] = quantity;
+    });
+    return result;
+  }, [selectedProducts]);
 
   const categoryDisplayGroups: { [category: string]: typeof productGroups } = {};
   productGroups.forEach((group) => {
@@ -116,6 +108,7 @@ export const ProductGrid = memo<ProductGridProps>(
                 currentQuantityByProductId={quantityByProductId}
                 countryMap={countryMap}
                 isLoggingIn={isLoggingIn}
+                reorderedProductIds={reorderedProductIds}
                 onOptionChange={onOptionChange}
                 onAddToOrder={onAddToOrder}
                 onUpdateQuantity={onUpdateQuantity}
