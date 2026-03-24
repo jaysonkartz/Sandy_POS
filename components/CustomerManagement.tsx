@@ -55,7 +55,6 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
     try {
       let query = supabase.from("customers").select("*").order("created_at", { ascending: false });
 
-      // Approval workflow: pending customers are stored as status=false
       if (view === "pending") {
         query = query.eq("status", false);
       }
@@ -73,7 +72,6 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
         return;
       }
 
-      // Fetch user data separately for each customer
       const customersWithUsers = await Promise.all(
         data.map(async (customer) => {
           if (customer.user_id) {
@@ -89,7 +87,6 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
                 return { ...customer, user: null };
               }
 
-              // If user not found (PGRST116), just attach null user without logging error
               return {
                 ...customer,
                 user: userData || null,
@@ -116,7 +113,6 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
     fetchCustomers();
   }, [fetchCustomers]);
 
-  // Reset to first page if current page exceeds total pages
   useEffect(() => {
     const nextTotalPages = Math.ceil(customers.length / itemsPerPage);
     if (currentPage > nextTotalPages && nextTotalPages > 0) {
@@ -129,7 +125,6 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
 
     if (newCustomer.name && newCustomer.email) {
       try {
-        // Check if user exists
         const { data: existingUser, error: userCheckError } = await supabase
           .from("users")
           .select("id")
@@ -140,14 +135,12 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
           return;
         }
 
-        // If no user exists, try to get any existing user or create a placeholder
         let userId = existingUser?.id;
         if (!userId) {
           const { data: anyUser } = await supabase.from("users").select("id").limit(1).single();
           userId = anyUser?.id;
         }
 
-        // Prepare customer data, excluding customer_code if it's empty
         const customerData: any = {
           name: newCustomer.name,
           email: newCustomer.email,
@@ -159,7 +152,6 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
           whatsapp_notifications: newCustomer.whatsapp_notifications ?? true,
         };
 
-        // Only include customer_code if it has a value (handle case where column might not exist)
         if (newCustomer.customer_code && newCustomer.customer_code.trim()) {
           customerData.customer_code = newCustomer.customer_code.trim();
         }
@@ -169,7 +161,6 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
         if (error) {
           console.error("Error adding customer:", error);
 
-          // Handle PGRST204 error for missing columns
           if (error.code === "PGRST204") {
             let retryData = { ...customerData };
             let errorMessage = "";
@@ -187,7 +178,6 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
             if (errorMessage) {
               setError(errorMessage);
 
-              // Retry without the problematic column as a fallback
               const { error: retryError } = await supabase.from("customers").insert([retryData]);
               if (!retryError) {
                 setError(null);
@@ -255,10 +245,8 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
     if (!editingCustomer) return;
 
     try {
-      // Clear any previous errors
       setError(null);
 
-      // Validate input data before sending
       if (!editingCustomer.id) {
         setError("Invalid customer ID. Please refresh and try again.");
         return;
@@ -269,7 +257,6 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
         return;
       }
 
-      // Prepare update data
       const updateData: any = {
         name: editingCustomer.name,
         email: editingCustomer.email,
@@ -278,11 +265,9 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
         whatsapp_notifications: editingCustomer.whatsapp_notifications ?? true,
       };
 
-      // Only include customer_code if it has a value
       if (editingCustomer.customer_code && editingCustomer.customer_code.trim()) {
         updateData.customer_code = editingCustomer.customer_code.trim();
       } else if (editingCustomer.customer_code === "") {
-        // Explicitly set to null if empty string was provided
         updateData.customer_code = null;
       }
 
@@ -297,9 +282,7 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
         .eq("id", editingCustomer.id)
         .select();
 
-      // Check for error - handle both truthy errors and empty object errors
       if (error) {
-        // Try to extract all possible error information
         const errorInfo: any = {
           errorExists: true,
           errorType: typeof error,
@@ -309,7 +292,6 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
         };
 
         try {
-          // Try to access all known Supabase error properties
           errorInfo.message = error.message;
           errorInfo.details = error.details;
           errorInfo.hint = error.hint;
@@ -317,7 +299,6 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
           errorInfo.statusCode = (error as any).statusCode;
           errorInfo.status = (error as any).status;
 
-          // Try to serialize the entire error object
           try {
             errorInfo.fullError = JSON.parse(JSON.stringify(error));
           } catch (e) {
@@ -325,7 +306,6 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
             errorInfo.serializationError = String(e);
           }
 
-          // Try to get all enumerable properties
           errorInfo.allProperties = Object.keys(error);
           errorInfo.propertyCount = Object.keys(error).length;
 
@@ -335,7 +315,6 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
             }
           }
 
-          // Try Object.getOwnPropertyNames for non-enumerable properties
           try {
             const allProps = Object.getOwnPropertyNames(error);
             errorInfo.allOwnPropertyNames = allProps;
@@ -357,10 +336,8 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
         console.error("Raw error object:", error);
         console.error("Error JSON:", JSON.stringify(error, null, 2));
 
-        // Extract meaningful error message
         let errorMessage = "Failed to update customer";
 
-        // Try multiple ways to extract the message
         if (error.message) {
           errorMessage = error.message;
         } else if (error.details) {
@@ -372,7 +349,6 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
         } else if (String(error) !== "[object Object]") {
           errorMessage = String(error);
         } else {
-          // If error exists but appears empty, check if it's truly empty
           const keys = Object.keys(error);
           if (keys.length === 0) {
             errorMessage = "An unknown error occurred. Please check the console for details.";
@@ -384,7 +360,6 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
           }
         }
 
-        // Handle specific error codes
         const errorCode = error.code || (error as any).statusCode;
         if (errorCode === "PGRST204") {
           let retryUpdateData = { ...updateData };
@@ -405,7 +380,6 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
           }
 
           if (columnName) {
-            // Try to retry the update without the problematic column
             console.warn(`Retrying update without ${columnName}...`);
             const { data: retryData, error: retryError } = await supabase
               .from("customers")
@@ -414,16 +388,13 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
               .select();
 
             if (!retryError && retryData && retryData.length > 0) {
-              // Success! Update worked without the problematic column
               setEditingCustomer(null);
               await fetchCustomers();
               return; // Exit early on success
             }
 
-            // If retry also failed, show that error instead
             if (retryError) {
               errorMessage = `Update partially completed. Customer info updated but ${columnName} failed: ${retryError.message || "Column not found"}. Please run the appropriate migration script in your Supabase SQL Editor.`;
-              // Still exit since we updated the other fields
               setEditingCustomer(null);
               await fetchCustomers();
               return;
@@ -456,12 +427,10 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
     } catch (error) {
       console.error("Unexpected error updating customer:", error);
 
-      // Handle various error types
       let errorMessage = "Failed to update customer";
       if (error instanceof Error) {
         errorMessage = error.message || errorMessage;
       } else if (error && typeof error === "object") {
-        // Handle Supabase-like error objects
         const err = error as any;
         if (err.message) {
           errorMessage = err.message;
@@ -476,7 +445,7 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">
@@ -499,7 +468,7 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
         )}
       </div>
 
-      {/* Add Customer Modal (not shown on Pending Approvals tab) */}
+      
       <LazyMotion features={domAnimation}>
         {view !== "pending" && isModalOpen && (
           <m.div
@@ -620,7 +589,7 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
         )}
       </LazyMotion>
 
-      {/* Edit Customer Modal */}
+      
       <LazyMotion features={domAnimation}>
         {editingCustomer && (
           <m.div
@@ -914,7 +883,7 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
           </div>
         )}
 
-        {/* Pagination */}
+        
         {!isLoading && customers.length > 0 && (
           <div className="bg-white px-4 py-3 flex flex-col gap-3 border-t border-gray-200 sm:px-6">
             <div className="flex items-center justify-end">

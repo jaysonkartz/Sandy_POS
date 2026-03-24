@@ -86,7 +86,6 @@ export default function CustomerLoginModal({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isOpen, onClose]);
 
-  // Password strength calculation
   const getPasswordStrength = (
     password: string
   ): { strength: "weak" | "medium" | "strong"; score: number; feedback: string } => {
@@ -97,13 +96,11 @@ export default function CustomerLoginModal({
     let score = 0;
     const feedback: string[] = [];
 
-    // Length checks
     if (password.length >= 8) score += 1;
     else feedback.push("At least 8 characters");
 
     if (password.length >= 12) score += 1;
 
-    // Character variety checks
     if (/[a-z]/.test(password)) score += 1;
     else feedback.push("lowercase letter");
 
@@ -137,7 +134,6 @@ export default function CustomerLoginModal({
     [formData.password]
   );
 
-  // Function to get current location and convert to address
   const getCurrentLocation = async () => {
     setIsGettingLocation(true);
     setLocationError("");
@@ -153,7 +149,6 @@ export default function CustomerLoginModal({
         const { latitude, longitude } = position.coords;
 
         try {
-          // Use OpenStreetMap Nominatim API for reverse geocoding (free, no API key needed)
           const response = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`,
             {
@@ -214,26 +209,20 @@ export default function CustomerLoginModal({
     );
   };
 
-  // Function to format address from OneMap.sg data
   const formatOneMapAddress = (result: any): string => {
     const parts: string[] = [];
 
-    // Building name or block number (skip if NIL)
     if (result.BUILDING && result.BUILDING.toUpperCase() !== "NIL") {
       parts.push(result.BUILDING);
     } else if (result.BLK_NO && result.BLK_NO.toUpperCase() !== "NIL") {
       parts.push(`Blk ${result.BLK_NO}`);
     }
 
-    // Street name (skip if NIL)
     if (result.ROAD_NAME && result.ROAD_NAME.toUpperCase() !== "NIL") {
       parts.push(result.ROAD_NAME);
     }
 
-    // Don't include unit/floor from API - user will enter separately
-    // Don't include Singapore/postal code here - we'll add it at the end
 
-    // Filter out NIL and empty values
     const formatted = parts.filter((part) => part && part.toUpperCase() !== "NIL").join(", ");
     return (
       formatted ||
@@ -245,7 +234,6 @@ export default function CustomerLoginModal({
     );
   };
 
-  // Function to search address by postal code
   const searchAddressByPostalCode = async (code: string) => {
     if (!code || code.trim().length < 4) {
       return; // Don't search if postal code is too short
@@ -256,7 +244,6 @@ export default function CustomerLoginModal({
     setResolvedPostalCode("");
 
     try {
-      // First, try OneMap.sg API (Singapore's official mapping service - more accurate)
       const oneMapResponse = await fetch(
         `https://www.onemap.gov.sg/api/common/elastic/search?searchVal=${encodeURIComponent(code)}&returnGeom=Y&getAddrDetails=Y&pageNum=1`
       );
@@ -265,19 +252,16 @@ export default function CustomerLoginModal({
         const oneMapData = await oneMapResponse.json();
 
         if (oneMapData.results && oneMapData.results.length > 0) {
-          // Find the exact postal code match
           const exactMatch = oneMapData.results.find((r: any) => r.POSTAL === code);
           const result = exactMatch || oneMapData.results[0];
 
           let formattedAddress = formatOneMapAddress(result);
 
-          // Remove NIL from address if present
           formattedAddress = formattedAddress
             .replace(/NIL,?\s*/gi, "")
             .replace(/,\s*,/g, ",")
             .trim();
 
-          // Ensure Singapore and postal code are at the end
           if (formattedAddress) {
             // Remove existing "Singapore" and postal code if present
             formattedAddress = formattedAddress
@@ -303,7 +287,6 @@ export default function CustomerLoginModal({
         }
       }
 
-      // Fallback to Nominatim if OneMap doesn't work
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&postalcode=${encodeURIComponent(code)}&countrycodes=SG&addressdetails=1&limit=1`,
         {
@@ -320,7 +303,6 @@ export default function CustomerLoginModal({
       const data = await response.json();
 
       if (data && data.length > 0 && data[0].display_name) {
-        // Format Nominatim address better
         const addr = data[0].address || {};
         let formattedAddr = "";
 
@@ -377,7 +359,6 @@ export default function CustomerLoginModal({
     }
   };
 
-  // Handle postal code input with debounce
   const handlePostalCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, ""); // Only allow numbers
     setError("");
@@ -396,7 +377,6 @@ export default function CustomerLoginModal({
       }
     }
 
-    // Auto-search when postal code is 6 digits (Singapore postal code format)
     if (value.length === 6) {
       searchAddressByPostalCode(value);
     }
@@ -414,7 +394,6 @@ export default function CustomerLoginModal({
       });
 
       if (signInError) {
-        // Log failed sign-in attempt
         await logSignInFailure("", formData.email, signInError.message);
         throw signInError;
       }
@@ -433,20 +412,17 @@ export default function CustomerLoginModal({
         }
 
         if (!customerData.status) {
-          // Keep the session so the user can check approval status.
           router.push("/pending-approval");
           onClose();
           return;
         }
 
-        // Log successful sign-in
         await logSignInSuccess(
           data.user.id,
           data.user.email || formData.email,
           data.session?.access_token
         );
 
-        // Notify parent component of successful login
         onLoginSuccess?.();
         router.refresh();
         onClose();
@@ -463,7 +439,6 @@ export default function CustomerLoginModal({
     setError("");
     setIsLoading(true);
 
-    // Validate all mandatory fields
     if (!formData.name || !formData.name.trim()) {
       setError("Full name is required");
       setIsLoading(false);
@@ -494,14 +469,12 @@ export default function CustomerLoginModal({
       return;
     }
 
-    // Validate password length
     if (formData.password.length < 8) {
       setError("Password must be at least 8 characters long");
       setIsLoading(false);
       return;
     }
 
-    // Validate postal code if provided
     if (postalCode && postalCode.length > 0 && postalCode.length !== 6) {
       setError("Postal code must be exactly 6 digits");
       setIsLoading(false);
@@ -537,7 +510,6 @@ export default function CustomerLoginModal({
         .eq("email", formData.email)
         .maybeSingle();
 
-      // If there's an error and it's not a "no rows" error, throw it
       if (customerCheckError && customerCheckError.code !== "PGRST116") {
         throw customerCheckError;
       }
@@ -546,14 +518,12 @@ export default function CustomerLoginModal({
         throw new Error("An account with this email already exists");
       }
 
-      // 2. Sign up the user in auth
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
       });
 
       if (signUpError) {
-        // Handle specific Supabase auth errors
         if (signUpError.message.includes("already registered")) {
           throw new Error("An account with this email already exists");
         }
@@ -564,7 +534,6 @@ export default function CustomerLoginModal({
         throw new Error("Failed to create user account");
       }
 
-      // 3. Create user record in users table
       const userData = {
         id: authData.user.id,
         email: formData.email,
@@ -576,17 +545,12 @@ export default function CustomerLoginModal({
 
       if (userError) throw userError;
 
-      // 4. Create customer record
-      // Combine address with unit number if provided
       let finalAddress = formData.address;
       if (unitNumber && unitNumber.trim()) {
-        // Add unit number to address if not already included
         if (finalAddress && !finalAddress.includes(unitNumber.trim())) {
-          // Insert unit number before "Singapore" or at the end if no Singapore
           if (finalAddress.includes("Singapore")) {
             finalAddress = finalAddress.replace("Singapore", `#${unitNumber.trim()}, Singapore`);
           } else {
-            // If no Singapore/postal code, add unit number and then Singapore + postal code
             if (postalCode && postalCode.length === 6) {
               finalAddress = `${finalAddress}, #${unitNumber.trim()}, Singapore ${postalCode}`;
             } else {
@@ -595,7 +559,6 @@ export default function CustomerLoginModal({
           }
         }
       } else {
-        // If no unit number but we have postal code, ensure Singapore and postal code are at the end
         if (postalCode && postalCode.length === 6 && !finalAddress.includes("Singapore")) {
           finalAddress = `${finalAddress}, Singapore ${postalCode}`;
         }
@@ -617,7 +580,6 @@ export default function CustomerLoginModal({
 
       if (customerError) throw customerError;
 
-      // Success handling
       alert(
         "Account created successfully! Please check your email to verify your account. Your login will be enabled after admin approval."
       );
@@ -961,7 +923,7 @@ export default function CustomerLoginModal({
                 </div>
                 {isRegistering && formData.password && (
                   <div className="mt-2">
-                    {/* Strength Bar */}
+                    
                     <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
                       <div
                         className={`h-2 rounded-full transition-all duration-300 ${
@@ -976,7 +938,7 @@ export default function CustomerLoginModal({
                         }}
                       />
                     </div>
-                    {/* Strength Text */}
+                    
                     <div className="flex items-center justify-between">
                       <span
                         className={`text-xs font-medium ${
@@ -992,7 +954,7 @@ export default function CustomerLoginModal({
                           passwordStrength.strength.slice(1)}
                       </span>
                     </div>
-                    {/* Feedback */}
+                    
                     {passwordStrength.feedback && (
                       <p className="text-xs text-gray-500 mt-1">{passwordStrength.feedback}</p>
                     )}

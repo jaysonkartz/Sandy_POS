@@ -54,7 +54,7 @@ export default function ManagementDashboard() {
           Management Dashboard
         </h1>
 
-        {/* Countries Management Section */}
+        
         <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6 sm:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-4">
             <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">
@@ -126,9 +126,9 @@ export default function ManagementDashboard() {
           )}
         </div>
 
-        {/* Other Management Sections */}
+        
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-          {/* Products Management Card */}
+          
           <Link className="block" href="/management/products">
             <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 hover:shadow-lg transition-shadow">
               <div className="flex items-center space-x-3 sm:space-x-4">
@@ -159,7 +159,7 @@ export default function ManagementDashboard() {
             </div>
           </Link>
 
-          {/* Orders Management Card */}
+          
           <Link className="block" href="/management/orders">
             <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 hover:shadow-lg transition-shadow">
               <div className="flex items-center space-x-3 sm:space-x-4">

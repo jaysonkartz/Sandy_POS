@@ -22,17 +22,13 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     try {
-      // Reset local state first
       setIsLoggedIn(false);
 
-      // Perform comprehensive logout
       await performLogout();
 
-      // Navigate to home page
       router.push("/");
     } catch (error) {
       console.error("Error during logout:", error);
-      // Even if there's an error, try to clear local state and navigate
       setIsLoggedIn(false);
       router.push("/");
     }

@@ -10,9 +10,7 @@ interface Order {
 }
 
 export default function OrderHistoryPage() {
-  // Fetch your orders data here
   const orders: Order[] = [
-    // Your orders data
   ];
 
   return (

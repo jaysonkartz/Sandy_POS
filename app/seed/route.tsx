@@ -2,7 +2,6 @@ import { supabase } from "../lib/supabaseClient";
 import { invoices, customers, revenue, users } from "../lib/placeholder-data";
 import { NextResponse } from "next/server";
 
-// Simple hash function for development
 function simpleHash(str: string): string {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {

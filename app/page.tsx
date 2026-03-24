@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import SignupModal from "@/components/SignupModal";
 import ProductPhotoEditor from "@/components/ProductPhotoEditor";
 
-// Components
 import { LoadingSkeleton } from "@/app/components/LoadingSkeleton";
 import { ErrorState } from "@/app/components/ErrorState";
 import { NoResults } from "@/app/components/NoResults";
@@ -18,7 +17,6 @@ import { FloatingOrderButton } from "@/app/components/FloatingOrderButton";
 import { OrderPanel } from "@/app/components/OrderPanel";
 import { ScrollToTop } from "@/app/components/ScrollToTop";
 
-// Hooks
 import { useSession } from "@/app/hooks/useSession";
 import { useProducts } from "@/app/hooks/useProducts";
 import { useOrder } from "@/app/hooks/useOrder";
@@ -29,7 +27,6 @@ import { useWhatsApp } from "@/app/hooks/useWhatsApp";
 import { useCart } from "@/context/CartContext";
 import { FORCE_LOADING_RESET_DELAY } from "@/app/constants/app-constants";
 
-// Types
 import { SelectedOptions } from "@/app/types/product";
 import { OrderReviewData } from "@/app/types/common";
 
@@ -110,9 +107,6 @@ function HomeContent({
 
       if (!payload?.items || payload.items.length === 0) return;
 
-      console.log("🔥 REORDER PAYLOAD:", payload.items);
-
-      // ✅ IMPORTANT: delay to ensure state ready
       setTimeout(() => {
         replaceOrder({
           selectedProducts: payload.items,
@@ -128,9 +122,7 @@ function HomeContent({
         setIsOrderPanelOpen(true);
 
         setHasReordered(true);
-
-        console.log("✅ AFTER replaceOrder:", payload.items);
-      }, 100); // <-- THIS FIXES YOUR ISSUE
+      }, 100);
     } catch (e) {
       console.error("❌ reorder parse failed", e);
     }
@@ -155,9 +147,6 @@ function HomeContent({
           customerPhone: payload.customerPhone || "",
           customerAddress: payload.customerAddress || "",
         });
-
-        console.log("[Reorder] payload.items:", payload.items);
-        console.log("[Reorder] replaceOrder payload:", payload.items);
 
         setReorderedProductIds(payload.items.map((x: any) => x.product.id));
         setReorderSourceOrderId(payload.sourceOrderId || null);
@@ -187,9 +176,6 @@ function HomeContent({
   }, [searchParams, replaceOrder]);
 
   useEffect(() => {
-    console.log("[Reorder] pendingOpenReorderCart:", pendingOpenReorderCart);
-    console.log("[Reorder] selectedProducts:", selectedProducts);
-
     if (pendingOpenReorderCart && selectedProducts.length > 0) {
       setIsOrderPanelOpen(true);
       setPendingOpenReorderCart(false);

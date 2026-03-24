@@ -27,14 +27,11 @@ export default function TopBarLogin({
   const router = useRouter();
 
   useEffect(() => {
-    // Use the session passed from parent component
     if (session?.user) {
       setUser(session.user);
       setUserRole(propUserRole || "");
 
-      // Check for customer data
       const checkCustomer = async () => {
-        // Try to find customer by email since auth_user_id column doesn't exist
         const { data: customerData } = await supabase
           .from("customers")
           .select("*")
@@ -44,7 +41,6 @@ export default function TopBarLogin({
         if (customerData) {
           setCustomerName(customerData.name);
         } else {
-          // If no customer found, use the user's email as fallback
           setCustomerName(session.user.email?.split("@")[0] || "User");
         }
       };
@@ -57,7 +53,6 @@ export default function TopBarLogin({
     }
   }, [session, propUserRole]);
 
-  // Handle click outside dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -74,17 +69,14 @@ export default function TopBarLogin({
 
   const handleSignOut = async () => {
     try {
-      // Reset local state first
       setUser(null);
       setUserRole("");
       setCustomerName("");
       setIsDropdownOpen(false);
 
-      // Perform comprehensive logout
       await performLogoutWithReload();
     } catch (error) {
       console.error("Error during sign out:", error);
-      // Even if there's an error, ensure local state is cleared
       setUser(null);
       setUserRole("");
       setCustomerName("");
@@ -117,7 +109,7 @@ export default function TopBarLogin({
             </svg>
           </button>
 
-          {/* Dropdown Menu */}
+          
           {isDropdownOpen && (
             <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
               <div className="py-1">

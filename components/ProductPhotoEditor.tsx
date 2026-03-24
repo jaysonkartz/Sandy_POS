@@ -71,12 +71,8 @@ export default function ProductPhotoEditor({
       }
 
       let list = (data as ProductImageRow[]) || [];
-
-      // Sync current cover into product_images if missing
+  
       if (currentImageUrl && !list.some((img) => img.image_url === currentImageUrl)) {
-        console.log("[PhotoEditor] syncing currentImageUrl into product_images:", currentImageUrl);
-
-        // clear old covers first
         await supabase
           .from("product_images")
           .update({ is_cover: false })
@@ -130,12 +126,6 @@ export default function ProductPhotoEditor({
     const cloudName = getCloudinaryCloudName();
     const uploadPreset = getCloudinaryUploadPreset();
 
-    console.log("[Cloudinary] cloudName:", cloudName);
-    console.log("[Cloudinary] uploadPreset:", uploadPreset);
-    console.log("[Cloudinary] fileName:", fileName);
-    console.log("[Cloudinary] blob size:", blob.size);
-    console.log("[Cloudinary] blob type:", blob.type);
-
     if (!cloudName || !uploadPreset) {
       throw new Error("Cloudinary configuration missing.");
     }
@@ -151,7 +141,6 @@ export default function ProductPhotoEditor({
     });
 
     const text = await response.text();
-    console.log("[Cloudinary] raw response:", text);
 
     if (!response.ok) {
       throw new Error(`Cloudinary upload failed: ${response.status} - ${text}`);
@@ -218,9 +207,6 @@ export default function ProductPhotoEditor({
   }
 
   async function replaceExistingImage(row: ProductImageRow, newUrl: string) {
-    console.log("[PhotoEditor] replaceExistingImage row:", row);
-    console.log("[PhotoEditor] replaceExistingImage newUrl:", newUrl);
-
     const { error } = await supabase
       .from("product_images")
       .update({ image_url: newUrl })
@@ -446,20 +432,13 @@ export default function ProductPhotoEditor({
           onConfirm={async (croppedBlob) => {
             try {
               setIsUploading(true);
-              console.log("[PhotoEditor] croppedBlob:", croppedBlob);
-              console.log("[PhotoEditor] editingRow:", editingRow);
 
               const uploadedUrl = await uploadBlobToCloudinary(croppedBlob, pendingFileName);
-              console.log("[PhotoEditor] uploadedUrl:", uploadedUrl);
 
               if (editingRow) {
-                console.log("[PhotoEditor] replacing existing image...");
                 await replaceExistingImage(editingRow, uploadedUrl);
-                console.log("[PhotoEditor] existing image replaced");
               } else {
-                console.log("[PhotoEditor] inserting new image...");
                 await insertImage(uploadedUrl);
-                console.log("[PhotoEditor] new image inserted");
                 await onRefetchProducts();
               }
 

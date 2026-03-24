@@ -24,7 +24,6 @@ export async function createSupabaseServerClient() {
               cookieStore.set(name, value, options);
             });
           } catch {
-            // Server Components may not always allow setting cookies.
           }
         },
       },

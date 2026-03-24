@@ -23,12 +23,7 @@ const createImage = (url: string) =>
   });
 
 async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<Blob> {
-  console.log("[CropEditor] getCroppedImg start");
-  console.log("[CropEditor] imageSrc:", imageSrc);
-  console.log("[CropEditor] pixelCrop:", pixelCrop);
-
   const image = await createImage(imageSrc);
-  console.log("[CropEditor] image loaded:", image.width, image.height);
 
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -84,26 +79,15 @@ export default function ImageCropEditor({
   if (!isOpen) return null;
 
   const handleSave = async () => {
-    console.log("[CropEditor] Save clicked");
-
     if (!croppedAreaPixels) {
-      console.log("[CropEditor] No croppedAreaPixels");
       return;
     }
 
     setSaving(true);
     try {
-      console.log("[CropEditor] Creating cropped image...");
       const blob = await getCroppedImg(imageSrc, croppedAreaPixels);
 
-      console.log("[CropEditor] Blob created:", {
-        size: blob.size,
-        type: blob.type,
-      });
-
-      console.log("[CropEditor] Calling onConfirm...");
       await onConfirm(blob);
-      console.log("[CropEditor] onConfirm finished");
     } catch (err) {
       console.error("[CropEditor] Error:", err);
       alert(err instanceof Error ? err.message : "Failed to crop image");

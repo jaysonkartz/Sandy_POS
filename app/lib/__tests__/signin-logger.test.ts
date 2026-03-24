@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { SignInLogger } from "../signin-logger";
 import { supabase } from "../supabaseClient";
 
-// Mock supabase
 vi.mock("../supabaseClient", () => ({
   supabase: {
     from: vi.fn(),
@@ -55,14 +54,12 @@ describe("SignInLogger", () => {
     });
 
     it("should detect Android OS", () => {
-      // Note: The implementation checks Linux before Android, so we need Android without Linux
       const userAgent = "Mozilla/5.0 (Android 11; SM-G991B) AppleWebKit/537.36";
       const deviceInfo = SignInLogger.getDeviceInfo(userAgent);
       expect(deviceInfo.os).toBe("Android");
     });
 
     it("should detect Mobile device type", () => {
-      // The implementation checks for "Mobile" string in user agent
       const userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) Mobile/15E148";
       const deviceInfo = SignInLogger.getDeviceInfo(userAgent);
       expect(deviceInfo.deviceType).toBe("Mobile");
@@ -171,7 +168,6 @@ describe("SignInLogger", () => {
         { id: 2, user_id: "user-123", email: "test@example.com", success: false },
       ];
 
-      // Create a proper chain: from().select().eq().order().limit()
       const mockLimit = vi.fn().mockResolvedValue({ data: mockData, error: null });
       const mockOrderFn = vi.fn().mockReturnValue({ limit: mockLimit });
       const mockEqFn = vi.fn().mockReturnValue({ order: mockOrderFn });

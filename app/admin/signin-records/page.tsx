@@ -70,7 +70,7 @@ export default function SignInRecordsPage() {
           <p className="mt-2 text-gray-600">Monitor and analyze user authentication activities</p>
         </div>
 
-        {/* Tab Navigation */}
+        
         <div className="mb-6">
           <nav className="flex space-x-8">
             <button
@@ -106,7 +106,7 @@ export default function SignInRecordsPage() {
           </nav>
         </div>
 
-        {/* Date Range Filter */}
+        
         <div className="mb-6 bg-white p-4 rounded-lg shadow">
           <div className="flex items-center space-x-4">
             <div>
@@ -138,7 +138,7 @@ export default function SignInRecordsPage() {
           </div>
         </div>
 
-        {/* Content */}
+        
         {selectedTab === "stats" && (
           <div className="space-y-6">
             <SignInStats

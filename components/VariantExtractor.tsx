@@ -43,13 +43,11 @@ export default function VariantExtractor({
   const [editingVariant, setEditingVariant] = useState<ProductVariant | null>(null);
   const [isAddingVariant, setIsAddingVariant] = useState(false);
 
-  // Fetch variants from the products table
   const fetchVariants = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
 
-      // Get all products that have the same base product name but different variations
       const { data, error } = await supabase
         .from("products")
         .select("*")
@@ -72,7 +70,6 @@ export default function VariantExtractor({
     fetchVariants();
   }, [fetchVariants]);
 
-  // Update variant
   const handleUpdateVariant = useCallback(
     async (variantId: number, updatedData: Partial<ProductVariant>) => {
       try {
@@ -109,7 +106,6 @@ export default function VariantExtractor({
     []
   );
 
-  // Delete variant
   const handleDeleteVariant = useCallback(async (variantId: number) => {
     if (!confirm("Are you sure you want to delete this variant?")) return;
 
@@ -136,10 +132,8 @@ export default function VariantExtractor({
     }
   }, []);
 
-  // Add new variant
   const handleAddVariant = useCallback(async (variantData: Omit<ProductVariant, "id">) => {
     try {
-      // First, check if user is authenticated
       const {
         data: { user },
         error: authError,
@@ -150,7 +144,6 @@ export default function VariantExtractor({
         return;
       }
 
-      // Prepare the data for insertion, ensuring no id field is included
       const insertData = {
         Product: variantData.Product,
         Product_CH: variantData.Product_CH || null,
@@ -179,7 +172,6 @@ export default function VariantExtractor({
       if (error) {
         console.error("Supabase error:", error);
 
-        // Check for specific error types
         if (error.code === "42501") {
           alert(
             "Permission denied. Please contact your administrator to update database permissions for adding product variants."
@@ -240,7 +232,7 @@ export default function VariantExtractor({
         </button>
       </div>
 
-      {/* Variants List */}
+      
       <div className="space-y-3">
         <AnimatePresence>
           {variants.map((variant) => (
@@ -253,7 +245,7 @@ export default function VariantExtractor({
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  {/* Variant Image */}
+                  
                   <div className="relative">
                     {variant.image_url ? (
                       <CldImage
@@ -271,7 +263,7 @@ export default function VariantExtractor({
                     )}
                   </div>
 
-                  {/* Variant Details */}
+                  
                   <div>
                     <h4 className="font-medium">{variant.Variation}</h4>
                     {variant.Variation_CH && (
@@ -286,7 +278,7 @@ export default function VariantExtractor({
                   </div>
                 </div>
 
-                {/* Action Buttons */}
+                
                 <div className="flex gap-2">
                   <button
                     className="p-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
@@ -316,7 +308,7 @@ export default function VariantExtractor({
         )}
       </div>
 
-      {/* Add Variant Modal */}
+      
       {isAddingVariant && (
         <AddVariantModal
           productName={productName}
@@ -325,7 +317,7 @@ export default function VariantExtractor({
         />
       )}
 
-      {/* Edit Variant Modal */}
+      
       {editingVariant && (
         <EditVariantModal
           variant={editingVariant}
@@ -337,7 +329,6 @@ export default function VariantExtractor({
   );
 }
 
-// Add Variant Modal Component
 interface AddVariantModalProps {
   productName: string;
   onClose: () => void;
@@ -492,7 +483,6 @@ function AddVariantModal({ productName, onClose, onSave }: AddVariantModalProps)
   );
 }
 
-// Edit Variant Modal Component
 interface EditVariantModalProps {
   variant: ProductVariant;
   onClose: () => void;

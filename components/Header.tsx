@@ -8,7 +8,6 @@ import { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import TopBarLogin from "./TopBarLogin";
 import { supabase } from "../app/lib/supabaseClient";
 
-// Helper to detect benign abort errors
 const isAbortError = (error: unknown): boolean => {
   if (!error) return false;
   const maybeError = error as { name?: string; message?: string };
@@ -36,7 +35,6 @@ export default function Header() {
   };
 
   useEffect(() => {
-    // Read initial session from Supabase client state.
     const getInitialSession = async () => {
       try {
         const {
@@ -56,7 +54,6 @@ export default function Header() {
 
     getInitialSession();
 
-    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
@@ -69,7 +66,6 @@ export default function Header() {
 
   const handleLoginSuccess = async () => {
     try {
-      // Force refresh the session after successful login
       const {
         data: { session: newSession },
         error,
@@ -102,20 +98,11 @@ export default function Header() {
                 src="/HongGuan_Icon.jpg"
                 width={80}
               />
-              {/* <span className="hidden sm:block font-semibold text-gray-900">Hong Guan</span> */}
+              
             </Link>
 
             <div className="flex items-center gap-2">
-              {/* {(pathname === "/" || pathname.startsWith("/dashboard")) && (
-                <a
-                  className="hidden sm:inline-flex items-center justify-center text-sm text-gray-600 hover:text-gray-900"
-                  href="https://wa.me/6593254825"
-                  rel="noopener noreferrer"
-                  target="_blank"
-                >
-                  WhatsApp
-                </a>
-              )} */}
+              
 
               <TopBarLogin
                 session={session}

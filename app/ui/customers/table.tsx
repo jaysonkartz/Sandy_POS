@@ -8,7 +8,6 @@ import { formatCurrency, formatDateToLocal } from "@/app/lib/utils";
 export default async function CustomersTable({
   customers,
 }: {
-  // customers: FormattedCustomersTable[];
   customers: FormattedCustomersTable2[];
 }) {
   var agedDate = new Date(Date.now());

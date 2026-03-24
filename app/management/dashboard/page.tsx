@@ -136,7 +136,6 @@ export default function ManagementDashboard() {
     price: number;
   } | null>(null);
   const [newCustomerPrice, setNewCustomerPrice] = useState<number | null>(null);
-  // Track offer prices for each customer-product combination
   const [offerPrices, setOfferPrices] = useState<{
     [key: string]: number | null;
   }>({});
@@ -279,7 +278,6 @@ export default function ManagementDashboard() {
         .order("created_at", { ascending: true });
 
       if (error) {
-        // PGRST116 can happen when relation is missing in some environments.
         if (error.code === "PGRST116") {
           return {} as Record<number, ProductVariant[]>;
         }
@@ -348,7 +346,6 @@ export default function ManagementDashboard() {
     [applyVariantsToCategories, fetchVariantsByProductIds, loadedVariantProductIds]
   );
 
-  // Clear all offer prices
   const clearOfferPrices = () => {
     setOfferPrices({});
   };
@@ -410,7 +407,6 @@ export default function ManagementDashboard() {
           return ownPropertyParts.join(" | ");
         }
       } catch {
-        // Ignore property inspection errors and continue fallback attempts.
       }
 
       try {
@@ -419,7 +415,6 @@ export default function ManagementDashboard() {
           return raw;
         }
       } catch {
-        // Ignore JSON serialization errors and return fallback below.
       }
 
       const objectTag = Object.prototype.toString.call(error);
@@ -482,7 +477,6 @@ export default function ManagementDashboard() {
     };
   };
 
-  // Fetch all customers for the customer selector
   const fetchAllCustomers = async () => {
     setIsLoadingCustomers(true);
     try {
@@ -500,7 +494,6 @@ export default function ManagementDashboard() {
       }
 
       if (data && Array.isArray(data)) {
-        // Keep all valid IDs, even when legacy rows have empty names.
         const formattedCustomers = data
           .filter(
             (customer: { id?: string | number | null }) =>
@@ -543,15 +536,12 @@ export default function ManagementDashboard() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Clear offer prices when switching products
   useEffect(() => {
     clearOfferPrices();
   }, [selectedProduct]);
 
-  // Fetch all customers when component mounts or when products section is active
   useEffect(() => {
     if (activeSection === "pricing") {
-      // Small delay to ensure component is ready
       const timer = setTimeout(() => {
         fetchAllCustomers();
       }, 100);
@@ -559,7 +549,6 @@ export default function ManagementDashboard() {
     }
   }, [activeSection]);
 
-  // Also fetch customers when a product is selected (in case they weren't loaded yet)
   useEffect(() => {
     if (
       selectedProduct &&
@@ -578,7 +567,6 @@ export default function ManagementDashboard() {
       const from = (page - 1) * usersPerPage;
       const to = from + usersPerPage - 1;
 
-      // Fetch users with pagination
       const {
         data: usersData,
         error: usersError,
@@ -591,10 +579,8 @@ export default function ManagementDashboard() {
 
       if (usersError) throw usersError;
 
-      // Fetch customers to get names
       const { data: customersData } = await supabase.from("customers").select("user_id, name");
 
-      // Create a map of user_id to customer name
       const customerNameMap = new Map<string, string>();
       if (customersData) {
         customersData.forEach((customer: { user_id?: string; name?: string }) => {
@@ -604,7 +590,6 @@ export default function ManagementDashboard() {
         });
       }
 
-      // Combine user data with customer names
       const usersWithNames = (usersData || []).map((user: User) => ({
         ...user,
         name: customerNameMap.get(user.id) || user.email?.split("@")[0] || "Unknown",
@@ -629,7 +614,6 @@ export default function ManagementDashboard() {
   const fetchCategories = async () => {
     setIsLoading(true);
     try {
-      // First, fetch countries to create a mapping (optional, don't fail if this errors)
       let countryMapping: { [key: string]: { name: string; chineseName?: string } } = {};
       try {
         const { data: countriesData } = await supabase
@@ -639,7 +623,6 @@ export default function ManagementDashboard() {
         if (countriesData && countriesData.length > 0) {
           countriesData.forEach(
             (country: { id: number | string; country: string; chineseName?: string }) => {
-              // Map country ID to country name (country is the column name in countries table)
               if (country.id != null && country.country) {
                 const idKey = String(country.id);
                 countryMapping[idKey] = {
@@ -652,7 +635,6 @@ export default function ManagementDashboard() {
           setCountryMap(countryMapping);
         }
       } catch (countriesError) {
-        // Silently continue without country names
       }
 
       const { data: products, error } = await supabase
@@ -712,7 +694,6 @@ export default function ManagementDashboard() {
         const productId = Number(ph.product_id);
         const productIdStr = String(ph.product_id);
         if (!isNaN(productId)) {
-          // Store with both number and string keys for flexibility (same array reference)
           if (!priceHistoryMap[productId]) {
             priceHistoryMap[productId] = [];
             priceHistoryMap[productIdStr] = priceHistoryMap[productId]; // Same array reference
@@ -749,17 +730,13 @@ export default function ManagementDashboard() {
         .filter((v: number, i: number, a: number[]) => a.indexOf(v) === i);
 
       const productsWithVariants = (products || []).map((product: any) => {
-        // Resolve country name from the mapping
         const countryId = product.Country != null ? String(product.Country) : null;
         const countryInfo = countryId ? countryMapping[countryId] : null;
         const countryName = countryInfo?.name || null;
 
-        // Ensure product.id is a number when accessing priceHistoryMap
-        // Try both string and number keys to handle any type mismatches
         const productId = Number(product.id);
         const productIdStr = String(product.id);
 
-        // Try multiple ways to match
         let history =
           priceHistoryMap[productId] ||
           priceHistoryMap[productIdStr] ||
@@ -783,10 +760,8 @@ export default function ManagementDashboard() {
         };
       });
 
-      // Group products by category
       const categoryGroups: { [key: string]: Product[] } = {};
       productsWithVariants.forEach((product: Product) => {
-        // Get category name from ID, fallback to ID if not found
         const categoryId = product.Category;
         const categoryName = CATEGORY_ID_NAME_MAP[categoryId] || categoryId || "Uncategorized";
 
@@ -796,7 +771,6 @@ export default function ManagementDashboard() {
         categoryGroups[categoryName].push(product);
       });
 
-      // Convert to array format
       const categoriesArray = Object.entries(categoryGroups).map(([name, products]) => ({
         id: name,
         name: name,
@@ -870,13 +844,11 @@ export default function ManagementDashboard() {
   const fetchTopSellingProducts = async (month?: string, type?: string) => {
     setIsLoadingTopProducts(true);
     try {
-      // Generate all months for the current year
       const currentDate = new Date();
       const currentYear = currentDate.getFullYear();
       const monthYearMap = new Map<string, number>();
       const monthYearArray: Array<{ month: string; year: number; date: Date }> = [];
 
-      // Add all months of the current year
       for (let month = 0; month < 12; month++) {
         const date = new Date(currentYear, month, 1);
         const monthName = date.toLocaleString("default", { month: "long" });
@@ -886,14 +858,12 @@ export default function ManagementDashboard() {
         monthYearArray.push({ month: monthName, year: currentYear, date });
       }
 
-      // Sort by date (most recent first)
       monthYearArray.sort((a, b) => b.date.getTime() - a.date.getTime());
 
       const monthsArray = monthYearArray.map((item) => `${item.month} ${item.year}`);
       setAvailableMonths(monthsArray);
       setMonthYearMap(monthYearMap);
 
-      // If no month specified, use the current month
       const currentMonth = new Date().toLocaleString("default", { month: "long" });
       const currentMonthYear = `${currentMonth} ${currentYear}`;
 
@@ -904,26 +874,21 @@ export default function ManagementDashboard() {
         setSelectedMonthPrice(targetMonth);
       }
 
-      // Parse the selected month to get month name and year
       let monthName, targetYear;
       if (targetMonth.includes(" ")) {
-        // Format: "Month Year" (e.g., "December 2024")
         const parts = targetMonth.split(" ");
         monthName = parts[0];
         targetYear = parseInt(parts[1]);
       } else {
-        // Format: "Month" only - use current year
         monthName = targetMonth;
         targetYear = new Date().getFullYear();
       }
 
       const monthNumber = new Date(`${monthName} 1, ${targetYear}`).getMonth() + 1;
 
-      // Fetch order items filtered by month and year
       const startDate = new Date(targetYear, monthNumber - 1, 1).toISOString();
       const endDate = new Date(targetYear, monthNumber, 0, 23, 59, 59).toISOString();
 
-      // Try the filtered query first
       let { data: orderItems, error } = await supabase
         .from("order_items")
         .select(
@@ -946,7 +911,6 @@ export default function ManagementDashboard() {
         throw error;
       }
 
-      // Process data to get top selling products by quantity
       const productQuantityMap = new Map<
         string,
         {
@@ -979,14 +943,11 @@ export default function ManagementDashboard() {
           const quantity = item.quantity || 0;
           const totalPrice = item.total_price || 0;
 
-          // Determine category from product name
           let category = "Other";
           if (productName.toLowerCase().includes("chilli")) {
             category = "Chilli";
           }
-          // Add more category logic here if needed
 
-          // Group by product name for quantity
           const quantityKey = productName;
           if (productQuantityMap.has(quantityKey)) {
             const existing = productQuantityMap.get(quantityKey)!;
@@ -1000,7 +961,6 @@ export default function ManagementDashboard() {
             });
           }
 
-          // Group by product name for value
           const valueKey = productName;
           if (productValueMap.has(valueKey)) {
             const existing = productValueMap.get(valueKey)!;
@@ -1015,7 +975,6 @@ export default function ManagementDashboard() {
         }
       );
 
-      // Sort and get top 3 for each category
       const topByQuantity = Array.from(productQuantityMap.values())
         .sort((a, b) => b.quantity - a.quantity)
         .slice(0, 3);
@@ -1024,13 +983,11 @@ export default function ManagementDashboard() {
         .sort((a, b) => b.value - a.value)
         .slice(0, 3);
 
-      // Update the appropriate state based on the type
       if (type === "quantity") {
         setTopSellingProductsByQuantity(topByQuantity);
       } else if (type === "price") {
         setTopSellingProductsByPrice(topByValue);
       } else {
-        // If no type specified (initial load), update both
         setTopSellingProductsByQuantity(topByQuantity);
         setTopSellingProductsByPrice(topByValue);
       }
@@ -1038,13 +995,11 @@ export default function ManagementDashboard() {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to fetch top selling products";
       toast.error(errorMessage);
-      // Set empty data on error
       if (type === "quantity") {
         setTopSellingProductsByQuantity([]);
       } else if (type === "price") {
         setTopSellingProductsByPrice([]);
       } else {
-        // If no type specified (initial load), clear both
         setTopSellingProductsByQuantity([]);
         setTopSellingProductsByPrice([]);
       }
@@ -1055,23 +1010,19 @@ export default function ManagementDashboard() {
 
   const fetchDashboardStats = async () => {
     try {
-      // Fetch total products count
       const { count: productsCount, error: productsError } = await supabase
         .from("products")
         .select("*", { count: "exact", head: true });
 
       if (productsError) {
-        // Error fetching products count - continue with default value
       }
 
-      // Fetch total sales (sum of total_amount from completed orders)
       const { data: completedOrders, error: salesError } = await supabase
         .from("orders")
         .select("total_amount")
         .eq("status", "completed");
 
       if (salesError) {
-        // Error fetching sales - continue with default value
       }
 
       const totalSales =
@@ -1083,16 +1034,13 @@ export default function ManagementDashboard() {
           return sum + amount;
         }, 0) || 0;
 
-      // Fetch active customers (unique customers from orders)
       const { data: ordersData, error: customersError } = await supabase
         .from("orders")
         .select("customer_phone, customer_name");
 
       if (customersError) {
-        // Error fetching customers - continue with default value
       }
 
-      // Count unique customers by mobile number
       const uniqueCustomers = new Set(
         ordersData
           ?.map((order: { customer_phone?: string | null }) => order.customer_phone)
@@ -1100,14 +1048,12 @@ export default function ManagementDashboard() {
       );
       const activeCustomers = uniqueCustomers.size;
 
-      // Fetch pending orders count
       const { count: pendingCount, error: pendingError } = await supabase
         .from("orders")
         .select("*", { count: "exact", head: true })
         .eq("status", "pending");
 
       if (pendingError) {
-        // Error fetching pending orders - continue with default value
       }
 
       setDashboardStats({
@@ -1126,7 +1072,6 @@ export default function ManagementDashboard() {
   const fetchSalesChartData = async () => {
     setIsLoadingSalesChart(true);
     try {
-      // Fetch only recent 12 months for chart responsiveness.
       const today = new Date();
       const twelveMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 11, 1).toISOString();
 
@@ -1146,7 +1091,6 @@ export default function ManagementDashboard() {
         return;
       }
 
-      // Aggregate sales by month
       const monthSalesMap = new Map<string, number>();
 
       orderItems.forEach((item: { created_at?: string; total_price?: number }) => {
@@ -1165,9 +1109,7 @@ export default function ManagementDashboard() {
         }
       });
 
-      // Convert map to arrays and sort chronologically (oldest to newest)
       const sortedMonths = Array.from(monthSalesMap.entries()).sort((a, b) => {
-        // Parse month strings (format: "Month Year") to dates for proper chronological sorting
         const parseMonthYear = (monthYear: string): Date => {
           const parts = monthYear.split(" ");
           const monthName = parts[0];
@@ -1200,7 +1142,6 @@ export default function ManagementDashboard() {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
 
-      // Fetch paginated orders
       const { data, error, count } = await supabase
         .from("orders")
         .select("id, created_at, customer_name, customer_phone, total_amount, status", {
@@ -1213,7 +1154,6 @@ export default function ManagementDashboard() {
       setOrderDetails(data || []);
       setTotalOrders(count || 0);
 
-      // Fetch order items for these orders
       if (data && data.length > 0) {
         const orderIds = data.map((order: { id: string | number }) => parseInt(String(order.id)));
         const { data: itemsData, error: itemsError } = await supabase
@@ -1226,7 +1166,6 @@ export default function ManagementDashboard() {
         if (itemsError) {
           toast.error(`Failed to fetch order items: ${itemsError.message}`);
         } else {
-          // Group items by order_id
           interface OrderItem {
             id: number;
             order_id: number;
@@ -1380,26 +1319,6 @@ export default function ManagementDashboard() {
         </svg>
       ),
     },
-    // {
-    //   id: "suppliers",
-    //   title: "Suppliers",
-    //   description: "Manage your supplier relationships",
-    //   icon: (
-    //     <svg
-    //       className="w-6 h-6"
-    //       fill="none"
-    //       stroke="currentColor"
-    //       viewBox="0 0 24 24"
-    //     >
-    //       <path
-    //         strokeLinecap="round"
-    //         strokeLinejoin="round"
-    //         strokeWidth={2}
-    //         d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-    //       />
-    //     </svg>
-    //   ),
-    // },
     {
       id: "users",
       title: "Admin",
@@ -1437,7 +1356,7 @@ export default function ManagementDashboard() {
         className="space-y-6"
         initial={{ opacity: 0, y: 20 }}
       >
-        {/* Stats Overview */}
+        
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[
             {
@@ -1481,7 +1400,7 @@ export default function ManagementDashboard() {
           ))}
         </div>
 
-        {/* Charts */}
+        
         <div className="grid grid-cols-1 gap-6">
           <div className="bg-white p-4 rounded-lg shadow-sm">
             <h3 className="text-lg font-semibold mb-4">Sales Overview - Total Sales by Month</h3>
@@ -1546,9 +1465,9 @@ export default function ManagementDashboard() {
           </div>
         </div>
 
-        {/* Top Selling Products */}
+        
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Top Selling Products by Quantity */}
+          
           <div className="bg-white p-4 rounded-lg shadow-sm">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Top Selling Products (by Qty)</h3>
@@ -1621,7 +1540,7 @@ export default function ManagementDashboard() {
             </div>
           </div>
 
-          {/* Top Selling Products by Price */}
+          
           <div className="bg-white p-4 rounded-lg shadow-sm">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Top Selling Products (by Price)</h3>
@@ -1689,7 +1608,7 @@ export default function ManagementDashboard() {
           </div>
         </div>
 
-        {/* Recent Activity */}
+        
         <div className="bg-white p-4 rounded-lg shadow-sm">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold">Recent Activity</h3>
@@ -1855,7 +1774,6 @@ export default function ManagementDashboard() {
                         <button
                           className="text-red-600 hover:text-red-900"
                           onClick={() => {
-                            // Delete user functionality can be implemented here
                           }}
                         >
                           Delete
@@ -1869,7 +1787,7 @@ export default function ManagementDashboard() {
           </div>
         )}
 
-        {/* Pagination for Users */}
+        
         {!isLoading && users.length > 0 && (
           <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
             <div className="flex-1 flex justify-between sm:hidden">
@@ -1997,7 +1915,7 @@ export default function ManagementDashboard() {
           </div>
         )}
 
-        {/* Add the EditUserModal */}
+        
         <EditUserModal
           isOpen={isEditModalOpen}
           user={selectedUser}
@@ -2028,7 +1946,7 @@ export default function ManagementDashboard() {
               <h2 className="text-2xl font-bold text-gray-900">Product List</h2>
             </div>
 
-            {/* Product Variants Management Section */}
+            
             <div className="bg-white rounded-lg shadow p-6 mb-6">
               <div className="flex justify-between items-center mb-4">
                 <h4 className="font-medium text-gray-700 text-lg">Product Variants:</h4>
@@ -2043,7 +1961,7 @@ export default function ManagementDashboard() {
                 </label>
               </div>
 
-              {/* Product Selector Dropdown */}
+              
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Select Product to Manage Variants:
@@ -2249,14 +2167,12 @@ export default function ManagementDashboard() {
                                                         </span>
                                                       )}
                                                       {(() => {
-                                                        // Use the resolved countryName if available, otherwise try to look it up from state
                                                         const countryName =
                                                           product.countryName ||
                                                           (product.Country &&
                                                             countryMap[String(product.Country)]
                                                               ?.name);
 
-                                                        // Only show if we have a valid country name
                                                         if (countryName) {
                                                           return (
                                                             <span className="inline-flex items-center px-2 py-0.5 rounded bg-green-50 text-green-700 font-medium">
@@ -2266,7 +2182,6 @@ export default function ManagementDashboard() {
                                                           );
                                                         }
 
-                                                        // Don't show anything if country name not found
                                                         return null;
                                                       })()}
                                                       {product["Item Code"] && (
@@ -2292,7 +2207,6 @@ export default function ManagementDashboard() {
                                           {(() => {
                                             const isEditing = editingProductId === product.id;
                                             if (isEditing) {
-                                              // Editing mode - no additional logic needed
                                             }
                                             return isEditing;
                                           })() ? (
@@ -2352,7 +2266,6 @@ export default function ManagementDashboard() {
                                                     ),
                                                   ];
 
-                                                  // Always create a global price history entry
                                                   const { error: globalHistoryError } =
                                                     await supabase
                                                       .from("product_price_history")
@@ -2373,7 +2286,6 @@ export default function ManagementDashboard() {
                                                     );
                                                   }
 
-                                                  // Also create customer-specific entries if there are customers
                                                   if (uniqueCustomerIds.length > 0) {
                                                     for (const customerId of uniqueCustomerIds) {
                                                       const { error: insertError } = await supabase
@@ -2396,7 +2308,6 @@ export default function ManagementDashboard() {
                                                     }
                                                   }
 
-                                                  // Now update the product price
                                                   const { error: updateError } = await supabase
                                                     .from("products")
                                                     .update({ price: editingPrice })
@@ -2437,7 +2348,6 @@ export default function ManagementDashboard() {
                                                 title="Edit Price"
                                                 onClick={(e) => {
                                                   e.stopPropagation();
-                                                  // Ensure only one product can be edited at a time
                                                   if (editingProductId !== product.id) {
                                                     setEditingProductId(null);
                                                     setEditingPrice(null);
@@ -2449,7 +2359,6 @@ export default function ManagementDashboard() {
                                                 Edit
                                               </button>
                                               {(() => {
-                                                // Find all customers for this product
                                                 const allCustomers = product.order_items
                                                   ?.flatMap((oiRaw) => {
                                                     const oi = oiRaw as {
@@ -2553,7 +2462,7 @@ export default function ManagementDashboard() {
                                         <tr>
                                           <td className="px-4 py-2 bg-gray-50" colSpan={3}>
                                             <div className="pl-8">
-                                              {/* Previous Customers Section */}
+                                              
                                               <div className="flex justify-between items-center mb-4">
                                                 <div className="flex items-center space-x-2">
                                                   <svg
@@ -2656,7 +2565,7 @@ export default function ManagementDashboard() {
                                                   </button>
                                                 )}
                                               </div>
-                                              {/* Customer Selector for Custom Price */}
+                                              
                                               <div className="mb-4 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 shadow-sm">
                                                 <div className="flex justify-between items-center mb-3">
                                                   <div className="flex items-center space-x-2">
@@ -2682,12 +2591,10 @@ export default function ManagementDashboard() {
                                                         title="Select all customers"
                                                         type="button"
                                                         onClick={() => {
-                                                          // Clear customer selection to enable "Select All & Send"
                                                           setSelectedCustomerForOffer((prev) => ({
                                                             ...prev,
                                                             [product.id]: null,
                                                           }));
-                                                          // Clear any customer-specific price
                                                           const customerId =
                                                             selectedCustomerForOffer[product.id];
                                                           if (customerId) {
@@ -2729,7 +2636,7 @@ export default function ManagementDashboard() {
                                                 </div>
 
                                                 <div className="space-y-3">
-                                                  {/* Customer Selection Row */}
+                                                  
                                                   <div className="flex items-center gap-2">
                                                     <div className="flex-1 relative customer-dropdown-container">
                                                       <button
@@ -2798,7 +2705,7 @@ export default function ManagementDashboard() {
                                                         </svg>
                                                       </button>
 
-                                                      {/* Custom Dropdown List */}
+                                                      
                                                       {isCustomerDropdownOpen[product.id] &&
                                                         !isLoadingCustomers && (
                                                           <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-80 overflow-auto">
@@ -2808,19 +2715,17 @@ export default function ManagementDashboard() {
                                                               </div>
                                                             ) : (
                                                               <div className="py-1">
-                                                                {/* Select All Option */}
+                                                                
                                                                 <button
                                                                   className="w-full px-4 py-2.5 text-left hover:bg-purple-50 transition-colors border-b border-gray-200 bg-purple-50"
                                                                   type="button"
                                                                   onClick={() => {
-                                                                    // Clear customer selection to enable "Select All & Send"
                                                                     setSelectedCustomerForOffer(
                                                                       (prev) => ({
                                                                         ...prev,
                                                                         [product.id]: null,
                                                                       })
                                                                     );
-                                                                    // Clear any customer-specific price
                                                                     const customerId =
                                                                       selectedCustomerForOffer[
                                                                         product.id
@@ -2901,7 +2806,6 @@ export default function ManagementDashboard() {
                                                                             ),
                                                                           })
                                                                         );
-                                                                        // Clear custom price when customer changes
                                                                         const key = `custom-${product.id}-${customer.id}`;
                                                                         setCustomPriceForSelectedCustomer(
                                                                           (prev) => {
@@ -3017,7 +2921,7 @@ export default function ManagementDashboard() {
                                                     )}
                                                   </div>
 
-                                                  {/* Price Input and Actions Row */}
+                                                  
                                                   <div className="flex items-center gap-2 p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
                                                     <div className="flex-1 flex items-center gap-2">
                                                       <div className="relative flex-1">
@@ -3133,7 +3037,6 @@ export default function ManagementDashboard() {
                                                                   String(c.id).trim() === customerId
                                                               );
 
-                                                              // Handle stale dropdown state by refreshing the customer list once.
                                                               if (!customer) {
                                                                 await fetchAllCustomers();
                                                                 const {
@@ -3187,7 +3090,6 @@ export default function ManagementDashboard() {
                                                                 );
                                                                 await fetchCategories();
 
-                                                                // Clear the inputs after successful send
                                                                 setSelectedCustomerForOffer(
                                                                   (prev) => ({
                                                                     ...prev,
@@ -3311,7 +3213,6 @@ export default function ManagementDashboard() {
                                                               );
                                                               await fetchCategories();
 
-                                                              // Clear the price input after successful send
                                                               setCustomPriceForSelectedCustomer(
                                                                 (prev) => {
                                                                   const newState = { ...prev };
@@ -3666,7 +3567,6 @@ export default function ManagementDashboard() {
                                                                 value === null ||
                                                                 value === undefined
                                                               ) {
-                                                                // Clear the value when input is empty
                                                                 setOfferPrices((prev) => {
                                                                   const newState = { ...prev };
                                                                   delete newState[key];
@@ -3683,7 +3583,6 @@ export default function ManagementDashboard() {
                                                               }
                                                             }}
                                                             onFocus={(e) => {
-                                                              // Select all text when focused
                                                               e.target.select();
                                                             }}
                                                           />
@@ -3799,7 +3698,6 @@ export default function ManagementDashboard() {
                                                               ]);
                                                               await fetchCategories();
 
-                                                              // Clear the offer price after sending successfully
                                                               setOfferPrices((prev) => {
                                                                 const newState = { ...prev };
                                                                 delete newState[key];
@@ -4101,7 +3999,7 @@ export default function ManagementDashboard() {
               </div>
             )}
 
-            {/* Pagination for History */}
+            
             {!isLoading && orderDetails.length > 0 && (
               <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
                 <div className="flex-1 flex justify-between sm:hidden">
@@ -4287,17 +4185,14 @@ export default function ManagementDashboard() {
     }
   };
 
-  // Enhanced function to handle status update
   const handleStatusChange = async (orderId: string, newStatus: string) => {
     try {
       setUpdatingStatus(orderId);
 
-      // Validate status
       if (!["pending", "completed", "cancelled"].includes(newStatus)) {
         throw new Error("Invalid status value");
       }
 
-      // Update status in database
       const { error } = await supabase
         .from("orders")
         .update({
@@ -4308,24 +4203,20 @@ export default function ManagementDashboard() {
 
       if (error) throw error;
 
-      // Update local state
       setOrderDetails((prevOrders) =>
         prevOrders.map((order) => (order.id === orderId ? { ...order, status: newStatus } : order))
       );
 
-      // Update recent orders as well
       setRecentOrders((prevOrders) =>
         prevOrders.map((order) =>
           order.id === parseInt(orderId) ? { ...order, status: newStatus } : order
         )
       );
 
-      // Show success message
       toast.success(`Order status updated to ${newStatus}`);
     } catch (error) {
       toast.error("Failed to update order status. Please try again.");
 
-      // Refresh the order details to ensure UI is in sync with database
       fetchOrderDetails(currentPage);
     } finally {
       setUpdatingStatus(null);
@@ -4343,12 +4234,12 @@ export default function ManagementDashboard() {
           ← Back to Homepage
         </button>
       </div>
-      {/* Horizontal Top Navigation Bar */}
+      
       <div className="bg-white shadow-sm w-full">
         <div className="max-w-7xl mx-auto px-2 sm:px-4">
           <div className="py-4">
             <h1 className="text-2xl font-bold mb-2">Management Portal</h1>
-            {/* Burger menu button for mobile */}
+            
             <button
               aria-label="Open navigation menu"
               className="md:hidden flex items-center px-3 py-2 border rounded text-gray-600 border-gray-400 hover:text-blue-600 hover:border-blue-600 mb-2"
@@ -4363,7 +4254,7 @@ export default function ManagementDashboard() {
                 />
               </svg>
             </button>
-            {/* Mobile vertical menu */}
+            
             {isNavOpen && (
               <nav className="flex flex-col gap-2 md:hidden bg-white rounded shadow p-2 absolute z-50 w-11/12 left-1/2 -translate-x-1/2 mt-2">
                 {sections.map((section) => (
@@ -4388,7 +4279,7 @@ export default function ManagementDashboard() {
                 ))}
               </nav>
             )}
-            {/* Desktop horizontal menu */}
+            
             <nav className="hidden md:flex flex-row flex-wrap gap-2 overflow-x-auto">
               {sections.map((section) => (
                 <motion.button

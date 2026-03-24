@@ -36,7 +36,6 @@ const clearClientAuthState = (): void => {
     }
   });
 
-  // Best-effort cleanup for non-httpOnly auth cookies.
   document.cookie
     .split(";")
     .map((cookie) => cookie.trim().split("=")[0])
@@ -48,9 +47,6 @@ const clearClientAuthState = (): void => {
     });
 };
 
-/**
- * Standard logout flow for Supabase SSR cookie sessions.
- */
 export const performLogout = async (): Promise<void> => {
   const signOutErrors: unknown[] = [];
 
@@ -97,9 +93,6 @@ export const performLogout = async (): Promise<void> => {
   }
 };
 
-/**
- * Logout with full-page redirect to ensure clean state
- */
 export const performLogoutWithReload = async (redirectTo: string = "/"): Promise<void> => {
   await performLogout();
   window.location.replace(redirectTo);

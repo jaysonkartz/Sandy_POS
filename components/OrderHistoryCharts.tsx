@@ -13,7 +13,6 @@ import {
 } from "chart.js";
 import { Line, Bar, Pie } from "react-chartjs-2";
 
-// Register ChartJS components
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -30,7 +29,6 @@ interface Order {
   created_at: string;
   total_amount: number;
   status: string;
-  // Add other fields as needed
 }
 
 interface OrderHistoryChartsProps {
@@ -38,20 +36,17 @@ interface OrderHistoryChartsProps {
 }
 
 export default function OrderHistoryCharts({ orders }: OrderHistoryChartsProps) {
-  // Process data for monthly sales
   const monthlySales = orders.reduce((acc: { [key: string]: number }, order) => {
     const month = new Date(order.created_at).toLocaleString("default", { month: "short" });
     acc[month] = (acc[month] || 0) + order.total_amount;
     return acc;
   }, {});
 
-  // Process data for order status
   const orderStatus = orders.reduce((acc: { [key: string]: number }, order) => {
     acc[order.status] = (acc[order.status] || 0) + 1;
     return acc;
   }, {});
 
-  // Monthly Sales Line Chart
   const salesData = {
     labels: Object.keys(monthlySales),
     datasets: [
@@ -64,7 +59,6 @@ export default function OrderHistoryCharts({ orders }: OrderHistoryChartsProps) 
     ],
   };
 
-  // Order Status Pie Chart
   const statusData = {
     labels: Object.keys(orderStatus),
     datasets: [
@@ -80,7 +74,6 @@ export default function OrderHistoryCharts({ orders }: OrderHistoryChartsProps) 
     ],
   };
 
-  // Daily Orders Bar Chart
   const dailyOrders = orders.reduce((acc: { [key: string]: number }, order) => {
     const date = new Date(order.created_at).toLocaleDateString();
     acc[date] = (acc[date] || 0) + 1;
@@ -101,7 +94,7 @@ export default function OrderHistoryCharts({ orders }: OrderHistoryChartsProps) 
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Monthly Sales Line Chart */}
+        
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Monthly Sales</h3>
           <Line
@@ -122,7 +115,7 @@ export default function OrderHistoryCharts({ orders }: OrderHistoryChartsProps) 
           />
         </div>
 
-        {/* Order Status Pie Chart */}
+        
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Order Status Distribution</h3>
           <Pie
@@ -138,7 +131,7 @@ export default function OrderHistoryCharts({ orders }: OrderHistoryChartsProps) 
           />
         </div>
 
-        {/* Daily Orders Bar Chart */}
+        
         <div className="bg-white p-6 rounded-lg shadow md:col-span-2">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Daily Orders</h3>
           <Bar
@@ -160,7 +153,7 @@ export default function OrderHistoryCharts({ orders }: OrderHistoryChartsProps) 
         </div>
       </div>
 
-      {/* Summary Cards */}
+      
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-lg font-medium text-gray-900">Total Orders</h3>

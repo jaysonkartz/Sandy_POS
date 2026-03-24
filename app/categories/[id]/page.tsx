@@ -28,7 +28,6 @@ export default function CategoryPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     async function fetchData() {
       try {
-        // Fetch category
         const { data: categoryData, error: categoryError } = await supabase
           .from("categories")
           .select("*")
@@ -38,7 +37,6 @@ export default function CategoryPage({ params }: { params: { id: string } }) {
         if (categoryError) throw categoryError;
         setCategory(categoryData);
 
-        // Fetch products for this category
         const { data: productsData, error: productsError } = await supabase
           .from("products")
           .select("*")

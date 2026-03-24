@@ -51,7 +51,6 @@ export default function ProductManagement() {
   const [showImages, setShowImages] = useState(true);
   const latestFetchIdRef = useRef(0);
 
-  // Fetch products
   const fetchProducts = useCallback(async () => {
     const fetchId = ++latestFetchIdRef.current;
 
@@ -122,7 +121,6 @@ export default function ProductManagement() {
     }
   }, [selectedCategory]);
 
-  // Fetch categories
   const fetchCategories = useCallback(async () => {
     try {
       const { data, error } = await supabase
@@ -145,7 +143,6 @@ export default function ProductManagement() {
     fetchCategories();
   }, [fetchCategories]);
 
-  // Filter products based on search term
   const filteredProducts = products.filter(
     (product) =>
       product.Product.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -154,7 +151,6 @@ export default function ProductManagement() {
       product.Category.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Handle product update
   const handleProductUpdate = useCallback(
     async (productId: number, updatedData: Partial<Product>) => {
       const { error } = await supabase
@@ -167,7 +163,6 @@ export default function ProductManagement() {
 
       if (error) throw error;
 
-      // Update local state
       setProducts((prev) =>
         prev.map((product) => (product.id === productId ? { ...product, ...updatedData } : product))
       );
@@ -178,7 +173,6 @@ export default function ProductManagement() {
     []
   );
 
-  // Handle product deletion
   const handleProductDelete = useCallback(async (productId: number) => {
     if (!confirm("Are you sure you want to delete this product?")) return;
 
@@ -194,7 +188,6 @@ export default function ProductManagement() {
     }
   }, []);
 
-  // Handle photo editor
   const handlePhotoEditor = useCallback((product: Product) => {
     setSelectedProductForPhoto(product);
     setIsPhotoEditorOpen(true);
@@ -215,21 +208,17 @@ export default function ProductManagement() {
     [selectedProductForPhoto]
   );
 
-  // Get image source
   const getImageSource = (product: Product) => {
     if (product.image_url) {
       return product.image_url;
     }
 
-    // Fallback to static image path
     const categoryName = getCategoryName(product.Category);
     const staticImagePath = `/Img/${categoryName}/${product.Product}${product.Variation ? ` (${product.Variation})` : ""}.png`;
 
-    // Return static path, let onError handle fallback to placeholder
     return staticImagePath;
   };
 
-  // Get category name
   const getCategoryName = (category: string) => {
     const categoryMap: { [key: string]: string } = {
       "1": "Dried Chilli",
@@ -254,7 +243,7 @@ export default function ProductManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Product Management</h1>
@@ -272,7 +261,7 @@ export default function ProductManagement() {
         </button>
       </div>
 
-      {/* Filters and Search */}
+      
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -307,14 +296,14 @@ export default function ProductManagement() {
         </button>
       </div>
 
-      {/* Error Message */}
+      
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-md">
           <p className="text-red-600">{error}</p>
         </div>
       )}
 
-      {/* Products Grid */}
+      
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         <AnimatePresence>
           {filteredProducts.map((product) => (
@@ -325,7 +314,7 @@ export default function ProductManagement() {
               exit={{ opacity: 0, y: -20 }}
               initial={{ opacity: 0, y: 20 }}
             >
-              {/* Product Image */}
+              
               {showImages && (
                 <div className="relative h-48 bg-gray-100">
                   <ProductImage
@@ -350,7 +339,7 @@ export default function ProductManagement() {
                 </div>
               )}
 
-              {/* Product Info */}
+              
               <div className="p-4">
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="font-semibold text-gray-900 truncate flex-1">{product.Product}</h3>
@@ -394,7 +383,7 @@ export default function ProductManagement() {
         </AnimatePresence>
       </div>
 
-      {/* No Products Message */}
+      
       {filteredProducts.length === 0 && !loading && (
         <div className="text-center py-12">
           <ImageIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -407,7 +396,7 @@ export default function ProductManagement() {
         </div>
       )}
 
-      {/* Edit Product Modal */}
+      
       {editingProduct && (
         <EditProductModal
           product={editingProduct}
@@ -420,7 +409,7 @@ export default function ProductManagement() {
         />
       )}
 
-      {/* Photo Editor Modal */}
+      
       {selectedProductForPhoto && (
         <ProductPhotoEditor
           currentImageUrl={selectedProductForPhoto.image_url}

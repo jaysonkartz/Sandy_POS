@@ -36,7 +36,6 @@ export default function DashboardPage() {
 
     async function fetchData() {
       try {
-        // Replace this with your actual data fetching logic
         const { data, error } = await supabase.from("categories").select("*").single();
 
         if (error) throw error;
