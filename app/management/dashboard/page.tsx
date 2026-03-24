@@ -72,7 +72,15 @@ interface Product {
   variants?: ProductVariant[];
   priceHistory?: {
     previous_price: number;
-    last_price_update: string;
+    original_price: number;
+    last_price_update?: string;
+    created_at?: string;
+  }[];
+  customerPriceHistory?: {
+    customer_id: string;
+    original_price: number;
+    last_price_update?: string;
+    created_at?: string;
   }[];
   order_items?: {
     order_id: number;
@@ -678,8 +686,14 @@ export default function ManagementDashboard() {
       }
       const { data: priceHistories, error: priceHistoryError } = await supabase
         .from("product_price_history")
-        .select("product_id, previous_price, original_price, last_price_update")
+        .select("product_id, previous_price, original_price, last_price_update, created_at")
         .is("customer_id", null) // Only fetch global price changes (not customer-specific)
+        .order("last_price_update", { ascending: false });
+
+      const { data: customerPriceHistories } = await supabase
+        .from("product_price_history")
+        .select("product_id, customer_id, original_price, last_price_update, created_at")
+        .not("customer_id", "is", null)
         .order("last_price_update", { ascending: false });
 
       // Group price histories by product_id
@@ -689,7 +703,8 @@ export default function ManagementDashboard() {
         product_id: number;
         previous_price: number;
         original_price: number;
-        last_price_update: string;
+        last_price_update?: string;
+        created_at?: string;
       }
 
       const priceHistoryMap: { [key: number | string]: PriceHistoryEntry[] } = {};
@@ -703,6 +718,29 @@ export default function ManagementDashboard() {
             priceHistoryMap[productIdStr] = priceHistoryMap[productId]; // Same array reference
           }
           priceHistoryMap[productId].push(ph);
+        }
+      });
+
+      interface CustomerPriceHistoryEntry {
+        product_id: number;
+        customer_id: string;
+        original_price: number;
+        last_price_update?: string;
+        created_at?: string;
+      }
+
+      const customerPriceHistoryMap: {
+        [key: number | string]: CustomerPriceHistoryEntry[];
+      } = {};
+      (customerPriceHistories || []).forEach((ph: CustomerPriceHistoryEntry) => {
+        const productId = Number(ph.product_id);
+        const productIdStr = String(ph.product_id);
+        if (!isNaN(productId)) {
+          if (!customerPriceHistoryMap[productId]) {
+            customerPriceHistoryMap[productId] = [];
+            customerPriceHistoryMap[productIdStr] = customerPriceHistoryMap[productId];
+          }
+          customerPriceHistoryMap[productId].push(ph);
         }
       });
 
@@ -729,11 +767,19 @@ export default function ManagementDashboard() {
           priceHistoryMap[Number(productIdStr)] ||
           [];
 
+        const customerHistory =
+          customerPriceHistoryMap[productId] ||
+          customerPriceHistoryMap[productIdStr] ||
+          customerPriceHistoryMap[String(productId)] ||
+          customerPriceHistoryMap[Number(productIdStr)] ||
+          [];
+
         return {
           ...product,
           countryName: countryName, // Add resolved country name
           variants: [],
           priceHistory: history.slice(0, 3),
+          customerPriceHistory: customerHistory,
         };
       });
 
@@ -2526,15 +2572,52 @@ export default function ManagementDashboard() {
                                                   <h4 className="text-base font-semibold text-gray-800">
                                                     Previous Customers
                                                   </h4>
-                                                  {product.order_items &&
-                                                    product.order_items.length > 0 && (
+                                                  {(() => {
+                                                    const normalizePhone = (phone?: string) =>
+                                                      String(phone || "").replace(/\D/g, "");
+                                                    const normalizeName = (name?: string) =>
+                                                      String(name || "")
+                                                        .trim()
+                                                        .replace(/\s+/g, " ")
+                                                        .toLowerCase();
+                                                    const uniqueCustomerCount = new Set(
+                                                      (product.order_items ?? []).flatMap((oiRaw) => {
+                                                        const oi = oiRaw as {
+                                                          orders?: {
+                                                            customer_name: string;
+                                                            customer_phone: string;
+                                                            customer_id?: string;
+                                                          }[];
+                                                        };
+                                                        const orders = Array.isArray(oi.orders)
+                                                          ? oi.orders
+                                                          : oi.orders
+                                                            ? [oi.orders]
+                                                            : [];
+                                                        return orders.map((order) => {
+                                                          const phoneKey = normalizePhone(
+                                                            order.customer_phone
+                                                          );
+                                                          const nameKey = normalizeName(
+                                                            order.customer_name
+                                                          );
+                                                          const idKey = String(
+                                                            order.customer_id || ""
+                                                          ).trim();
+                                                          return phoneKey || nameKey || idKey;
+                                                        });
+                                                      })
+                                                    ).size;
+
+                                                    return uniqueCustomerCount > 0 ? (
                                                       <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-full">
-                                                        {product.order_items.length} customer
-                                                        {product.order_items.length !== 1
+                                                        {uniqueCustomerCount} customer
+                                                        {uniqueCustomerCount !== 1
                                                           ? "s"
                                                           : ""}
                                                       </span>
-                                                    )}
+                                                    ) : null;
+                                                  })()}
                                                 </div>
                                                 {Object.keys(offerPrices).some((key) =>
                                                   key.startsWith(`${product.id}-`)
@@ -3102,6 +3185,7 @@ export default function ManagementDashboard() {
                                                                     },
                                                                   ]
                                                                 );
+                                                                await fetchCategories();
 
                                                                 // Clear the inputs after successful send
                                                                 setSelectedCustomerForOffer(
@@ -3225,6 +3309,7 @@ export default function ManagementDashboard() {
                                                               await insertPriceOffersWithFallback(
                                                                 offers
                                                               );
+                                                              await fetchCategories();
 
                                                               // Clear the price input after successful send
                                                               setCustomPriceForSelectedCustomer(
@@ -3275,27 +3360,195 @@ export default function ManagementDashboard() {
                                                   </div>
                                                 </div>
                                               </div>
-                                              {product.order_items?.map((oiRaw, idx) => {
-                                                const oi = oiRaw as {
-                                                  order_id: number;
-                                                  price?: number;
-                                                  orders?: {
+                                              {(() => {
+                                                const getHistoryTimestamp = (entry: {
+                                                  last_price_update?: string;
+                                                  created_at?: string;
+                                                }) => {
+                                                  const ts = new Date(
+                                                    entry.last_price_update || entry.created_at || 0
+                                                  ).getTime();
+                                                  return Number.isFinite(ts) ? ts : 0;
+                                                };
+                                                const normalizePhone = (phone?: string) =>
+                                                  String(phone || "").replace(/\D/g, "");
+                                                const normalizeName = (name?: string) =>
+                                                  String(name || "")
+                                                    .trim()
+                                                    .replace(/\s+/g, " ")
+                                                    .toLowerCase();
+                                                const globalPrice = product.price;
+                                                const latestGlobalPriceUpdateTime = (
+                                                  product.priceHistory || []
+                                                ).reduce<number | null>((latestTs, entry) => {
+                                                  const ts = getHistoryTimestamp(entry);
+                                                  if (ts <= 0) return latestTs;
+                                                  if (latestTs === null) return ts;
+                                                  return ts > latestTs ? ts : latestTs;
+                                                }, null);
+
+                                                const previousCustomersMap = new Map<
+                                                  string,
+                                                  {
                                                     customer_name: string;
                                                     customer_phone: string;
                                                     customer_id?: string;
-                                                  }[];
-                                                };
-                                                return (
-                                                  Array.isArray(oi.orders)
+                                                    dedupe_key: string;
+                                                    order_id: number;
+                                                    last_purchased_price?: number;
+                                                        current_price_for_customer: number;
+                                                  }
+                                                >();
+
+                                                (product.order_items ?? []).forEach((oiRaw) => {
+                                                  const oi = oiRaw as {
+                                                    order_id: number;
+                                                    price?: number;
+                                                    orders?: {
+                                                      customer_name: string;
+                                                      customer_phone: string;
+                                                      customer_id?: string;
+                                                    }[];
+                                                  };
+
+                                                  const orders = Array.isArray(oi.orders)
                                                     ? oi.orders
                                                     : oi.orders
                                                       ? [oi.orders]
-                                                      : []
-                                                ).map((order, oidx) => {
-                                                  // Use oi.price as the past price for this customer
+                                                      : [];
+
+                                                  orders.forEach((order) => {
+                                                    const phoneKey = normalizePhone(
+                                                      order.customer_phone
+                                                    );
+                                                    const nameKey = normalizeName(
+                                                      order.customer_name
+                                                    );
+                                                    const idKey = String(
+                                                      order.customer_id || ""
+                                                    ).trim();
+                                                    const customerKey =
+                                                      phoneKey || nameKey || idKey;
+                                                    if (!customerKey) return;
+
+                                                    const existing = previousCustomersMap.get(
+                                                      customerKey
+                                                    );
+                                                    if (
+                                                      !existing ||
+                                                      (oi.order_id ?? 0) > (existing.order_id ?? 0)
+                                                    ) {
+                                                      const customerId = String(
+                                                        order.customer_id || ""
+                                                      ).trim();
+                                                      const matchingCustomerIds = new Set<string>();
+                                                      if (customerId) {
+                                                        matchingCustomerIds.add(customerId);
+                                                      }
+
+                                                      const orderPhone = normalizePhone(
+                                                        order.customer_phone
+                                                      );
+                                                      const orderName = normalizeName(
+                                                        order.customer_name
+                                                      );
+
+                                                      (allCustomers || []).forEach((customerRow) => {
+                                                        const rowId = String(
+                                                          customerRow.id || ""
+                                                        ).trim();
+                                                        if (!rowId) return;
+
+                                                        const rowPhone = normalizePhone(
+                                                          customerRow.phone || undefined
+                                                        );
+                                                        const rowName = normalizeName(
+                                                          customerRow.name || ""
+                                                        );
+
+                                                        if (
+                                                          (orderPhone &&
+                                                            rowPhone &&
+                                                            orderPhone === rowPhone) ||
+                                                          (orderName &&
+                                                            rowName &&
+                                                            orderName === rowName)
+                                                        ) {
+                                                          matchingCustomerIds.add(rowId);
+                                                        }
+                                                      });
+
+                                                      const eligibleCustomerPriceEntries =
+                                                        (product.customerPriceHistory || [])
+                                                          .filter((entry) =>
+                                                            matchingCustomerIds.has(
+                                                              String(entry.customer_id).trim()
+                                                            )
+                                                          )
+                                                          .filter((entry) => {
+                                                            const entryTime =
+                                                              getHistoryTimestamp(entry);
+                                                            if (!Number.isFinite(entryTime)) {
+                                                              return false;
+                                                            }
+                                                            if (
+                                                              latestGlobalPriceUpdateTime === null
+                                                            ) {
+                                                              return true;
+                                                            }
+                                                            return (
+                                                              entryTime >
+                                                              latestGlobalPriceUpdateTime
+                                                            );
+                                                          });
+
+                                                      const latestEligibleCustomerSpecificPrice =
+                                                        eligibleCustomerPriceEntries.reduce<
+                                                          | {
+                                                              original_price: number;
+                                                              last_price_update?: string;
+                                                              created_at?: string;
+                                                            }
+                                                          | null
+                                                        >((latest, entry) => {
+                                                          if (!latest) return entry;
+                                                          const latestTime =
+                                                            getHistoryTimestamp(latest);
+                                                          const entryTime =
+                                                            getHistoryTimestamp(entry);
+                                                          return entryTime > latestTime
+                                                            ? entry
+                                                            : latest;
+                                                        }, null);
+
+                                                      const currentPriceForCustomer =
+                                                        latestEligibleCustomerSpecificPrice
+                                                          ? latestEligibleCustomerSpecificPrice.original_price
+                                                          : globalPrice;
+
+                                                      previousCustomersMap.set(customerKey, {
+                                                        customer_name: order.customer_name,
+                                                        customer_phone: order.customer_phone,
+                                                        customer_id: order.customer_id,
+                                                        dedupe_key: customerKey,
+                                                        order_id: oi.order_id,
+                                                        last_purchased_price: oi.price,
+                                                        current_price_for_customer:
+                                                          currentPriceForCustomer,
+                                                      });
+                                                    }
+                                                  });
+                                                });
+
+                                                const previousCustomers = Array.from(
+                                                  previousCustomersMap.values()
+                                                ).sort((a, b) => b.order_id - a.order_id);
+
+                                                return previousCustomers.map((customer) => {
+                                                  const offerKey = `${product.id}-${customer.dedupe_key}`;
                                                   return (
                                                     <div
-                                                      key={`${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`}
+                                                      key={`${product.id}-${customer.dedupe_key}`}
                                                       className="mb-3 p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow"
                                                     >
                                                       <div className="flex items-start justify-between mb-3">
@@ -3318,29 +3571,57 @@ export default function ManagementDashboard() {
                                                           <div>
                                                             <div className="flex items-center space-x-2">
                                                               <span className="font-semibold text-gray-800">
-                                                                {order.customer_name}
+                                                                {customer.customer_name}
                                                               </span>
-                                                              {order.customer_phone && (
+                                                              {customer.customer_phone && (
                                                                 <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                                                                  {order.customer_phone}
+                                                                  {customer.customer_phone}
                                                                 </span>
                                                               )}
                                                             </div>
-                                                            {oi.price !== undefined && (
-                                                              <div className="mt-1 flex items-center space-x-2">
-                                                                <span className="text-xs text-gray-500">
-                                                                  Previous price:
-                                                                </span>
-                                                                <span className="text-sm font-medium text-gray-700">
-                                                                  ${oi.price?.toFixed(2)}
-                                                                </span>
+                                                            <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                                              <div className="rounded-md bg-gray-50 px-2.5 py-1.5">
+                                                                <div className="text-[11px] leading-4 text-gray-500">
+                                                                  Last purchased
+                                                                </div>
+                                                                <div className="text-sm leading-5 font-medium text-gray-700">
+                                                                  $
+                                                                  {(
+                                                                    customer.last_purchased_price ?? 0
+                                                                  ).toFixed(2)}
+                                                                </div>
                                                               </div>
-                                                            )}
+                                                              <div className="rounded-md bg-blue-50 px-2.5 py-1.5">
+                                                                <div
+                                                                  className="text-[11px] leading-4 text-blue-600 cursor-help"
+                                                                  title="Current is what this customer sees: custom price only if it was set after the latest global update, otherwise global price."
+                                                                >
+                                                                  Current
+                                                                </div>
+                                                                <div className="text-sm leading-5 font-medium text-blue-700">
+                                                                  $
+                                                                  {customer.current_price_for_customer.toFixed(
+                                                                    2
+                                                                  )}
+                                                                </div>
+                                                              </div>
+                                                              <div className="rounded-md bg-purple-50 px-2.5 py-1.5">
+                                                                <div
+                                                                  className="text-[11px] leading-4 text-purple-600 cursor-help"
+                                                                  title="Global is the product base price applied to all customers."
+                                                                >
+                                                                  Global
+                                                                </div>
+                                                                <div className="text-sm leading-5 font-medium text-purple-700">
+                                                                  ${globalPrice.toFixed(2)}
+                                                                </div>
+                                                              </div>
+                                                            </div>
                                                           </div>
                                                         </div>
-                                                        {order.customer_id && (
+                                                        {customer.customer_id && (
                                                           <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded">
-                                                            ID: {order.customer_id}
+                                                            ID: {customer.customer_id}
                                                           </span>
                                                         )}
                                                       </div>
@@ -3358,13 +3639,11 @@ export default function ManagementDashboard() {
                                                             step="0.01"
                                                             type="number"
                                                             value={
-                                                              offerPrices[
-                                                                `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`
-                                                              ] || ""
+                                                              offerPrices[offerKey] || ""
                                                             }
                                                             onBlur={(e) => {
                                                               // Validate and clean up on blur
-                                                              const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
+                                                              const key = offerKey;
                                                               const value = e.target.value;
                                                               if (
                                                                 value === "" ||
@@ -3379,7 +3658,7 @@ export default function ManagementDashboard() {
                                                               }
                                                             }}
                                                             onChange={(e) => {
-                                                              const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
+                                                              const key = offerKey;
                                                               const value = e.target.value;
 
                                                               if (
@@ -3410,14 +3689,14 @@ export default function ManagementDashboard() {
                                                           />
                                                         </div>
                                                         {offerPrices[
-                                                          `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`
+                                                          offerKey
                                                         ] && (
                                                           <button
                                                             className="px-3 py-2 text-sm font-medium text-red-600 bg-white border border-red-300 rounded-lg hover:bg-red-50 hover:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 transition-all"
                                                             title="Clear offer price"
                                                             type="button"
                                                             onClick={() => {
-                                                              const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
+                                                              const key = offerKey;
                                                               setOfferPrices((prev) => {
                                                                 const newState = { ...prev };
                                                                 delete newState[key];
@@ -3444,15 +3723,11 @@ export default function ManagementDashboard() {
                                                           className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-green-500 to-green-600 rounded-lg hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all shadow-md hover:shadow-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                                           disabled={
                                                             !offerPrices[
-                                                              `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`
+                                                              offerKey
                                                             ]
                                                           }
                                                           onClick={async () => {
-                                                            if (!order.customer_id) {
-                                                              toast.error("Customer ID not found!");
-                                                              return;
-                                                            }
-                                                            const key = `${product.id}-${order.customer_id}-${oi.order_id}-${oidx}`;
+                                                            const key = offerKey;
                                                             const currentOfferPrice =
                                                               offerPrices[key];
                                                             if (!currentOfferPrice) {
@@ -3461,18 +3736,68 @@ export default function ManagementDashboard() {
                                                               );
                                                               return;
                                                             }
+                                                            const resolvedCustomerId = (() => {
+                                                              const directId = String(
+                                                                customer.customer_id || ""
+                                                              ).trim();
+                                                              if (directId) return directId;
+
+                                                              const customerPhone = normalizePhone(
+                                                                customer.customer_phone
+                                                              );
+                                                              const customerName = normalizeName(
+                                                                customer.customer_name
+                                                              );
+
+                                                              const match = (allCustomers || []).find(
+                                                                (row) => {
+                                                                  const rowId = String(
+                                                                    row.id || ""
+                                                                  ).trim();
+                                                                  if (!rowId) return false;
+                                                                  const rowPhone = normalizePhone(
+                                                                    row.phone || undefined
+                                                                  );
+                                                                  const rowName = normalizeName(
+                                                                    row.name || ""
+                                                                  );
+                                                                  return (
+                                                                    (customerPhone &&
+                                                                      rowPhone &&
+                                                                      customerPhone === rowPhone) ||
+                                                                    (customerName &&
+                                                                      rowName &&
+                                                                      customerName === rowName)
+                                                                  );
+                                                                }
+                                                              );
+
+                                                              return match
+                                                                ? String(match.id).trim()
+                                                                : "";
+                                                            })();
+
+                                                            if (!resolvedCustomerId) {
+                                                              toast.error(
+                                                                "Customer ID not found. Please refresh customer list and try again."
+                                                              );
+                                                              return;
+                                                            }
                                                             try {
                                                               await insertPriceOffersWithFallback([
                                                                 {
-                                                                  customer_id: order.customer_id,
+                                                                  customer_id:
+                                                                    resolvedCustomerId,
                                                                   product_id: product.id,
                                                                   offered_price: currentOfferPrice,
                                                                   previous_price:
-                                                                    oi.price ?? product.price,
+                                                                    customer.last_purchased_price ??
+                                                                    product.price,
                                                                   created_at:
                                                                     new Date().toISOString(),
                                                                 },
                                                               ]);
+                                                              await fetchCategories();
 
                                                               // Clear the offer price after sending successfully
                                                               setOfferPrices((prev) => {
@@ -3482,14 +3807,15 @@ export default function ManagementDashboard() {
                                                               });
 
                                                               toast.success(
-                                                                `Offer sent successfully to ${order.customer_name} for $${currentOfferPrice.toFixed(2)}`
+                                                                `Offer sent successfully to ${customer.customer_name} for $${currentOfferPrice.toFixed(2)}`
                                                               );
                                                             } catch (err) {
                                                               console.error(
                                                                 "Failed to insert historical customer custom price offer",
                                                                 {
                                                                   error: err,
-                                                                  customerId: order.customer_id,
+                                                                  customerId:
+                                                                    customer.customer_id,
                                                                   productId: product.id,
                                                                   price: currentOfferPrice,
                                                                 }
@@ -3519,7 +3845,7 @@ export default function ManagementDashboard() {
                                                     </div>
                                                   );
                                                 });
-                                              })}
+                                              })()}
                                               {(!product.order_items ||
                                                 product.order_items.length === 0) && (
                                                 <div className="text-center py-8 px-4 bg-gray-50 rounded-lg border border-gray-200">
