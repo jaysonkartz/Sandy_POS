@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { supabase, supabasePublic, isSupabaseConfigured } from "@/app/lib/supabaseClient";
+import { supabasePublic, isSupabaseConfigured } from "@/app/lib/supabaseClient";
 import { CATEGORY_ID_NAME_MAP } from "@/app/(admin)/const/category";
 import type { Session } from "@/app/types/common";
 
@@ -105,14 +105,11 @@ export const useProducts = (
       const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter((product) => {
         return (
-          (product.Product &&
-            String(product.Product).toLowerCase().includes(searchLower)) ||
-          (product.Product_CH &&
-            String(product.Product_CH).toLowerCase().includes(searchLower)) ||
+          (product.Product && String(product.Product).toLowerCase().includes(searchLower)) ||
+          (product.Product_CH && String(product.Product_CH).toLowerCase().includes(searchLower)) ||
           (product["Item Code"] &&
             String(product["Item Code"]).toLowerCase().includes(searchLower)) ||
-          (product.Category &&
-            String(product.Category).toLowerCase().includes(searchLower))
+          (product.Category && String(product.Category).toLowerCase().includes(searchLower))
         );
       });
     }
@@ -174,9 +171,7 @@ export const useProducts = (
         return;
       }
 
-      let query = supabasePublic
-        .from("products")
-        .select(`
+      let query = supabasePublic.from("products").select(`
           *,
           product_images (
             id,
@@ -199,10 +194,12 @@ export const useProducts = (
 
       const normalizedProducts: Product[] = ((productsData as any[]) || []).map((product) => ({
         ...product,
-        product_images: [...(product.product_images || [])].sort((a: ProductImageRow, b: ProductImageRow) => {
-          if (a.is_cover !== b.is_cover) return a.is_cover ? -1 : 1;
-          return (a.sort_order ?? 0) - (b.sort_order ?? 0);
-        }),
+        product_images: [...(product.product_images || [])].sort(
+          (a: ProductImageRow, b: ProductImageRow) => {
+            if (a.is_cover !== b.is_cover) return a.is_cover ? -1 : 1;
+            return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+          }
+        ),
       }));
 
       setProducts(normalizedProducts);

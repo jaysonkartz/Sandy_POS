@@ -122,16 +122,16 @@ export default function ImageCropEditor({
           <h2 className="text-lg font-semibold">{title}</h2>
           <div className="flex gap-2">
             <button
-              type="button"
               className="rounded px-4 py-2 text-gray-600 hover:bg-gray-100"
+              type="button"
               onClick={onClose}
             >
               Cancel
             </button>
             <button
-              type="button"
               className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
               disabled={saving}
+              type="button"
               onClick={handleSave}
             >
               {saving ? "Saving..." : "Save"}
@@ -141,31 +141,31 @@ export default function ImageCropEditor({
 
         <div className="relative h-[400px] w-full shrink-0">
           <Cropper
-            image={imageSrc}
-            crop={crop}
-            zoom={zoom}
-            rotation={rotation}
             aspect={1}
-            onCropChange={setCrop}
-            onZoomChange={setZoom}
-            onRotationChange={setRotation}
-            onCropComplete={onCropComplete}
+            crop={crop}
+            image={imageSrc}
+            rotation={rotation}
             style={{
               containerStyle: { borderRadius: 8 },
             }}
+            zoom={zoom}
+            onCropChange={setCrop}
+            onCropComplete={onCropComplete}
+            onRotationChange={setRotation}
+            onZoomChange={setZoom}
           />
         </div>
 
         <div className="space-y-2 border-t p-4">
           <label className="block text-sm font-medium text-gray-700">Zoom</label>
           <input
-            type="range"
-            min={1}
+            className="w-full"
             max={3}
+            min={1}
             step={0.1}
+            type="range"
             value={zoom}
             onChange={(e) => setZoom(Number(e.target.value))}
-            className="w-full"
           />
         </div>
       </div>

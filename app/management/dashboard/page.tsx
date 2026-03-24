@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Bar } from "react-chartjs-2";
 import { CldImage } from "next-cloudinary";
@@ -28,6 +28,7 @@ import VariantManager from "@/components/VariantManager";
 import VariantExtractor from "@/components/VariantExtractor";
 import { ProductVariant } from "@/app/types/product";
 import toast, { Toaster } from "react-hot-toast";
+import { Autocomplete, AutocompleteItem } from "@heroui/react";
 
 ChartJS.register(
   CategoryScale,
@@ -64,6 +65,7 @@ interface Product {
   Category: string;
   "Item Code"?: string;
   Variation?: string;
+  weight?: string;
   UOM?: string;
   Country?: string;
   countryName?: string;
@@ -179,7 +181,6 @@ export default function ManagementDashboard() {
     }>
   >([]);
   const [isLoadingRecentOrders, setIsLoadingRecentOrders] = useState(true);
-  const [showVariantManager, setShowVariantManager] = useState<number | null>(null);
   const [useNewVariantSystem, setUseNewVariantSystem] = useState(false);
   const [selectedProductForVariants, setSelectedProductForVariants] = useState<number | null>(null);
   const [orderItems, setOrderItems] = useState<
@@ -231,6 +232,32 @@ export default function ManagementDashboard() {
   const hasLoadedPricingRef = useRef(false);
   const [loadedVariantProductIds, setLoadedVariantProductIds] = useState<Set<number>>(new Set());
   const [loadingVariantProductIds, setLoadingVariantProductIds] = useState<Set<number>>(new Set());
+  const productVariantOptions = useMemo(
+    () => {
+      const uniqueProducts = new Map<string, Product & { categoryName: string }>();
+      categories.forEach((category) => {
+        category.products.forEach((product) => {
+          const productNameKey = (product.Product || "").trim().toLowerCase();
+          const categoryKey = (category.name || "").trim().toLowerCase();
+          const dedupeKey = `${productNameKey}::${categoryKey}`;
+
+          if (!uniqueProducts.has(dedupeKey)) {
+            uniqueProducts.set(dedupeKey, {
+              ...product,
+              categoryName: category.name,
+            });
+          }
+        });
+      });
+      return Array.from(uniqueProducts.values());
+    },
+    [categories]
+  );
+
+  useEffect(() => {
+    if (selectedProductForVariants !== null || productVariantOptions.length === 0) return;
+    setSelectedProductForVariants(productVariantOptions[0].id);
+  }, [productVariantOptions, selectedProductForVariants]);
 
   const fetchVariantsByProductIds = useCallback(async (productIds: number[]) => {
     const ids = Array.from(new Set(productIds.filter((id) => Number.isFinite(id))));
@@ -630,6 +657,7 @@ export default function ManagementDashboard() {
           Category,
           "Item Code",
           Variation,
+          weight,
           UOM,
           Country,
           order_items (
@@ -1958,40 +1986,15 @@ export default function ManagementDashboard() {
             <div className="bg-white rounded-lg shadow p-6 mb-6">
               <div className="flex justify-between items-center mb-4">
                 <h4 className="font-medium text-gray-700 text-lg">Product Variants:</h4>
-                <div className="flex items-center gap-2">
-                  <label className="hidden items-center text-sm">
-                    <input
-                      checked={useNewVariantSystem}
-                      className="mr-2"
-                      type="checkbox"
-                      onChange={(e) => setUseNewVariantSystem(e.target.checked)}
-                    />
-                    Use New Variant System
-                  </label>
-                  <button
-                    className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                    onClick={() => {
-                      // If no product selected for variants, use the first product or null
-                      const productIdForVariants =
-                        selectedProductForVariants ||
-                        (categories.length > 0 && categories[0].products.length > 0
-                          ? categories[0].products[0].id
-                          : null);
-                      if (productIdForVariants) {
-                        setShowVariantManager(
-                          showVariantManager === productIdForVariants ? null : productIdForVariants
-                        );
-                        if (!selectedProductForVariants) {
-                          setSelectedProductForVariants(productIdForVariants);
-                        }
-                      }
-                    }}
-                  >
-                    {showVariantManager === selectedProductForVariants
-                      ? "Hide Variants"
-                      : "Manage Variants"}
-                  </button>
-                </div>
+                <label className="hidden items-center text-sm">
+                  <input
+                    checked={useNewVariantSystem}
+                    className="mr-2"
+                    type="checkbox"
+                    onChange={(e) => setUseNewVariantSystem(e.target.checked)}
+                  />
+                  Use New Variant System
+                </label>
               </div>
 
               {/* Product Selector Dropdown */}
@@ -1999,27 +2002,47 @@ export default function ManagementDashboard() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Select Product to Manage Variants:
                 </label>
-                <select
-                  className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={selectedProductForVariants || ""}
-                  onChange={(e) => {
-                    const newProductId = Number(e.target.value);
-                    setSelectedProductForVariants(newProductId);
-                    // If variant manager is open, update it to show the new product
-                    if (showVariantManager !== null) {
-                      setShowVariantManager(newProductId);
+                <Autocomplete
+                  aria-label="Select product to manage variants"
+                  className="w-full max-w-md"
+                  classNames={{
+                    popoverContent: "bg-white/100",
+                    listboxWrapper: "bg-white/100",
+                  }}
+                  items={productVariantOptions}
+                  listboxProps={{
+                    itemClasses: {
+                      base: "h-auto min-h-12 py-2 data-[hover=true]:bg-blue-50 data-[hover=true]:text-blue-700",
+                      wrapper: "h-auto",
+                      title: "whitespace-normal break-words leading-5",
+                    },
+                  }}
+                  placeholder="-- Select a Product --"
+                  selectedKey={
+                    selectedProductForVariants !== null ? String(selectedProductForVariants) : null
+                  }
+                  onSelectionChange={(key) => {
+                    if (!key) {
+                      setSelectedProductForVariants(null);
+                      return;
                     }
+                    const newProductId = Number(key);
+                    if (Number.isNaN(newProductId)) return;
+                    setSelectedProductForVariants(newProductId);
                   }}
                 >
-                  <option value="">-- Select a Product --</option>
-                  {categories.flatMap((category) =>
-                    category.products.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.Product} {category.name ? `(${category.name})` : ""}
-                      </option>
-                    ))
+                  {(item) => (
+                    <AutocompleteItem
+                      className="h-auto py-2"
+                      key={String(item.id)}
+                      textValue={`${item.Product} ${item.Variation || ""} ${item.countryName || ""} ${
+                        item.weight || ""
+                      } ${item.categoryName || ""}`}
+                    >
+                      {item.Product} {item.categoryName ? `(${item.categoryName})` : ""}
+                    </AutocompleteItem>
                   )}
-                </select>
+                </Autocomplete>
               </div>
 
               {(() => {
@@ -2043,99 +2066,40 @@ export default function ManagementDashboard() {
                       </div>
                     )}
 
-                    {/* Show current variants list when manager is NOT open */}
-                    {selectedProductData.variants &&
-                      selectedProductData.variants.length > 0 &&
-                      showVariantManager !== selectedProductForVariants && (
-                        <div className="mt-2">
-                          <div className="text-sm text-gray-600 mb-2">
-                            Current variants ({selectedProductData.variants.length}):
-                          </div>
-                          <div className="space-y-1">
-                            {selectedProductData.variants.map((variant: ProductVariant) => (
-                              <div
-                                key={variant.id}
-                                className="flex items-center justify-between bg-white p-2 rounded border"
-                              >
-                                <div className="flex items-center space-x-3">
-                                  {variant.image_url && (
-                                    <CldImage
-                                      alt={variant.variation_name}
-                                      className="w-8 h-8 object-cover rounded"
-                                      height={64}
-                                      src={variant.image_url}
-                                      width={64}
-                                    />
-                                  )}
-                                  <div>
-                                    <span className="font-medium">{variant.variation_name}</span>
-                                    {variant.variation_name_ch && (
-                                      <span className="text-gray-500 ml-2">
-                                        ({variant.variation_name_ch})
-                                      </span>
-                                    )}
-                                    {variant.is_default && (
-                                      <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">
-                                        Default
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="text-sm text-gray-600">
-                                  ${variant.price.toFixed(2)} | Stock: {variant.stock_quantity}
-                                  {variant.weight && ` | ${variant.weight}`}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
+                    <div className="mt-4">
+                      {useNewVariantSystem ? (
+                        <VariantManager
+                          productId={selectedProductForVariants}
+                          variants={
+                            Array.isArray(selectedProductData.variants)
+                              ? selectedProductData.variants
+                              : []
+                          }
+                          onRefetchProducts={fetchCategories}
+                          onVariantsChange={(newVariants) => {
+                            // Update the product in the categories state
+                            setCategories((prevCategories) =>
+                              prevCategories.map((category) => ({
+                                ...category,
+                                products: category.products.map((p) =>
+                                  p.id === selectedProductForVariants
+                                    ? { ...p, variants: newVariants }
+                                    : p
+                                ),
+                              }))
+                            );
+                          }}
+                        />
+                      ) : (
+                        <VariantExtractor
+                          productId={selectedProductForVariants}
+                          productName={selectedProductData.Product}
+                          onVariantsChange={() => {
+                            // Variants updated
+                          }}
+                        />
                       )}
-
-                    {/* Show variant manager when opened */}
-                    {showVariantManager === selectedProductForVariants && (
-                      <div className="mt-4">
-                        {useNewVariantSystem ? (
-                          <VariantManager
-                            productId={selectedProductForVariants}
-                            variants={
-                              Array.isArray(selectedProductData.variants)
-                                ? selectedProductData.variants
-                                : []
-                            }
-                            onVariantsChange={(newVariants) => {
-                              // Update the product in the categories state
-                              setCategories((prevCategories) =>
-                                prevCategories.map((category) => ({
-                                  ...category,
-                                  products: category.products.map((p) =>
-                                    p.id === selectedProductForVariants
-                                      ? { ...p, variants: newVariants }
-                                      : p
-                                  ),
-                                }))
-                              );
-                            }}
-                            onRefetchProducts={fetchCategories}
-                          />
-                        ) : (
-                          <VariantExtractor
-                            productId={selectedProductForVariants}
-                            productName={selectedProductData.Product}
-                            onVariantsChange={() => {
-                              // Variants updated
-                            }}
-                          />
-                        )}
-                      </div>
-                    )}
-
-                    {/* Show message when no variants and manager is NOT open */}
-                    {(!selectedProductData.variants || selectedProductData.variants.length === 0) &&
-                      showVariantManager !== selectedProductForVariants && (
-                        <div className="text-gray-500 text-sm">
-                          No variants configured. Click "Manage Variants" to add product variations.
-                        </div>
-                      )}
+                    </div>
                   </>
                 );
               })()}

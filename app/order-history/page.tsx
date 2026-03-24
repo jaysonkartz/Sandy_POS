@@ -55,7 +55,8 @@ export default function OrderHistory() {
       const productIds = items.map((i: any) => i.product_id);
 
       const { data: products, error: productsError } = await (supabase.from("products") as any)
-        .select(`
+        .select(
+          `
           id,
           "Item Code",
           Product,
@@ -68,7 +69,8 @@ export default function OrderHistory() {
           uom,
           stock_quantity,
           image_url
-        `)
+        `
+        )
         .in("id", productIds);
 
       if (productsError) {
@@ -79,7 +81,7 @@ export default function OrderHistory() {
 
       const reorderItems = items.map((item: any) => {
         const product = productMap.get(item.product_id);
-      
+
         return {
           product: product || {
             id: item.product_id,

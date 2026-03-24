@@ -91,9 +91,9 @@ export default function EditProductModal({
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-lg"
+          initial={{ opacity: 0, y: -20 }}
         >
           <div className="mb-6 flex items-center justify-between">
             <h2 className="text-xl font-bold">Edit Product</h2>
@@ -155,9 +155,9 @@ export default function EditProductModal({
                 </label>
                 <input
                   required
+                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   id="edit-product-name"
                   type="text"
-                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   value={editedProduct.Product}
                   onChange={(e) => setEditedProduct({ ...editedProduct, Product: e.target.value })}
                 />
@@ -171,9 +171,9 @@ export default function EditProductModal({
                   Product Name (Chinese)
                 </label>
                 <input
+                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   id="edit-product-name-ch"
                   type="text"
-                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   value={editedProduct.Product_CH || ""}
                   onChange={(e) =>
                     setEditedProduct({ ...editedProduct, Product_CH: e.target.value })
@@ -190,9 +190,9 @@ export default function EditProductModal({
                 </label>
                 <input
                   required
+                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   id="edit-item-code"
                   type="text"
-                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   value={editedProduct["Item Code"]}
                   onChange={(e) =>
                     setEditedProduct({ ...editedProduct, "Item Code": e.target.value })
@@ -209,9 +209,9 @@ export default function EditProductModal({
                 </label>
                 <input
                   required
+                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   id="edit-category"
                   type="text"
-                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   value={editedProduct.Category}
                   onChange={(e) => setEditedProduct({ ...editedProduct, Category: e.target.value })}
                 />
@@ -226,11 +226,11 @@ export default function EditProductModal({
                 </label>
                 <input
                   required
+                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   id="edit-price"
-                  type="number"
                   min="0"
                   step="0.01"
-                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                  type="number"
                   value={editedProduct.price}
                   onChange={(e) =>
                     setEditedProduct({ ...editedProduct, price: Number(e.target.value) })
@@ -244,9 +244,9 @@ export default function EditProductModal({
                 </label>
                 <input
                   required
+                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   id="edit-uom"
                   type="text"
-                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   value={editedProduct.UOM}
                   onChange={(e) => setEditedProduct({ ...editedProduct, UOM: e.target.value })}
                 />
@@ -260,9 +260,9 @@ export default function EditProductModal({
                   Country of Origin
                 </label>
                 <input
+                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   id="edit-country"
                   type="text"
-                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   value={editedProduct.Country}
                   onChange={(e) => setEditedProduct({ ...editedProduct, Country: e.target.value })}
                 />
@@ -276,9 +276,9 @@ export default function EditProductModal({
                   Variation
                 </label>
                 <input
+                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   id="edit-variation"
                   type="text"
-                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   value={editedProduct.Variation || ""}
                   onChange={(e) =>
                     setEditedProduct({ ...editedProduct, Variation: e.target.value })
@@ -294,9 +294,9 @@ export default function EditProductModal({
                   Weight
                 </label>
                 <input
+                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   id="edit-weight"
                   type="text"
-                  className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
                   value={editedProduct.weight || ""}
                   onChange={(e) => setEditedProduct({ ...editedProduct, weight: e.target.value })}
                 />
@@ -310,10 +310,10 @@ export default function EditProductModal({
                   Stock Quantity
                 </label>
                 <input
-                  id="edit-stock"
-                  type="number"
-                  min="0"
                   className="w-full rounded-md border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                  id="edit-stock"
+                  min="0"
+                  type="number"
                   value={editedProduct.stock_quantity || 0}
                   onChange={(e) =>
                     setEditedProduct({ ...editedProduct, stock_quantity: Number(e.target.value) })
@@ -326,8 +326,8 @@ export default function EditProductModal({
               <VariantManager
                 productId={product.id}
                 variants={variants}
-                onVariantsChange={setVariants}
                 onRefetchProducts={onRefetchProducts}
+                onVariantsChange={setVariants}
               />
             </div>
 
@@ -339,17 +339,17 @@ export default function EditProductModal({
 
             <div className="flex justify-end space-x-3 border-t pt-4">
               <button
-                type="button"
-                disabled={isLoading}
-                onClick={onClose}
                 className="rounded-md border border-gray-300 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-50"
+                disabled={isLoading}
+                type="button"
+                onClick={onClose}
               >
                 Cancel
               </button>
               <button
-                type="submit"
-                disabled={isLoading}
                 className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                disabled={isLoading}
+                type="submit"
               >
                 {isLoading ? (
                   <>

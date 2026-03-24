@@ -8,11 +8,7 @@ interface ProductImageProps {
   className?: string;
 }
 
-export default function ProductImage({
-  src,
-  alt,
-  className = "",
-}: ProductImageProps) {
+export default function ProductImage({ src, alt, className = "" }: ProductImageProps) {
   const placeholder = "/product-placeholder.svg";
   const [imgSrc, setImgSrc] = useState(src || placeholder);
   const [loading, setLoading] = useState(true);
@@ -33,12 +29,11 @@ export default function ProductImage({
       )}
 
       <img
-        src={imgSrc}
         alt={alt}
         className={`h-full w-full object-cover transition-opacity ${
           loading ? "opacity-0" : "opacity-100"
         }`}
-        onLoad={() => setLoading(false)}
+        src={imgSrc}
         onError={() => {
           if (!triedFallback && imgSrc !== placeholder) {
             setTriedFallback(true);
@@ -47,6 +42,7 @@ export default function ProductImage({
           }
           setLoading(false);
         }}
+        onLoad={() => setLoading(false)}
       />
     </div>
   );

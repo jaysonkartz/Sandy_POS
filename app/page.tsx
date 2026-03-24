@@ -35,7 +35,6 @@ import { OrderReviewData } from "@/app/types/common";
 
 const REORDER_PAYLOAD_KEY = "reorder_payload_v2";
 
-
 function HomeContent({
   selectedCategory,
   setSelectedCategory,
@@ -97,22 +96,22 @@ function HomeContent({
   const [hasReordered, setHasReordered] = useState(false);
   useEffect(() => {
     if (typeof window === "undefined") return;
-  
+
     const url = new URL(window.location.href);
     const shouldReorder = url.searchParams.get("reorder") === "true";
-  
+
     if (!shouldReorder || hasReordered) return;
-  
+
     const raw = localStorage.getItem(REORDER_PAYLOAD_KEY);
     if (!raw) return;
-  
+
     try {
       const payload = JSON.parse(raw);
-  
+
       if (!payload?.items || payload.items.length === 0) return;
-  
+
       console.log("🔥 REORDER PAYLOAD:", payload.items);
-  
+
       // ✅ IMPORTANT: delay to ensure state ready
       setTimeout(() => {
         replaceOrder({
@@ -121,15 +120,15 @@ function HomeContent({
           customerPhone: payload.customerPhone,
           customerAddress: payload.customerAddress,
         });
-  
+
         setCustomerName(payload.customerName || "");
         setCustomerPhone(payload.customerPhone || "");
         setCustomerAddress(payload.customerAddress || "");
-  
+
         setIsOrderPanelOpen(true);
-  
+
         setHasReordered(true);
-  
+
         console.log("✅ AFTER replaceOrder:", payload.items);
       }, 100); // <-- THIS FIXES YOUR ISSUE
     } catch (e) {
@@ -284,17 +283,17 @@ function HomeContent({
 
             <div className="min-w-[160px] flex-1">
               <SearchBar
-                searchTerm={searchTerm}
                 isEnglish={isEnglish}
-                onSearchChange={handleSearchChange}
+                searchTerm={searchTerm}
                 onClearSearch={handleClearSearch}
+                onSearchChange={handleSearchChange}
               />
             </div>
 
             <div className="w-full sm:min-w-[220px] sm:w-auto">
               <CategoryFilter
-                selectedCategory={selectedCategory}
                 isEnglish={isEnglish}
+                selectedCategory={selectedCategory}
                 onCategoryChange={setSelectedCategory}
               />
             </div>
@@ -319,17 +318,17 @@ function HomeContent({
 
               <div className="flex items-center gap-2">
                 <button
+                  className="rounded-md bg-white px-3 py-1.5 text-sm font-medium text-green-700 shadow-sm hover:bg-green-100"
                   type="button"
                   onClick={() => setIsOrderPanelOpen(true)}
-                  className="rounded-md bg-white px-3 py-1.5 text-sm font-medium text-green-700 shadow-sm hover:bg-green-100"
                 >
                   {isEnglish ? "Review Now" : "立即查看"}
                 </button>
 
                 <button
+                  className="rounded-md bg-white px-3 py-1.5 text-sm font-medium text-green-700 shadow-sm hover:bg-green-100"
                   type="button"
                   onClick={() => setShowReorderBanner(false)}
-                  className="rounded-md bg-white px-3 py-1.5 text-sm font-medium text-green-700 shadow-sm hover:bg-green-100"
                 >
                   {isEnglish ? "Dismiss" : "关闭"}
                 </button>
@@ -342,28 +341,28 @@ function HomeContent({
       <div className="w-full px-3 py-4 pb-24 sm:px-6">
         {searchTerm && (
           <SearchResultsInfo
-            searchTerm={searchTerm}
-            resultsCount={productGroups.length}
             isEnglish={isEnglish}
+            resultsCount={productGroups.length}
+            searchTerm={searchTerm}
           />
         )}
 
         <ProductGrid
-          productGroups={productGroups}
+          countryMap={countryMap}
           isEnglish={isEnglish}
+          isLoggingIn={isLoggingIn}
           isSessionValid={isSessionValid}
-          userRole={userRole}
+          productGroups={productGroups}
+          reorderedProductIds={reorderedProductIds}
           selectedOptions={selectedOptions}
           selectedProducts={selectedProducts}
-          countryMap={countryMap}
-          isLoggingIn={isLoggingIn}
-          reorderedProductIds={reorderedProductIds}
-          onOptionChange={handleOptionChange}
+          userRole={userRole}
           onAddToOrder={addToOrder}
-          onUpdateQuantity={updateOrderQuantity}
           onCustomerService={handleCustomerService}
           onOpenPhotoEditor={openPhotoEditor}
           onOpenSignupModal={() => setIsSignupModalOpen(true)}
+          onOptionChange={handleOptionChange}
+          onUpdateQuantity={updateOrderQuantity}
         />
 
         {productGroups.length === 0 && !loading && !isInitialLoad && (
@@ -376,8 +375,8 @@ function HomeContent({
               {isEnglish ? "Loading products..." : "正在加载产品..."}
             </p>
             <button
-              onClick={() => window.location.reload()}
               className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
+              onClick={() => window.location.reload()}
             >
               {isEnglish ? "Refresh Page" : "刷新页面"}
             </button>
@@ -388,8 +387,8 @@ function HomeContent({
       <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+6rem)] right-4 z-50 flex flex-col items-end gap-3">
         {selectedProducts.length > 0 && (
           <FloatingOrderButton
-            selectedProductsCount={selectedProducts.length}
             isEnglish={isEnglish}
+            selectedProductsCount={selectedProducts.length}
             onClick={() => setIsOrderPanelOpen(true)}
           />
         )}
@@ -397,21 +396,21 @@ function HomeContent({
       </div>
 
       <OrderPanel
-        isOpen={isOrderPanelOpen}
-        isEnglish={isEnglish}
-        selectedProducts={selectedProducts}
+        countryMap={countryMap}
+        customerAddress={customerAddress}
         customerName={customerName}
         customerPhone={customerPhone}
-        customerAddress={customerAddress}
+        isEnglish={isEnglish}
+        isOpen={isOrderPanelOpen}
         isSubmitting={isSubmitting}
+        selectedProducts={selectedProducts}
         session={session}
-        countryMap={countryMap}
         onClose={() => setIsOrderPanelOpen(false)}
-        onUpdateQuantity={updateOrderQuantity}
+        onCustomerAddressChange={setCustomerAddress}
         onCustomerNameChange={setCustomerName}
         onCustomerPhoneChange={setCustomerPhone}
-        onCustomerAddressChange={setCustomerAddress}
         onSubmitOrder={handleSubmitOrder}
+        onUpdateQuantity={updateOrderQuantity}
       />
 
       <SignupModal
@@ -452,8 +451,13 @@ export default function Home() {
     uploadedFiles: File[];
   } | null>(null);
 
-  const { session, userRole, isLoading: sessionLoading, isSessionValid, forceRefreshSession } =
-    useSession();
+  const {
+    session,
+    userRole,
+    isLoading: sessionLoading,
+    isSessionValid,
+    forceRefreshSession,
+  } = useSession();
 
   const {
     products,
@@ -505,57 +509,57 @@ export default function Home() {
   return (
     <Suspense fallback={<LoadingSkeleton />}>
       <HomeContent
-        selectedCategory={selectedCategory}
-        setSelectedCategory={setSelectedCategory}
-        isEnglish={isEnglish}
-        setIsEnglish={setIsEnglish}
-        isOrderPanelOpen={isOrderPanelOpen}
-        setIsOrderPanelOpen={setIsOrderPanelOpen}
-        isSignupModalOpen={isSignupModalOpen}
-        setIsSignupModalOpen={setIsSignupModalOpen}
-        isLoggingIn={isLoggingIn}
-        setIsLoggingIn={setIsLoggingIn}
-        selectedOptions={selectedOptions}
-        setSelectedOptions={setSelectedOptions}
-        reviewData={reviewData}
-        setReviewData={setReviewData}
-        session={session}
-        userRole={userRole}
-        sessionLoading={sessionLoading}
-        isSessionValid={isSessionValid}
-        forceRefreshSession={forceRefreshSession}
-        products={products}
-        loading={loading}
-        error={error}
-        productGroups={productGroups}
-        setProducts={setProducts}
-        refetchProducts={refetchProducts}
-        searchTerm={searchTerm}
-        handleSearchChange={handleSearchChange}
-        handleClearSearch={handleClearSearch}
-        countryMap={countryMap}
-        showScrollTop={showScrollTop}
-        scrollToTop={scrollToTop}
-        handleCustomerService={handleCustomerService}
-        sendWhatsAppNotification={sendWhatsAppNotification}
-        isPhotoEditorOpen={isPhotoEditorOpen}
-        selectedProductForPhoto={selectedProductForPhoto}
-        openPhotoEditor={openPhotoEditor}
+        addToOrder={addToOrder}
+        clearOrder={clearOrder}
         closePhotoEditor={closePhotoEditor}
-        handleImageUpdate={handleImageUpdate}
-        selectedProducts={selectedProducts}
+        countryMap={countryMap}
+        customerAddress={customerAddress}
         customerName={customerName}
         customerPhone={customerPhone}
-        customerAddress={customerAddress}
+        error={error}
+        forceRefreshSession={forceRefreshSession}
+        handleClearSearch={handleClearSearch}
+        handleCustomerService={handleCustomerService}
+        handleImageUpdate={handleImageUpdate}
+        handleSearchChange={handleSearchChange}
+        isEnglish={isEnglish}
+        isLoggingIn={isLoggingIn}
+        isOrderPanelOpen={isOrderPanelOpen}
+        isPhotoEditorOpen={isPhotoEditorOpen}
+        isSessionValid={isSessionValid}
+        isSignupModalOpen={isSignupModalOpen}
         isSubmitting={isSubmitting}
+        loading={loading}
+        openPhotoEditor={openPhotoEditor}
+        productGroups={productGroups}
+        products={products}
+        refetchProducts={refetchProducts}
+        replaceOrder={replaceOrder}
+        reviewData={reviewData}
+        scrollToTop={scrollToTop}
+        searchTerm={searchTerm}
+        selectedCategory={selectedCategory}
+        selectedOptions={selectedOptions}
+        selectedProductForPhoto={selectedProductForPhoto}
+        selectedProducts={selectedProducts}
+        sendWhatsAppNotification={sendWhatsAppNotification}
+        session={session}
+        sessionLoading={sessionLoading}
+        setCustomerAddress={setCustomerAddress}
         setCustomerName={setCustomerName}
         setCustomerPhone={setCustomerPhone}
-        setCustomerAddress={setCustomerAddress}
-        addToOrder={addToOrder}
-        updateOrderQuantity={updateOrderQuantity}
-        clearOrder={clearOrder}
-        replaceOrder={replaceOrder}
+        setIsEnglish={setIsEnglish}
+        setIsLoggingIn={setIsLoggingIn}
+        setIsOrderPanelOpen={setIsOrderPanelOpen}
+        setIsSignupModalOpen={setIsSignupModalOpen}
+        setProducts={setProducts}
+        setReviewData={setReviewData}
+        setSelectedCategory={setSelectedCategory}
+        setSelectedOptions={setSelectedOptions}
+        showScrollTop={showScrollTop}
         submitOrder={submitOrder}
+        updateOrderQuantity={updateOrderQuantity}
+        userRole={userRole}
       />
     </Suspense>
   );

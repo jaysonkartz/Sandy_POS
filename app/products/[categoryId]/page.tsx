@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
 import { CldImage } from "next-cloudinary";
@@ -78,7 +78,8 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
 
       const { data, error } = await supabase
         .from("products")
-        .select(`
+        .select(
+          `
           *,
           product_images (
             id,
@@ -87,17 +88,20 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
             sort_order,
             is_cover
           )
-        `)
+        `
+        )
         .eq("category", params.categoryId);
 
       if (error) throw error;
 
       const normalized = (data || []).map((product: any) => ({
         ...product,
-        product_images: [...(product.product_images || [])].sort((a: ProductImageRow, b: ProductImageRow) => {
-          if (a.is_cover !== b.is_cover) return a.is_cover ? -1 : 1;
-          return (a.sort_order ?? 0) - (b.sort_order ?? 0);
-        }),
+        product_images: [...(product.product_images || [])].sort(
+          (a: ProductImageRow, b: ProductImageRow) => {
+            if (a.is_cover !== b.is_cover) return a.is_cover ? -1 : 1;
+            return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+          }
+        ),
       }));
 
       setProducts(normalized);
@@ -276,8 +280,7 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
           const origins = getOrigins(group);
           const selectedProduct = getSelectedProduct(group);
           const galleryImages = getGalleryImages(selectedProduct);
-          const activeImage =
-            selectedGalleryImage[group.title] || galleryImages[0] || "";
+          const activeImage = selectedGalleryImage[group.title] || galleryImages[0] || "";
 
           return (
             <div key={group.title} className="rounded-lg bg-white p-4 shadow-md">
@@ -299,6 +302,9 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
                   {galleryImages.slice(0, 5).map((img, index) => (
                     <button
                       key={`${img}-${index}`}
+                      className={`shrink-0 overflow-hidden rounded border-2 ${
+                        activeImage === img ? "border-blue-500" : "border-gray-200"
+                      }`}
                       type="button"
                       onClick={() =>
                         setSelectedGalleryImage((prev) => ({
@@ -306,14 +312,11 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
                           [group.title]: img,
                         }))
                       }
-                      className={`shrink-0 overflow-hidden rounded border-2 ${
-                        activeImage === img ? "border-blue-500" : "border-gray-200"
-                      }`}
                     >
                       <img
-                        src={img}
                         alt={`${selectedProduct.title} ${index + 1}`}
                         className="h-14 w-14 object-cover"
+                        src={img}
                       />
                     </button>
                   ))}

@@ -415,8 +415,8 @@ export default function ProductManagement() {
             setEditingProduct(null);
             setIsEditModalOpen(false);
           }}
-          onUpdate={handleProductUpdate}
           onRefetchProducts={fetchProducts}
+          onUpdate={handleProductUpdate}
         />
       )}
 
