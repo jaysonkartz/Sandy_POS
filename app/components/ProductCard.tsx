@@ -35,6 +35,7 @@ interface Product {
 }
 
 interface ProductGroup {
+  groupKey: string;
   title: string;
   products: Product[];
   category: string;
@@ -46,14 +47,14 @@ interface ProductCardProps {
   isSessionValid: boolean;
   userRole: string;
   selectedOptions: {
-    [title: string]: { variation?: string; countryId?: string; weight?: string };
+    [groupKey: string]: { variation?: string; countryId?: string; weight?: string };
   };
   currentQuantityByProductId: Record<number, number>;
   countryMap: { [key: string]: { name: string; chineseName: string } };
   isLoggingIn: boolean;
   reorderedProductIds?: number[];
   onOptionChange: (
-    title: string,
+    groupKey: string,
     type: "variation" | "countryId" | "weight",
     value: string
   ) => void;
@@ -85,19 +86,40 @@ export const ProductCard = memo<ProductCardProps>(
     onOpenPhotoEditor,
     onOpenSignupModal,
   }) => {
-    const { title, products } = group;
+    const { groupKey, products } = group;
+    const IMAGE_PLACEHOLDER = "/product-placeholder.svg";
+
+    if (products.length === 0) return null;
+
+    const getMatchingProduct = (
+      selection: { variation?: string; countryId?: string; weight?: string },
+      changedType?: "variation" | "countryId" | "weight"
+    ) => {
+      const exact = products.find(
+        (p) =>
+          (!selection.variation || p.Variation === selection.variation) &&
+          (!selection.countryId || p.Country === selection.countryId) &&
+          (!selection.weight || p.weight === selection.weight)
+      );
+      if (exact) return exact;
+
+      if (changedType === "variation") {
+        return products.find((p) => p.Variation === selection.variation) || products[0];
+      }
+      if (changedType === "countryId") {
+        return products.find((p) => p.Country === selection.countryId) || products[0];
+      }
+      if (changedType === "weight") {
+        return products.find((p) => p.weight === selection.weight) || products[0];
+      }
+
+      return products[0];
+    };
 
     const getSelectedProduct = useCallback(() => {
-      const selected = selectedOptions[title] || {};
-      return (
-        products.find(
-          (p) =>
-            (!selected.variation || p.Variation === selected.variation) &&
-            (!selected.countryId || p.Country === selected.countryId) &&
-            (!selected.weight || p.weight === selected.weight)
-        ) || products[0]
-      );
-    }, [products, selectedOptions, title]);
+      const selected = selectedOptions[groupKey] || {};
+      return getMatchingProduct(selected);
+    }, [products, selectedOptions, groupKey]);
 
     const product = getSelectedProduct();
     const currentQuantity = currentQuantityByProductId[product.id] ?? 0;
@@ -112,9 +134,20 @@ export const ProductCard = memo<ProductCardProps>(
 
     const handleOptionChange = useCallback(
       (type: "variation" | "countryId" | "weight", value: string) => {
-        onOptionChange(title, type, value);
+        const current = selectedOptions[groupKey] || {};
+        const nextSelection = {
+          variation: current.variation,
+          countryId: current.countryId,
+          weight: current.weight,
+          [type]: value,
+        };
+
+        const matched = getMatchingProduct(nextSelection, type);
+        onOptionChange(groupKey, "variation", matched.Variation || "");
+        onOptionChange(groupKey, "countryId", matched.Country || "");
+        onOptionChange(groupKey, "weight", matched.weight || "");
       },
-      [onOptionChange, title]
+      [onOptionChange, selectedOptions, groupKey]
     );
 
     const fallbackImage = `/Img/${getCategoryName(product.Category)}/${product.Product}${
@@ -127,15 +160,19 @@ export const ProductCard = memo<ProductCardProps>(
         return (a.sort_order ?? 0) - (b.sort_order ?? 0);
       });
 
-      const urls = productImages.map((img) => img.image_url).filter(Boolean);
+      const urls = productImages
+        .map((img) => img.image_url?.trim())
+        .filter((url): url is string => Boolean(url));
 
       if (product.image_url && product.image_url.trim() !== "") {
-        if (!urls.includes(product.image_url)) {
-          urls.unshift(product.image_url);
+        const productImageUrl = product.image_url.trim();
+        if (!urls.includes(productImageUrl)) {
+          urls.unshift(productImageUrl);
         }
       }
 
-      if (urls.length > 0) return urls;
+      const uniqueUrls = Array.from(new Set(urls));
+      if (uniqueUrls.length > 0) return uniqueUrls;
       return [fallbackImage];
     }, [product.product_images, product.image_url, fallbackImage]);
 
@@ -193,6 +230,10 @@ export const ProductCard = memo<ProductCardProps>(
                     alt={`${product.Product} ${index + 1}`}
                     className="h-12 w-12 object-cover sm:h-14 sm:w-14"
                     src={img}
+                    onError={(e) => {
+                      if (e.currentTarget.src.endsWith(IMAGE_PLACEHOLDER)) return;
+                      e.currentTarget.src = IMAGE_PLACEHOLDER;
+                    }}
                   />
                 </button>
               ))}
@@ -216,7 +257,7 @@ export const ProductCard = memo<ProductCardProps>(
             {variations.length > 1 ? (
               <select
                 className="w-full rounded border p-2 text-sm"
-                value={selectedOptions[title]?.variation || variations[0]}
+                value={product.Variation || variations[0]}
                 onChange={(e) => handleOptionChange("variation", e.target.value)}
               >
                 {variations.map((v) => (
@@ -237,7 +278,7 @@ export const ProductCard = memo<ProductCardProps>(
             {origins.length > 1 ? (
               <select
                 className="w-full rounded border p-2 text-sm"
-                value={selectedOptions[title]?.countryId || origins[0]}
+                value={product.Country || origins[0]}
                 onChange={(e) => handleOptionChange("countryId", e.target.value)}
               >
                 {origins.map((o) => (
@@ -260,7 +301,7 @@ export const ProductCard = memo<ProductCardProps>(
             {weights.length > 1 ? (
               <select
                 className="w-full rounded border p-2 text-sm"
-                value={selectedOptions[title]?.weight || weights[0]}
+                value={product.weight || weights[0]}
                 onChange={(e) => handleOptionChange("weight", e.target.value)}
               >
                 {weights.map((w) => (

@@ -34,6 +34,7 @@ interface Product {
 }
 
 interface ProductGroup {
+  groupKey: string;
   title: string;
   products: Product[];
   category: string;
@@ -118,6 +119,7 @@ export const useProducts = (
   }, [products, selectedCategory, searchTerm, getCategoryName]);
 
   const productGroups = useMemo(() => {
+    const normalizeKeyPart = (value?: string | null) => String(value || "").trim().toLowerCase();
     const categoryGroups: { [category: string]: Product[] } = {};
 
     filteredProducts.forEach((p) => {
@@ -134,18 +136,41 @@ export const useProducts = (
     const result: ProductGroup[] = [];
 
     Object.entries(categoryGroups).forEach(([category, categoryProducts]) => {
-      const groupedByTitle: { [title: string]: Product[] } = {};
+      const englishNameCounts: Record<string, number> = {};
+      categoryProducts.forEach((p) => {
+        const englishName = normalizeKeyPart(p.Product);
+        englishNameCounts[englishName] = (englishNameCounts[englishName] || 0) + 1;
+      });
+
+      const groupedByTitle: {
+        [groupKey: string]: { title: string; products: Product[] };
+      } = {};
 
       categoryProducts.forEach((p) => {
         const title = isEnglish ? p.Product : p.Product_CH || p.Product;
-        if (!groupedByTitle[title]) {
-          groupedByTitle[title] = [];
+        const englishName = normalizeKeyPart(p.Product);
+        const chineseName = normalizeKeyPart(p.Product_CH);
+        const hasEnglishCollision = (englishNameCounts[englishName] || 0) > 1;
+
+        // If English names collide, force separate cards by Chinese name.
+        // If Chinese is missing, fall back to row id to avoid accidental merges.
+        const groupKey = hasEnglishCollision
+          ? `${englishName}::${chineseName || `id:${p.id}`}`
+          : `${englishName}::${chineseName}`;
+
+        if (!groupedByTitle[groupKey]) {
+          groupedByTitle[groupKey] = {
+            title,
+            products: [],
+          };
         }
-        groupedByTitle[title].push(p);
+        groupedByTitle[groupKey].products.push(p);
       });
 
-      Object.values(groupedByTitle).forEach((products) => {
+      Object.entries(groupedByTitle).forEach(([groupKey, group]) => {
+        const { products } = group;
         result.push({
+          groupKey,
           title: isEnglish ? products[0].Product : products[0].Product_CH || products[0].Product,
           products,
           category,

@@ -239,7 +239,7 @@ function HomeContent({
   );
 
   const handleImageUpdateCallback = useCallback(
-    (imageUrl: string) => handleImageUpdate(imageUrl, setProducts),
+    (productId: number, imageUrl: string) => handleImageUpdate(productId, imageUrl, setProducts),
     [handleImageUpdate, setProducts]
   );
 
@@ -428,7 +428,9 @@ function HomeContent({
           onClose={() => {
             closePhotoEditor();
           }}
-          onImageUpdate={handleImageUpdateCallback}
+          onImageUpdate={(imageUrl: string) =>
+            handleImageUpdateCallback(selectedProductForPhoto.id, imageUrl)
+          }
           onRefetchProducts={refetchProducts}
         />
       )}

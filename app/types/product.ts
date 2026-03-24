@@ -33,6 +33,7 @@ export interface Product {
 }
 
 export interface ProductGroup {
+  groupKey: string;
   title: string;
   products: Product[];
   category: string;
@@ -44,7 +45,7 @@ export interface SelectedProduct {
 }
 
 export interface SelectedOptions {
-  [title: string]: {
+  [groupKey: string]: {
     variation?: string;
     countryId?: string;
     weight?: string;

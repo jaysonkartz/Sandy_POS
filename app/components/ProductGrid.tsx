@@ -30,6 +30,7 @@ interface Product {
 }
 
 interface ProductGroup {
+  groupKey: string;
   title: string;
   products: Product[];
   category: string;
@@ -40,7 +41,7 @@ interface ProductGridProps {
   isEnglish: boolean;
   isSessionValid: boolean;
   userRole: string;
-  selectedOptions: { [title: string]: { variation?: string; countryId?: string; weight?: string } };
+  selectedOptions: { [groupKey: string]: { variation?: string; countryId?: string; weight?: string } };
   selectedProducts: { product: Product; quantity: number }[];
   countryMap: { [key: string]: { name: string; chineseName: string } };
   isLoggingIn: boolean;
@@ -104,7 +105,7 @@ export const ProductGrid = memo<ProductGridProps>(
             <div className="grid grid-cols-2 gap-3 [@media(min-width:480px)]:grid-cols-4 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
               {groups.map((group) => (
                 <ProductCard
-                  key={group.title}
+                  key={group.groupKey}
                   countryMap={countryMap}
                   currentQuantityByProductId={quantityByProductId}
                   group={group}
