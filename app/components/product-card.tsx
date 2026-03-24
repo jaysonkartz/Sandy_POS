@@ -19,7 +19,6 @@ export function ProductCard({ product }: ProductCardProps) {
 
   const toggleBookmark = () => {
     setIsBookmarked(!isBookmarked);
-    // Here you can add logic to save the bookmark state to your backend
   };
 
   return (

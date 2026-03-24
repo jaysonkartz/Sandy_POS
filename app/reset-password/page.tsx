@@ -19,7 +19,6 @@ export default function ResetPasswordPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isValidating, setIsValidating] = useState(true);
 
-  // ✅ Prevent StrictMode double-run in dev
   const ran = useRef(false);
 
   useEffect(() => {
@@ -48,7 +47,6 @@ export default function ResetPasswordPage() {
       const url = new URL(window.location.href);
       const params = getErrorParams(url);
 
-      // 0) if Supabase sent an auth error in URL
       if (params.error || params.error_description || params.error_code) {
         const message = decodeURIComponent(params.error_description || "")
           .replace(/\+/g, " ")
@@ -58,19 +56,16 @@ export default function ResetPasswordPage() {
         return;
       }
 
-      // 1) If we have ?code=... (PKCE) -> exchange it
       if (params.code) {
         const { data, error } = await supabase.auth.exchangeCodeForSession(params.code);
         if (error) throw error;
 
-        // data.session exists -> validated OK
         if (!data?.session) {
           setError("Unable to validate reset link. Please request a new password reset.");
         }
         return;
       }
 
-      // 2) If we have #access_token=... -> set session
       if (params.access_token && params.refresh_token) {
         const { data, error } = await supabase.auth.setSession({
           access_token: params.access_token,
@@ -82,14 +77,12 @@ export default function ResetPasswordPage() {
           setError("Unable to validate reset link. Please request a new password reset.");
         }
 
-        // clean hash
         if (url.hash) {
           window.history.replaceState(null, "", `${url.origin}${url.pathname}${url.search}`);
         }
         return;
       }
 
-      // 3) Otherwise just check if user already has a session
       const { data, error } = await supabase.auth.getSession();
       if (error) throw error;
 
@@ -102,15 +95,12 @@ export default function ResetPasswordPage() {
       try {
         setError(null);
 
-        // try once
         await checkSessionOnce();
       } catch (err: any) {
         console.error("Reset link validation error:", err);
 
-        // ✅ AbortError is usually transient (locks.ts)
         if (isAbortError(err)) {
           try {
-            // quick retry once
             await checkSessionOnce();
           } catch (err2: any) {
             console.error("Reset link validation retry error:", err2);

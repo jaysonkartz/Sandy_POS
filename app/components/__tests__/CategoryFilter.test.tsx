@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { CategoryFilter } from "../CategoryFilter";
 
-// Mock the category constant
 vi.mock("@/app/(admin)/const/category", () => ({
   CATEGORY_ID_NAME_MAP: {
     "1": "Dried Chilli",

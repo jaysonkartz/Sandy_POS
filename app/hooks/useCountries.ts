@@ -24,7 +24,6 @@ export const useCountries = (): UseCountriesReturn => {
     try {
       setError(null);
 
-      // Check if Supabase is properly configured before making requests
       if (!isSupabaseConfigured()) {
         const configError =
           "Supabase is not configured. Please ensure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set in .env.local and restart your dev server.";
@@ -53,7 +52,6 @@ export const useCountries = (): UseCountriesReturn => {
 
       setCountryMap(countryMapping);
     } catch (error: unknown) {
-      // Helper to safely extract error message
       const getErrorMessage = (err: unknown): string => {
         if (err instanceof Error) {
           return err.message;
@@ -72,7 +70,6 @@ export const useCountries = (): UseCountriesReturn => {
 
       const errorMessage = getErrorMessage(error);
 
-      // Check for API key errors and provide helpful guidance
       if (errorMessage.includes("No API key found") || errorMessage.includes("API key")) {
         const apiKeyError =
           "Missing Supabase API key. Please ensure NEXT_PUBLIC_SUPABASE_ANON_KEY is set in your environment variables.";

@@ -18,14 +18,12 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
   const router = useRouter();
   const { logSignInSuccess, logSignInFailure } = useSignInLogging();
 
-  // --- Portal root ---
   const [mounted, setMounted] = useState(false);
   const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     setMounted(true);
 
-    // reuse if exists
     const existing = document.getElementById("signup-modal-root");
     if (existing) {
       setPortalEl(existing);
@@ -38,12 +36,10 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
     setPortalEl(el);
 
     return () => {
-      // only remove if we created it
       if (el.parentNode) el.parentNode.removeChild(el);
     };
   }, []);
 
-  // lock scroll when open
   useEffect(() => {
     if (!mounted) return;
     if (!isOpen) return;
@@ -55,7 +51,6 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
     };
   }, [isOpen, mounted]);
 
-  // close on ESC
   useEffect(() => {
     if (!isOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -471,10 +466,10 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
 
   const modalUI = (
     <div aria-modal="true" className="fixed inset-0 z-[9999]" role="dialog">
-      {/* Overlay */}
+      
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
-      {/* Modal */}
+      
       <div
         className="
           absolute left-1/2 top-1/2
@@ -483,7 +478,7 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
           rounded-2xl bg-white shadow-2xl
         "
       >
-        {/* Header */}
+        
         <div className="flex items-center justify-between border-b px-5 py-4">
           <h1 className="text-lg font-bold">
             {isRegistering ? "Register Account" : "Customer Login"}
@@ -499,7 +494,7 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
           </button>
         </div>
 
-        {/* Body */}
+        
         <div className="max-h-[80vh] overflow-y-auto px-5 py-5">
           {error && (
             <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700">
@@ -672,7 +667,7 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
               </>
             )}
 
-            {/* Common fields */}
+            
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="email">
                 Email Address

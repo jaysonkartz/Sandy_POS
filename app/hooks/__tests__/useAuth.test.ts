@@ -3,7 +3,6 @@ import { renderHook, waitFor, act } from "@testing-library/react";
 import { useAuth } from "../useAuth";
 import { supabase } from "@/app/lib/supabaseClient";
 
-// Mock supabase
 vi.mock("@/app/lib/supabaseClient", () => ({
   supabase: {
     auth: {
@@ -109,7 +108,6 @@ describe("useAuth", () => {
       expect(result.current.loading).toBe(false);
     });
 
-    // Simulate auth state change
     act(() => {
       authStateChangeCallback("SIGNED_IN", { user: mockUser });
     });

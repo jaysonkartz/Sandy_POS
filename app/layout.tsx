@@ -26,7 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 {children}
               </main>
 
-              {/* Mobile-only BottomNav */}
+              
               <div className="block sm:hidden">
                 <BottomNav />
               </div>

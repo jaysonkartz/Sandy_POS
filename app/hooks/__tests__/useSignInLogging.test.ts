@@ -3,7 +3,6 @@ import { renderHook, act } from "@testing-library/react";
 import { useSignInLogging } from "../useSignInLogging";
 import { SignInLogger } from "@/app/lib/signin-logger";
 
-// Mock the SignInLogger
 vi.mock("@/app/lib/signin-logger", () => ({
   SignInLogger: {
     logSignIn: vi.fn(),
@@ -15,7 +14,6 @@ vi.mock("@/app/lib/signin-logger", () => ({
 describe("useSignInLogging", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Mock navigator.userAgent
     Object.defineProperty(navigator, "userAgent", {
       writable: true,
       value: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -123,7 +121,6 @@ describe("useSignInLogging", () => {
       await result.current.logSignInSuccess("user-123", "test@example.com");
     });
 
-    // Should not throw, just log error
     expect(SignInLogger.logSignIn).toHaveBeenCalled();
   });
 });

@@ -8,7 +8,6 @@ export type CartItem = {
   name?: string;
   price?: number;
   quantity: number;
-  // keep flexible for your product shape
   [key: string]: any;
 };
 
@@ -42,11 +41,9 @@ type CartContextValue = {
   cart: CartItem[];
   setCart: React.Dispatch<React.SetStateAction<CartItem[]>>;
 
-  // derived
   cartCount: number;
   getCartTotal: () => number;
 
-  // cart helpers
   addItem: (item: Omit<CartItem, "quantity">, qty?: number) => void;
   addToCart: (item: CartItem) => void;
   updateQty: (id: CartItem["id"], qty: number, cartItemKey?: string) => void;
@@ -56,7 +53,6 @@ type CartContextValue = {
   clearCart: () => void;
   resolveCartItemKey: (item: Partial<CartItem>) => string;
 
-  // OrderPanel (global)
   isOrderPanelOpen: boolean;
   setIsOrderPanelOpen: React.Dispatch<React.SetStateAction<boolean>>;
   openOrderPanel: () => void;
@@ -69,7 +65,6 @@ const CartContext = createContext<CartContextValue | null>(null);
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
 
-  // OrderPanel open state (global)
   const [isOrderPanelOpen, setIsOrderPanelOpen] = useState(false);
 
   const cartCount = useMemo(

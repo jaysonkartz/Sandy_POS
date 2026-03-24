@@ -85,7 +85,6 @@ export default function CustomerDetails() {
 
       setCustomer(editedCustomer);
       setEditMode(false);
-      // Show success message
       alert("Profile updated successfully!");
     } catch (error) {
       console.error("Error updating profile:", error);
