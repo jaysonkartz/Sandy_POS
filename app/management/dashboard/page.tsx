@@ -212,11 +212,15 @@ export default function ManagementDashboard() {
       name: string;
       phone?: string | null;
       email?: string | null;
+      user_id?: string | null;
     }>
   >([]);
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
-  const [selectedCustomerForOffer, setSelectedCustomerForOffer] = useState<{
-    [productId: number]: string | null;
+  const [selectedCustomersForOffer, setSelectedCustomersForOffer] = useState<{
+    [productId: number]: string[];
+  }>({});
+  const [customerOfferSearchQuery, setCustomerOfferSearchQuery] = useState<{
+    [productId: number]: string;
   }>({});
   const [customPriceForSelectedCustomer, setCustomPriceForSelectedCustomer] = useState<{
     [key: string]: number | null;
@@ -440,40 +444,175 @@ export default function ManagementDashboard() {
       created_at?: string;
     }>
   ) => {
-    const firstPayload = offers.map(
-      ({ customer_id, product_id, offered_price, previous_price, created_at }) => ({
-        customer_id,
-        product_id,
-        previous_price,
-        original_price: offered_price,
-        last_price_update: created_at || new Date().toISOString(),
-      })
-    );
+    const seenCustomerIds = new Set<string>();
+    const uniqueOffers = offers.filter((offer) => {
+      const cid = String(offer.customer_id ?? "").trim();
+      if (!cid || seenCustomerIds.has(cid)) return false;
+      seenCustomerIds.add(cid);
+      return true;
+    });
 
-    const firstAttempt = await supabase.from("product_price_history").insert(firstPayload);
-    if (!firstAttempt.error) return;
+    if (uniqueOffers.length === 0) return;
 
-    const secondPayload = firstPayload.map(({ last_price_update, ...rest }) => rest);
-    const secondAttempt = await supabase.from("product_price_history").insert(secondPayload);
-    if (!secondAttempt.error) return;
+    const baseMs = Date.now();
+    type PriceHistoryRow = {
+      customer_id: string;
+      product_id: number;
+      previous_price: number;
+      original_price: number;
+      last_price_update: string;
+    };
 
-    const thirdPayload = secondPayload.map(({ previous_price, ...rest }) => rest);
-    const thirdAttempt = await supabase.from("product_price_history").insert(thirdPayload);
-    if (!thirdAttempt.error) return;
+    const rowsFromOffers = (list: typeof uniqueOffers, timeOffsetStart: number): PriceHistoryRow[] =>
+      list.map((offer, index) => ({
+        customer_id: String(offer.customer_id).trim(),
+        product_id: Number(offer.product_id),
+        previous_price: offer.previous_price,
+        original_price: offer.offered_price,
+        last_price_update: new Date(timeOffsetStart + index).toISOString(),
+      }));
+
+    const insertBatch = async (rows: PriceHistoryRow[]) => {
+      const lastErrors: string[] = [];
+
+      const firstAttempt = await supabase
+        .from("product_price_history")
+        .insert(rows)
+        .select("customer_id");
+      if (!firstAttempt.error) {
+        const data = firstAttempt.data;
+        if (!data || data.length === 0) {
+          return { ok: true as const, insertedIds: null as Set<string> | null, lastErrors };
+        }
+        const inserted = new Set<string>();
+        data.forEach((r: { customer_id?: string | null }) => {
+          if (r.customer_id != null) inserted.add(String(r.customer_id).trim());
+        });
+        return { ok: true as const, insertedIds: inserted, lastErrors };
+      }
+      lastErrors.push(`attempt1: ${getReadableErrorMessage(firstAttempt.error, "failed")}`);
+
+      const secondPayload = rows.map(({ last_price_update, ...rest }) => rest);
+      const secondAttempt = await supabase
+        .from("product_price_history")
+        .insert(secondPayload)
+        .select("customer_id");
+      if (!secondAttempt.error) {
+        const data = secondAttempt.data;
+        if (!data || data.length === 0) {
+          return { ok: true as const, insertedIds: null as Set<string> | null, lastErrors };
+        }
+        const inserted = new Set<string>();
+        data.forEach((r: { customer_id?: string | null }) => {
+          if (r.customer_id != null) inserted.add(String(r.customer_id).trim());
+        });
+        return { ok: true as const, insertedIds: inserted, lastErrors };
+      }
+      lastErrors.push(`attempt2: ${getReadableErrorMessage(secondAttempt.error, "failed")}`);
+
+      const thirdPayload = secondPayload.map(({ previous_price, ...rest }) => rest);
+      const thirdAttempt = await supabase
+        .from("product_price_history")
+        .insert(thirdPayload)
+        .select("customer_id");
+      if (!thirdAttempt.error) {
+        const data = thirdAttempt.data;
+        if (!data || data.length === 0) {
+          return { ok: true as const, insertedIds: null as Set<string> | null, lastErrors };
+        }
+        const inserted = new Set<string>();
+        data.forEach((r: { customer_id?: string | null }) => {
+          if (r.customer_id != null) inserted.add(String(r.customer_id).trim());
+        });
+        return { ok: true as const, insertedIds: inserted, lastErrors };
+      }
+      lastErrors.push(`attempt3: ${getReadableErrorMessage(thirdAttempt.error, "failed")}`);
+
+      return { ok: false as const, insertedIds: null as Set<string> | null, lastErrors };
+    };
+
+    const insertOneRowWithFallback = async (row: PriceHistoryRow) => {
+      const lastErrors: string[] = [];
+
+      const firstAttempt = await supabase
+        .from("product_price_history")
+        .insert([row])
+        .select("customer_id");
+      if (!firstAttempt.error) return { ok: true as const, lastErrors };
+      lastErrors.push(`attempt1: ${getReadableErrorMessage(firstAttempt.error, "failed")}`);
+
+      const { last_price_update: _l1, ...secondRow } = row;
+      const secondAttempt = await supabase
+        .from("product_price_history")
+        .insert([secondRow])
+        .select("customer_id");
+      if (!secondAttempt.error) return { ok: true as const, lastErrors };
+      lastErrors.push(`attempt2: ${getReadableErrorMessage(secondAttempt.error, "failed")}`);
+
+      const { previous_price: _p, ...thirdRow } = secondRow;
+      const thirdAttempt = await supabase
+        .from("product_price_history")
+        .insert([thirdRow])
+        .select("customer_id");
+      if (!thirdAttempt.error) return { ok: true as const, lastErrors };
+      lastErrors.push(`attempt3: ${getReadableErrorMessage(thirdAttempt.error, "failed")}`);
+
+      return { ok: false as const, lastErrors };
+    };
+
+    const expectedIds = new Set(uniqueOffers.map((o) => String(o.customer_id).trim()));
+    const firstPayload = rowsFromOffers(uniqueOffers, baseMs);
+    const batch = await insertBatch(firstPayload);
+
+    if (batch.ok) {
+      if (batch.insertedIds === null) {
+        return;
+      }
+      if (batch.insertedIds.size >= expectedIds.size) {
+        return;
+      }
+      const missing = uniqueOffers.filter((o) => !batch.insertedIds!.has(String(o.customer_id).trim()));
+      const perRowErrors: string[] = [];
+      const inserted = new Set(batch.insertedIds);
+      for (let i = 0; i < missing.length; i++) {
+        const row = rowsFromOffers([missing[i]], baseMs + 2000 + i)[0];
+        const one = await insertOneRowWithFallback(row);
+        if (one.ok) {
+          inserted.add(String(missing[i].customer_id).trim());
+        } else {
+          perRowErrors.push(`${missing[i].customer_id}: ${one.lastErrors.join(" | ")}`);
+        }
+      }
+      if (inserted.size >= expectedIds.size) {
+        return;
+      }
+      throw {
+        message: "product_price_history partial insert — missing rows after verify",
+        details: perRowErrors.join(" || "),
+      };
+    }
+
+    const perRowErrors: string[] = [];
+    const insertedForRetry = new Set<string>();
+    for (let i = 0; i < uniqueOffers.length; i++) {
+      const row = rowsFromOffers([uniqueOffers[i]], baseMs + 5000 + i)[0];
+      const one = await insertOneRowWithFallback(row);
+      if (one.ok) {
+        insertedForRetry.add(String(uniqueOffers[i].customer_id).trim());
+      } else {
+        perRowErrors.push(`${uniqueOffers[i].customer_id}: ${one.lastErrors.join(" | ")}`);
+      }
+    }
+    if (insertedForRetry.size >= expectedIds.size) {
+      return;
+    }
 
     throw {
       message: "product_price_history insert failed after retries",
-      details: [
-        `attempt1: ${getReadableErrorMessage(firstAttempt.error, "failed")}`,
-        `attempt2: ${getReadableErrorMessage(secondAttempt.error, "failed")}`,
-        `attempt3: ${getReadableErrorMessage(thirdAttempt.error, "failed")}`,
-      ].join(" | "),
-      code: thirdAttempt.error?.code || secondAttempt.error?.code || firstAttempt.error?.code,
-      status: thirdAttempt.status || secondAttempt.status || firstAttempt.status,
-      statusText: thirdAttempt.statusText || secondAttempt.statusText || firstAttempt.statusText,
-      firstError: firstAttempt.error,
-      secondError: secondAttempt.error,
-      thirdError: thirdAttempt.error,
+      details:
+        perRowErrors.length > 0
+          ? perRowErrors.join(" || ")
+          : batch.lastErrors.join(" | "),
     };
   };
 
@@ -482,7 +621,7 @@ export default function ManagementDashboard() {
     try {
       const { data, error } = await supabase
         .from("customers")
-        .select("id, name, phone, email")
+        .select("id, name, phone, email, user_id")
         .order("name", { ascending: true });
 
       if (error) {
@@ -505,11 +644,13 @@ export default function ManagementDashboard() {
               name?: string | null;
               phone?: string | null;
               email?: string | null;
+              user_id?: string | null;
             }) => ({
               id: String(customer.id),
               name: customer.name?.trim() || customer.email?.split("@")[0] || "Unnamed Customer",
               phone: customer.phone || null,
               email: customer.email || null,
+              user_id: customer.user_id || null,
             })
           );
 
@@ -2591,22 +2732,12 @@ export default function ManagementDashboard() {
                                                         title="Select all customers"
                                                         type="button"
                                                         onClick={() => {
-                                                          setSelectedCustomerForOffer((prev) => ({
+                                                          setSelectedCustomersForOffer((prev) => ({
                                                             ...prev,
-                                                            [product.id]: null,
+                                                            [product.id]: allCustomers.map((customer) =>
+                                                              String(customer.id)
+                                                            ),
                                                           }));
-                                                          const customerId =
-                                                            selectedCustomerForOffer[product.id];
-                                                          if (customerId) {
-                                                            const key = `custom-${product.id}-${customerId}`;
-                                                            setCustomPriceForSelectedCustomer(
-                                                              (prev) => {
-                                                                const newState = { ...prev };
-                                                                delete newState[key];
-                                                                return newState;
-                                                              }
-                                                            );
-                                                          }
                                                         }}
                                                       >
                                                         <svg
@@ -2669,25 +2800,12 @@ export default function ManagementDashboard() {
                                                           <span className="pl-6 truncate text-gray-700">
                                                             {isLoadingCustomers
                                                               ? "⏳ Loading customers..."
-                                                              : selectedCustomerForOffer[product.id]
-                                                                ? (() => {
-                                                                    const selected =
-                                                                      allCustomers.find(
-                                                                        (c) =>
-                                                                          String(c.id) ===
-                                                                          String(
-                                                                            selectedCustomerForOffer[
-                                                                              product.id
-                                                                            ]
-                                                                          )
-                                                                      );
-                                                                    return selected
-                                                                      ? `${selected.name}${selected.phone ? ` (${selected.phone})` : ""}${selected.email ? ` - ${selected.email}` : ""}`
-                                                                      : "Select a customer...";
-                                                                  })()
+                                                              : (selectedCustomersForOffer[product.id]
+                                                                    ?.length || 0) > 0
+                                                                ? `${selectedCustomersForOffer[product.id].length} customer${selectedCustomersForOffer[product.id].length !== 1 ? "s" : ""} selected`
                                                                 : allCustomers.length === 0
                                                                   ? "⚠️ No customers found - Click refresh"
-                                                                  : "👤 Select a customer..."}
+                                                                  : "👤 Select customer(s)..."}
                                                           </span>
                                                         </div>
                                                         <svg
@@ -2708,44 +2826,85 @@ export default function ManagementDashboard() {
                                                       
                                                       {isCustomerDropdownOpen[product.id] &&
                                                         !isLoadingCustomers && (
-                                                          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-80 overflow-auto">
+                                                          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
                                                             {allCustomers.length === 0 ? (
                                                               <div className="px-4 py-3 text-sm text-gray-500 text-center">
                                                                 No customers found
                                                               </div>
                                                             ) : (
                                                               <div className="py-1">
-                                                                
+                                                                <div className="px-3 pb-2 border-b border-gray-200">
+                                                                  <input
+                                                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                                    placeholder="Search by name, phone, or email"
+                                                                    type="text"
+                                                                    value={
+                                                                      customerOfferSearchQuery[
+                                                                        product.id
+                                                                      ] || ""
+                                                                    }
+                                                                    onChange={(e) => {
+                                                                      const query = e.target.value;
+                                                                      setCustomerOfferSearchQuery(
+                                                                        (prev) => ({
+                                                                          ...prev,
+                                                                          [product.id]: query,
+                                                                        })
+                                                                      );
+                                                                    }}
+                                                                  />
+                                                                </div>
+                                                                <div className="max-h-72 overflow-auto">
+                                                                  {(() => {
+                                                                    const selectedIds = new Set(
+                                                                      selectedCustomersForOffer[
+                                                                        product.id
+                                                                      ] || []
+                                                                    );
+                                                                    const searchTerm = String(
+                                                                      customerOfferSearchQuery[
+                                                                        product.id
+                                                                      ] || ""
+                                                                    )
+                                                                      .trim()
+                                                                      .toLowerCase();
+                                                                    const filteredCustomers =
+                                                                      searchTerm.length === 0
+                                                                        ? allCustomers
+                                                                        : allCustomers.filter(
+                                                                            (customer) => {
+                                                                              const haystack = [
+                                                                                customer.name,
+                                                                                customer.phone,
+                                                                                customer.email,
+                                                                              ]
+                                                                                .filter(Boolean)
+                                                                                .join(" ")
+                                                                                .toLowerCase();
+                                                                              return haystack.includes(
+                                                                                searchTerm
+                                                                              );
+                                                                            }
+                                                                          );
+                                                                    const allSelected =
+                                                                      allCustomers.length > 0 &&
+                                                                      selectedIds.size ===
+                                                                        allCustomers.length;
+                                                                    return (
+                                                                      <>
                                                                 <button
                                                                   className="w-full px-4 py-2.5 text-left hover:bg-purple-50 transition-colors border-b border-gray-200 bg-purple-50"
                                                                   type="button"
                                                                   onClick={() => {
-                                                                    setSelectedCustomerForOffer(
+                                                                    setSelectedCustomersForOffer(
                                                                       (prev) => ({
                                                                         ...prev,
-                                                                        [product.id]: null,
-                                                                      })
-                                                                    );
-                                                                    const customerId =
-                                                                      selectedCustomerForOffer[
-                                                                        product.id
-                                                                      ];
-                                                                    if (customerId) {
-                                                                      const key = `custom-${product.id}-${customerId}`;
-                                                                      setCustomPriceForSelectedCustomer(
-                                                                        (prev) => {
-                                                                          const newState = {
-                                                                            ...prev,
-                                                                          };
-                                                                          delete newState[key];
-                                                                          return newState;
-                                                                        }
-                                                                      );
-                                                                    }
-                                                                    setIsCustomerDropdownOpen(
-                                                                      (prev) => ({
-                                                                        ...prev,
-                                                                        [product.id]: false,
+                                                                        [product.id]: allSelected
+                                                                          ? []
+                                                                          : allCustomers.map(
+                                                                              (customer) =>
+                                                                                String(customer.id)
+                                                                            ),
                                                                       })
                                                                     );
                                                                   }}
@@ -2768,10 +2927,14 @@ export default function ManagementDashboard() {
                                                                     </div>
                                                                     <div className="flex-1 min-w-0">
                                                                       <div className="font-semibold text-purple-700">
-                                                                        Select All Customers
+                                                                        {allSelected
+                                                                          ? "Clear Selection"
+                                                                          : "Select All Customers"}
                                                                       </div>
                                                                       <div className="text-xs text-purple-600 mt-0.5">
-                                                                        Send to all{" "}
+                                                                        {allSelected
+                                                                          ? "No customers selected"
+                                                                          : "Send to all"}{" "}
                                                                         {allCustomers.length}{" "}
                                                                         customer
                                                                         {allCustomers.length !== 1
@@ -2781,13 +2944,17 @@ export default function ManagementDashboard() {
                                                                     </div>
                                                                   </div>
                                                                 </button>
-                                                                {allCustomers.map((customer) => {
+                                                                {filteredCustomers.length === 0 && (
+                                                                  <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                                                                    No matching customers
+                                                                  </div>
+                                                                )}
+                                                                {filteredCustomers.map(
+                                                                  (customer) => {
                                                                   const isSelected =
-                                                                    String(
-                                                                      selectedCustomerForOffer[
-                                                                        product.id
-                                                                      ]
-                                                                    ) === String(customer.id);
+                                                                    selectedIds.has(
+                                                                      String(customer.id)
+                                                                    );
                                                                   return (
                                                                     <button
                                                                       key={String(customer.id)}
@@ -2798,29 +2965,27 @@ export default function ManagementDashboard() {
                                                                       }`}
                                                                       type="button"
                                                                       onClick={() => {
-                                                                        setSelectedCustomerForOffer(
-                                                                          (prev) => ({
-                                                                            ...prev,
-                                                                            [product.id]: String(
-                                                                              customer.id
-                                                                            ),
-                                                                          })
-                                                                        );
-                                                                        const key = `custom-${product.id}-${customer.id}`;
-                                                                        setCustomPriceForSelectedCustomer(
+                                                                        setSelectedCustomersForOffer(
                                                                           (prev) => {
-                                                                            const newState = {
+                                                                            const existing = new Set(
+                                                                              prev[product.id] || []
+                                                                            );
+                                                                            const id = String(
+                                                                              customer.id
+                                                                            );
+                                                                            if (
+                                                                              existing.has(id)
+                                                                            ) {
+                                                                              existing.delete(id);
+                                                                            } else {
+                                                                              existing.add(id);
+                                                                            }
+                                                                            return {
                                                                               ...prev,
+                                                                              [product.id]:
+                                                                                Array.from(existing),
                                                                             };
-                                                                            delete newState[key];
-                                                                            return newState;
                                                                           }
-                                                                        );
-                                                                        setIsCustomerDropdownOpen(
-                                                                          (prev) => ({
-                                                                            ...prev,
-                                                                            [product.id]: false,
-                                                                          })
                                                                         );
                                                                       }}
                                                                     >
@@ -2892,7 +3057,12 @@ export default function ManagementDashboard() {
                                                                       </div>
                                                                     </button>
                                                                   );
-                                                                })}
+                                                                }
+                                                                )}
+                                                              </>
+                                                            );
+                                                          })()}
+                                                                </div>
                                                               </div>
                                                             )}
                                                           </div>
@@ -2921,6 +3091,69 @@ export default function ManagementDashboard() {
                                                     )}
                                                   </div>
 
+                                                  {(selectedCustomersForOffer[product.id]?.length ||
+                                                    0) > 0 && (
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                      {(
+                                                        selectedCustomersForOffer[product.id] || []
+                                                      ).map((customerId) => {
+                                                        const cid = String(customerId);
+                                                        const c = allCustomers.find(
+                                                          (x) => String(x.id) === cid
+                                                        );
+                                                        const primary =
+                                                          c?.name?.trim() || "Unnamed customer";
+                                                        const secondary = c?.phone || c?.email || "";
+                                                        const chipLabel = secondary
+                                                          ? `${primary} · ${secondary}`
+                                                          : primary;
+                                                        return (
+                                                          <span
+                                                            key={cid}
+                                                            className="inline-flex max-w-full items-center gap-1 rounded-full border border-blue-200 bg-blue-50 py-0.5 pl-2.5 pr-0.5 text-xs text-blue-800"
+                                                            title={chipLabel}
+                                                          >
+                                                            <span className="max-w-[14rem] truncate">
+                                                              {chipLabel}
+                                                            </span>
+                                                            <button
+                                                              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-blue-600 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                                              title={`Remove ${primary}`}
+                                                              type="button"
+                                                              onClick={() => {
+                                                                setSelectedCustomersForOffer(
+                                                                  (prev) => ({
+                                                                    ...prev,
+                                                                    [product.id]: (
+                                                                      prev[product.id] || []
+                                                                    ).filter(
+                                                                      (id) =>
+                                                                        String(id) !== cid
+                                                                    ),
+                                                                  })
+                                                                );
+                                                              }}
+                                                            >
+                                                              <svg
+                                                                className="h-3.5 w-3.5"
+                                                                fill="none"
+                                                                stroke="currentColor"
+                                                                viewBox="0 0 24 24"
+                                                              >
+                                                                <path
+                                                                  d="M6 18L18 6M6 6l12 12"
+                                                                  strokeLinecap="round"
+                                                                  strokeLinejoin="round"
+                                                                  strokeWidth={2}
+                                                                />
+                                                              </svg>
+                                                            </button>
+                                                          </span>
+                                                        );
+                                                      })}
+                                                    </div>
+                                                  )}
+
                                                   
                                                   <div className="flex items-center gap-2 p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
                                                     <div className="flex-1 flex items-center gap-2">
@@ -2937,67 +3170,34 @@ export default function ManagementDashboard() {
                                                           step="0.01"
                                                           type="number"
                                                           value={
-                                                            selectedCustomerForOffer[product.id]
-                                                              ? customPriceForSelectedCustomer[
-                                                                  `custom-${product.id}-${selectedCustomerForOffer[product.id]}`
-                                                                ] || ""
-                                                              : customPriceForSelectedCustomer[
-                                                                  `custom-all-${product.id}`
-                                                                ] || ""
+                                                            customPriceForSelectedCustomer[
+                                                              `custom-selected-${product.id}`
+                                                            ] || ""
                                                           }
                                                           onChange={(e) => {
                                                             const value = e.target.value;
+                                                            const key = `custom-selected-${product.id}`;
                                                             if (
-                                                              selectedCustomerForOffer[product.id]
+                                                              value === "" ||
+                                                              value === null ||
+                                                              value === undefined
                                                             ) {
-                                                              const key = `custom-${product.id}-${selectedCustomerForOffer[product.id]}`;
-                                                              if (
-                                                                value === "" ||
-                                                                value === null ||
-                                                                value === undefined
-                                                              ) {
-                                                                setCustomPriceForSelectedCustomer(
-                                                                  (prev) => {
-                                                                    const newState = { ...prev };
-                                                                    delete newState[key];
-                                                                    return newState;
-                                                                  }
-                                                                );
-                                                              } else {
-                                                                const numValue = Number(value);
-                                                                if (!isNaN(numValue)) {
-                                                                  setCustomPriceForSelectedCustomer(
-                                                                    (prev) => ({
-                                                                      ...prev,
-                                                                      [key]: numValue,
-                                                                    })
-                                                                  );
+                                                              setCustomPriceForSelectedCustomer(
+                                                                (prev) => {
+                                                                  const newState = { ...prev };
+                                                                  delete newState[key];
+                                                                  return newState;
                                                                 }
-                                                              }
+                                                              );
                                                             } else {
-                                                              const key = `custom-all-${product.id}`;
-                                                              if (
-                                                                value === "" ||
-                                                                value === null ||
-                                                                value === undefined
-                                                              ) {
+                                                              const numValue = Number(value);
+                                                              if (!isNaN(numValue)) {
                                                                 setCustomPriceForSelectedCustomer(
-                                                                  (prev) => {
-                                                                    const newState = { ...prev };
-                                                                    delete newState[key];
-                                                                    return newState;
-                                                                  }
+                                                                  (prev) => ({
+                                                                    ...prev,
+                                                                    [key]: numValue,
+                                                                  })
                                                                 );
-                                                              } else {
-                                                                const numValue = Number(value);
-                                                                if (!isNaN(numValue)) {
-                                                                  setCustomPriceForSelectedCustomer(
-                                                                    (prev) => ({
-                                                                      ...prev,
-                                                                      [key]: numValue,
-                                                                    })
-                                                                  );
-                                                                }
                                                               }
                                                             }
                                                           }}
@@ -3006,122 +3206,86 @@ export default function ManagementDashboard() {
                                                           }}
                                                         />
                                                       </div>
-                                                      {selectedCustomerForOffer[product.id] ? (
-                                                        <>
-                                                          <button
-                                                            className="px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-green-500 to-green-600 rounded-lg hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
-                                                            onClick={async () => {
-                                                              const customerId = String(
-                                                                selectedCustomerForOffer[
-                                                                  product.id
-                                                                ] || ""
-                                                              ).trim();
-                                                              if (!customerId) {
-                                                                toast.error(
-                                                                  "Please select a customer"
-                                                                );
-                                                                return;
-                                                              }
-                                                              const key = `custom-${product.id}-${customerId}`;
-                                                              const price =
-                                                                customPriceForSelectedCustomer[key];
-                                                              if (!price || price <= 0) {
-                                                                toast.error(
-                                                                  "Please enter a valid price"
-                                                                );
-                                                                return;
-                                                              }
-
-                                                              let customer = allCustomers.find(
-                                                                (c) =>
-                                                                  String(c.id).trim() === customerId
+                                                      <>
+                                                        <button
+                                                          className="px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-green-500 to-green-600 rounded-lg hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all shadow-md hover:shadow-lg flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                                                          disabled={
+                                                            (selectedCustomersForOffer[product.id]
+                                                              ?.length || 0) === 0
+                                                          }
+                                                          onClick={async () => {
+                                                            const selectedCustomerIds = (
+                                                              selectedCustomersForOffer[
+                                                                product.id
+                                                              ] || []
+                                                            ).map((id) => String(id).trim()).filter(Boolean);
+                                                            if (selectedCustomerIds.length === 0) {
+                                                              toast.error(
+                                                                "Please select at least one customer"
                                                               );
+                                                              return;
+                                                            }
+                                                            const key = `custom-selected-${product.id}`;
+                                                            const price =
+                                                              customPriceForSelectedCustomer[key];
+                                                            if (!price || price <= 0) {
+                                                              toast.error(
+                                                                "Please enter a valid price"
+                                                              );
+                                                              return;
+                                                            }
 
-                                                              if (!customer) {
-                                                                await fetchAllCustomers();
-                                                                const {
-                                                                  data: refreshedCustomers,
-                                                                  error: refreshError,
-                                                                } = await supabase
-                                                                  .from("customers")
-                                                                  .select("id, name, phone, email")
-                                                                  .eq("id", customerId)
-                                                                  .maybeSingle();
-
-                                                                if (
-                                                                  refreshError ||
-                                                                  !refreshedCustomers
-                                                                ) {
-                                                                  toast.error(
-                                                                    "Unable to find selected customer. Please refresh and try again."
-                                                                  );
-                                                                  return;
-                                                                }
-
-                                                                customer = {
-                                                                  id: String(refreshedCustomers.id),
-                                                                  name:
-                                                                    refreshedCustomers.name?.trim() ||
-                                                                    refreshedCustomers.email?.split(
-                                                                      "@"
-                                                                    )[0] ||
-                                                                    "Unnamed Customer",
-                                                                  phone:
-                                                                    refreshedCustomers.phone ||
-                                                                    null,
-                                                                  email:
-                                                                    refreshedCustomers.email ||
-                                                                    null,
-                                                                };
-                                                              }
-
-                                                              try {
-                                                                await insertPriceOffersWithFallback(
-                                                                  [
-                                                                    {
-                                                                      customer_id: customerId,
-                                                                      product_id: product.id,
-                                                                      offered_price: price,
-                                                                      previous_price: product.price,
-                                                                      created_at:
-                                                                        new Date().toISOString(),
-                                                                    },
-                                                                  ]
-                                                                );
-                                                                await fetchCategories();
-
-                                                                setSelectedCustomerForOffer(
-                                                                  (prev) => ({
-                                                                    ...prev,
-                                                                    [product.id]: null,
+                                                            try {
+                                                              const offers =
+                                                                selectedCustomerIds.map(
+                                                                  (customerId) => ({
+                                                                    customer_id: customerId,
+                                                                    product_id: product.id,
+                                                                    offered_price: price,
+                                                                    previous_price: product.price,
+                                                                    created_at:
+                                                                      new Date().toISOString(),
                                                                   })
                                                                 );
-                                                                setCustomPriceForSelectedCustomer(
-                                                                  (prev) => {
-                                                                    const newState = { ...prev };
-                                                                    delete newState[key];
-                                                                    return newState;
-                                                                  }
-                                                                );
-                                                                toast.success(
-                                                                  `Offer sent successfully to ${customer?.name || "customer"} for $${price.toFixed(2)}`
-                                                                );
-                                                              } catch (err) {
-                                                                console.error(
-                                                                  "Failed to insert single custom price offer",
-                                                                  {
-                                                                    error: err,
-                                                                    customerId,
-                                                                    productId: product.id,
-                                                                    price,
-                                                                  }
-                                                                );
-                                                                toast.error(
-                                                                  `Failed to send offer: ${getReadableErrorMessage(err, "Unexpected error (check browser console for details)")}`
-                                                                );
-                                                              }
-                                                            }}
-                                                          >
+
+                                                              await insertPriceOffersWithFallback(
+                                                                offers
+                                                              );
+                                                              await fetchCategories();
+
+                                                              setSelectedCustomersForOffer(
+                                                                (prev) => ({
+                                                                  ...prev,
+                                                                  [product.id]: [],
+                                                                })
+                                                              );
+                                                              setCustomPriceForSelectedCustomer(
+                                                                (prev) => {
+                                                                  const newState = { ...prev };
+                                                                  delete newState[key];
+                                                                  return newState;
+                                                                }
+                                                              );
+                                                              toast.success(
+                                                                `Offer sent successfully to ${selectedCustomerIds.length} customer${selectedCustomerIds.length !== 1 ? "s" : ""} for $${price.toFixed(2)}`
+                                                              );
+                                                            } catch (err) {
+                                                              console.error(
+                                                                "Failed to insert multi custom price offers",
+                                                                {
+                                                                  error: err,
+                                                                  selectedCustomerCount:
+                                                                    selectedCustomerIds.length,
+                                                                  productId: product.id,
+                                                                  price,
+                                                                }
+                                                              );
+                                                              toast.error(
+                                                                `Failed to send offers: ${getReadableErrorMessage(err, "Unexpected error (check browser console for details)")}`
+                                                              );
+                                                            }
+                                                          }}
+                                                        >
                                                             <svg
                                                               className="w-4 h-4"
                                                               fill="none"
@@ -3136,33 +3300,23 @@ export default function ManagementDashboard() {
                                                               />
                                                             </svg>
                                                             Send Offer
-                                                          </button>
-                                                          <button
-                                                            className="px-3 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-800 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1 transition-all"
-                                                            title="Clear selection"
-                                                            onClick={() => {
-                                                              const customerId =
-                                                                selectedCustomerForOffer[
-                                                                  product.id
-                                                                ];
-                                                              if (customerId) {
-                                                                const key = `custom-${product.id}-${customerId}`;
-                                                                setCustomPriceForSelectedCustomer(
-                                                                  (prev) => {
-                                                                    const newState = { ...prev };
-                                                                    delete newState[key];
-                                                                    return newState;
-                                                                  }
-                                                                );
-                                                              }
-                                                              setSelectedCustomerForOffer(
-                                                                (prev) => ({
-                                                                  ...prev,
-                                                                  [product.id]: null,
-                                                                })
-                                                              );
-                                                            }}
-                                                          >
+                                                        </button>
+                                                        <button
+                                                          className="px-3 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-800 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1 transition-all"
+                                                          title="Clear selection"
+                                                          onClick={() => {
+                                                            const key = `custom-selected-${product.id}`;
+                                                            setCustomPriceForSelectedCustomer((prev) => {
+                                                              const newState = { ...prev };
+                                                              delete newState[key];
+                                                              return newState;
+                                                            });
+                                                            setSelectedCustomersForOffer((prev) => ({
+                                                              ...prev,
+                                                              [product.id]: [],
+                                                            }));
+                                                          }}
+                                                        >
                                                             <svg
                                                               className="w-4 h-4"
                                                               fill="none"
@@ -3176,87 +3330,8 @@ export default function ManagementDashboard() {
                                                                 strokeWidth={2}
                                                               />
                                                             </svg>
-                                                          </button>
-                                                        </>
-                                                      ) : (
-                                                        <button
-                                                          className="px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg hover:from-purple-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
-                                                          disabled={allCustomers.length === 0}
-                                                          onClick={async () => {
-                                                            const key = `custom-all-${product.id}`;
-                                                            const price =
-                                                              customPriceForSelectedCustomer[key];
-                                                            if (!price || price <= 0) {
-                                                              toast.error(
-                                                                "Please enter a valid price"
-                                                              );
-                                                              return;
-                                                            }
-                                                            if (allCustomers.length === 0) {
-                                                              toast.error("No customers available");
-                                                              return;
-                                                            }
-                                                            try {
-                                                              const offers = allCustomers.map(
-                                                                (customer) => ({
-                                                                  customer_id: String(customer.id),
-                                                                  product_id: product.id,
-                                                                  offered_price: price,
-                                                                  previous_price: product.price,
-                                                                  created_at:
-                                                                    new Date().toISOString(),
-                                                                })
-                                                              );
-
-                                                              await insertPriceOffersWithFallback(
-                                                                offers
-                                                              );
-                                                              await fetchCategories();
-
-                                                              setCustomPriceForSelectedCustomer(
-                                                                (prev) => {
-                                                                  const newState = { ...prev };
-                                                                  delete newState[key];
-                                                                  return newState;
-                                                                }
-                                                              );
-
-                                                              toast.success(
-                                                                `Offer sent successfully to all ${allCustomers.length} customer${allCustomers.length !== 1 ? "s" : ""} for $${price.toFixed(2)}`
-                                                              );
-                                                            } catch (err) {
-                                                              console.error(
-                                                                "Failed to insert bulk custom price offers",
-                                                                {
-                                                                  error: err,
-                                                                  customerCount:
-                                                                    allCustomers.length,
-                                                                  productId: product.id,
-                                                                  price,
-                                                                }
-                                                              );
-                                                              toast.error(
-                                                                `Failed to send offers: ${getReadableErrorMessage(err, "Unexpected error (check browser console for details)")}`
-                                                              );
-                                                            }
-                                                          }}
-                                                        >
-                                                          <svg
-                                                            className="w-4 h-4"
-                                                            fill="none"
-                                                            stroke="currentColor"
-                                                            viewBox="0 0 24 24"
-                                                          >
-                                                            <path
-                                                              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                                                              strokeLinecap="round"
-                                                              strokeLinejoin="round"
-                                                              strokeWidth={2}
-                                                            />
-                                                          </svg>
-                                                          Select All & Send
                                                         </button>
-                                                      )}
+                                                      </>
                                                     </div>
                                                   </div>
                                                 </div>
@@ -3288,6 +3363,48 @@ export default function ManagementDashboard() {
                                                   return ts > latestTs ? ts : latestTs;
                                                 }, null);
 
+                                                const getCurrentPriceForMatchingIds = (
+                                                  matchingCustomerIds: Set<string>
+                                                ) => {
+                                                  const eligibleCustomerPriceEntries = (
+                                                    product.customerPriceHistory || []
+                                                  )
+                                                    .filter((entry) =>
+                                                      matchingCustomerIds.has(
+                                                        String(entry.customer_id).trim()
+                                                      )
+                                                    )
+                                                    .filter((entry) => {
+                                                      const entryTime = getHistoryTimestamp(entry);
+                                                      if (!Number.isFinite(entryTime)) {
+                                                        return false;
+                                                      }
+                                                      if (latestGlobalPriceUpdateTime === null) {
+                                                        return true;
+                                                      }
+                                                      return entryTime > latestGlobalPriceUpdateTime;
+                                                    });
+
+                                                  const latestEligibleCustomerSpecificPrice =
+                                                    eligibleCustomerPriceEntries.reduce<
+                                                      | {
+                                                          original_price: number;
+                                                          last_price_update?: string;
+                                                          created_at?: string;
+                                                        }
+                                                      | null
+                                                    >((latest, entry) => {
+                                                      if (!latest) return entry;
+                                                      const latestTime = getHistoryTimestamp(latest);
+                                                      const entryTime = getHistoryTimestamp(entry);
+                                                      return entryTime > latestTime ? entry : latest;
+                                                    }, null);
+
+                                                  return latestEligibleCustomerSpecificPrice
+                                                    ? latestEligibleCustomerSpecificPrice.original_price
+                                                    : globalPrice;
+                                                };
+
                                                 const previousCustomersMap = new Map<
                                                   string,
                                                   {
@@ -3297,7 +3414,7 @@ export default function ManagementDashboard() {
                                                     dedupe_key: string;
                                                     order_id: number;
                                                     last_purchased_price?: number;
-                                                        current_price_for_customer: number;
+                                                    current_price_for_customer: number;
                                                   }
                                                 >();
 
@@ -3379,53 +3496,10 @@ export default function ManagementDashboard() {
                                                         }
                                                       });
 
-                                                      const eligibleCustomerPriceEntries =
-                                                        (product.customerPriceHistory || [])
-                                                          .filter((entry) =>
-                                                            matchingCustomerIds.has(
-                                                              String(entry.customer_id).trim()
-                                                            )
-                                                          )
-                                                          .filter((entry) => {
-                                                            const entryTime =
-                                                              getHistoryTimestamp(entry);
-                                                            if (!Number.isFinite(entryTime)) {
-                                                              return false;
-                                                            }
-                                                            if (
-                                                              latestGlobalPriceUpdateTime === null
-                                                            ) {
-                                                              return true;
-                                                            }
-                                                            return (
-                                                              entryTime >
-                                                              latestGlobalPriceUpdateTime
-                                                            );
-                                                          });
-
-                                                      const latestEligibleCustomerSpecificPrice =
-                                                        eligibleCustomerPriceEntries.reduce<
-                                                          | {
-                                                              original_price: number;
-                                                              last_price_update?: string;
-                                                              created_at?: string;
-                                                            }
-                                                          | null
-                                                        >((latest, entry) => {
-                                                          if (!latest) return entry;
-                                                          const latestTime =
-                                                            getHistoryTimestamp(latest);
-                                                          const entryTime =
-                                                            getHistoryTimestamp(entry);
-                                                          return entryTime > latestTime
-                                                            ? entry
-                                                            : latest;
-                                                        }, null);
-
                                                       const currentPriceForCustomer =
-                                                        latestEligibleCustomerSpecificPrice
-                                                          ? latestEligibleCustomerSpecificPrice.original_price
-                                                          : globalPrice;
+                                                        getCurrentPriceForMatchingIds(
+                                                          matchingCustomerIds
+                                                        );
 
                                                       previousCustomersMap.set(customerKey, {
                                                         customer_name: order.customer_name,
@@ -3441,9 +3515,219 @@ export default function ManagementDashboard() {
                                                   });
                                                 });
 
+                                                const coveredCustomerIds = new Set<string>();
+                                                previousCustomersMap.forEach((row) => {
+                                                  const oid = String(row.customer_id || "").trim();
+                                                  if (oid) {
+                                                    coveredCustomerIds.add(oid);
+                                                    return;
+                                                  }
+                                                  const orderPhone = normalizePhone(
+                                                    row.customer_phone
+                                                  );
+                                                  const orderName = normalizeName(
+                                                    row.customer_name
+                                                  );
+                                                  (allCustomers || []).forEach((customerRow) => {
+                                                    const rowId = String(customerRow.id || "").trim();
+                                                    if (!rowId) return;
+                                                    const rowPhone = normalizePhone(
+                                                      customerRow.phone || undefined
+                                                    );
+                                                    const rowName = normalizeName(
+                                                      customerRow.name || ""
+                                                    );
+                                                    if (
+                                                      (orderPhone &&
+                                                        rowPhone &&
+                                                        orderPhone === rowPhone) ||
+                                                      (orderName &&
+                                                        rowName &&
+                                                        orderName === rowName)
+                                                    ) {
+                                                      coveredCustomerIds.add(rowId);
+                                                    }
+                                                  });
+                                                });
+
+                                                const historyCustomerIds = [
+                                                  ...new Set(
+                                                    (product.customerPriceHistory || [])
+                                                      .map((entry) =>
+                                                        String(entry.customer_id ?? "").trim()
+                                                      )
+                                                      .filter(Boolean)
+                                                  ),
+                                                ];
+
+                                                historyCustomerIds.forEach((custId) => {
+                                                  if (coveredCustomerIds.has(custId)) return;
+
+                                                  const profile = (allCustomers || []).find(
+                                                    (c) => String(c.id).trim() === custId
+                                                  );
+                                                  const customer_name =
+                                                    profile?.name?.trim() ||
+                                                    profile?.email?.split("@")[0] ||
+                                                    `Customer (${custId.slice(0, 8)}…)`;
+                                                  const customer_phone = profile?.phone || "";
+
+                                                  const phoneKey = normalizePhone(customer_phone);
+                                                  const nameKey = normalizeName(customer_name);
+                                                  let mapKey = phoneKey || nameKey || `id:${custId}`;
+
+                                                  if (previousCustomersMap.has(mapKey)) {
+                                                    const existing = previousCustomersMap.get(mapKey);
+                                                    if (
+                                                      existing &&
+                                                      String(existing.customer_id || "").trim() ===
+                                                        custId
+                                                    ) {
+                                                      return;
+                                                    }
+                                                    if (existing) {
+                                                      mapKey = `${mapKey}:record:${custId}`;
+                                                    }
+                                                  }
+
+                                                  previousCustomersMap.set(mapKey, {
+                                                    customer_name,
+                                                    customer_phone,
+                                                    customer_id: custId,
+                                                    dedupe_key: mapKey,
+                                                    order_id: 0,
+                                                    last_purchased_price: undefined,
+                                                    current_price_for_customer:
+                                                      getCurrentPriceForMatchingIds(
+                                                        new Set([custId])
+                                                      ),
+                                                  });
+                                                });
+
+                                                const enrichPreviousCustomerFromDirectory = (row: {
+                                                  customer_name: string;
+                                                  customer_phone: string;
+                                                  customer_id?: string;
+                                                  dedupe_key: string;
+                                                  order_id: number;
+                                                  last_purchased_price?: number;
+                                                  current_price_for_customer: number;
+                                                }) => {
+                                                  const id = String(row.customer_id || "").trim();
+                                                  const orderPhone = normalizePhone(
+                                                    row.customer_phone
+                                                  );
+                                                  const orderName = normalizeName(
+                                                    row.customer_name
+                                                  );
+
+                                                  const byId = id
+                                                    ? (allCustomers || []).find(
+                                                        (c) => String(c.id).trim() === id
+                                                      )
+                                                    : undefined;
+                                                  const byOrderPhone = orderPhone
+                                                    ? (allCustomers || []).find(
+                                                        (c) =>
+                                                          normalizePhone(
+                                                            c.phone || undefined
+                                                          ) === orderPhone
+                                                      )
+                                                    : undefined;
+
+                                                  const nameMatches = orderName
+                                                    ? (allCustomers || []).filter(
+                                                        (c) =>
+                                                          normalizeName(c.name || "") === orderName
+                                                      )
+                                                    : [];
+
+                                                  let profile:
+                                                    | (typeof allCustomers)[number]
+                                                    | undefined;
+
+                                                  if (nameMatches.length === 1) {
+                                                    profile = nameMatches[0];
+                                                  } else if (nameMatches.length > 1) {
+                                                    const linkedToOrder = id
+                                                      ? nameMatches.find(
+                                                          (c) => String(c.id).trim() === id
+                                                        )
+                                                      : undefined;
+                                                    const withUser = nameMatches.filter(
+                                                      (c) => c.user_id
+                                                    );
+                                                    const phoneMatchesOrder = orderPhone
+                                                      ? nameMatches.find(
+                                                          (c) =>
+                                                            normalizePhone(
+                                                              c.phone || undefined
+                                                            ) === orderPhone
+                                                        )
+                                                      : undefined;
+
+                                                    if (withUser.length === 1) {
+                                                      profile = withUser[0];
+                                                    } else if (withUser.length > 1) {
+                                                      profile =
+                                                        (id
+                                                          ? withUser.find(
+                                                              (c) =>
+                                                                String(c.id).trim() === id
+                                                            )
+                                                          : undefined) ||
+                                                        phoneMatchesOrder ||
+                                                        withUser[0];
+                                                    } else {
+                                                      profile =
+                                                        linkedToOrder ||
+                                                        phoneMatchesOrder ||
+                                                        nameMatches[0];
+                                                    }
+                                                  } else {
+                                                    profile = byId || byOrderPhone;
+                                                  }
+
+                                                  if (!profile) return row;
+
+                                                  const dirPhone = profile.phone
+                                                    ? String(profile.phone).trim()
+                                                    : "";
+                                                  const dirName = profile.name
+                                                    ? profile.name.trim()
+                                                    : "";
+
+                                                  const pricingIds = new Set<string>();
+                                                  if (nameMatches.length > 1) {
+                                                    nameMatches.forEach((c) =>
+                                                      pricingIds.add(String(c.id).trim())
+                                                    );
+                                                  } else {
+                                                    if (id) pricingIds.add(id);
+                                                    pricingIds.add(String(profile.id).trim());
+                                                  }
+                                                  pricingIds.delete("");
+
+                                                  const current_price_for_customer =
+                                                    pricingIds.size > 0
+                                                      ? getCurrentPriceForMatchingIds(pricingIds)
+                                                      : row.current_price_for_customer;
+
+                                                  return {
+                                                    ...row,
+                                                    customer_id: String(profile.id).trim(),
+                                                    customer_name: dirName || row.customer_name,
+                                                    customer_phone:
+                                                      dirPhone || row.customer_phone,
+                                                    current_price_for_customer,
+                                                  };
+                                                };
+
                                                 const previousCustomers = Array.from(
                                                   previousCustomersMap.values()
-                                                ).sort((a, b) => b.order_id - a.order_id);
+                                                )
+                                                  .map(enrichPreviousCustomerFromDirectory)
+                                                  .sort((a, b) => b.order_id - a.order_id);
 
                                                 return previousCustomers.map((customer) => {
                                                   const offerKey = `${product.id}-${customer.dedupe_key}`;
@@ -3486,10 +3770,19 @@ export default function ManagementDashboard() {
                                                                   Last purchased
                                                                 </div>
                                                                 <div className="text-sm leading-5 font-medium text-gray-700">
-                                                                  $
-                                                                  {(
-                                                                    customer.last_purchased_price ?? 0
-                                                                  ).toFixed(2)}
+                                                                  {customer.last_purchased_price !=
+                                                                  undefined ? (
+                                                                    <>
+                                                                      $
+                                                                      {customer.last_purchased_price.toFixed(
+                                                                        2
+                                                                      )}
+                                                                    </>
+                                                                  ) : (
+                                                                    <span className="text-gray-400 font-normal">
+                                                                      No orders yet
+                                                                    </span>
+                                                                  )}
                                                                 </div>
                                                               </div>
                                                               <div className="rounded-md bg-blue-50 px-2.5 py-1.5">
