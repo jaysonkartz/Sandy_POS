@@ -68,7 +68,7 @@ interface ProductCardProps {
 const getCategoryName = (category: string | number) =>
   CATEGORY_ID_NAME_MAP[String(category)] || "Unknown Category";
 
-export const ProductCard = memo<ProductCardProps>(
+const ProductCardContent = memo<ProductCardProps>(
   ({
     group,
     isEnglish,
@@ -89,37 +89,38 @@ export const ProductCard = memo<ProductCardProps>(
     const { groupKey, products } = group;
     const IMAGE_PLACEHOLDER = "/product-placeholder.svg";
 
-    if (products.length === 0) return null;
+    const getMatchingProduct = useCallback(
+      (
+        selection: { variation?: string; countryId?: string; weight?: string },
+        changedType?: "variation" | "countryId" | "weight"
+      ) => {
+        const exact = products.find(
+          (p) =>
+            (!selection.variation || p.Variation === selection.variation) &&
+            (!selection.countryId || p.Country === selection.countryId) &&
+            (!selection.weight || p.weight === selection.weight)
+        );
+        if (exact) return exact;
 
-    const getMatchingProduct = (
-      selection: { variation?: string; countryId?: string; weight?: string },
-      changedType?: "variation" | "countryId" | "weight"
-    ) => {
-      const exact = products.find(
-        (p) =>
-          (!selection.variation || p.Variation === selection.variation) &&
-          (!selection.countryId || p.Country === selection.countryId) &&
-          (!selection.weight || p.weight === selection.weight)
-      );
-      if (exact) return exact;
+        if (changedType === "variation") {
+          return products.find((p) => p.Variation === selection.variation) || products[0];
+        }
+        if (changedType === "countryId") {
+          return products.find((p) => p.Country === selection.countryId) || products[0];
+        }
+        if (changedType === "weight") {
+          return products.find((p) => p.weight === selection.weight) || products[0];
+        }
 
-      if (changedType === "variation") {
-        return products.find((p) => p.Variation === selection.variation) || products[0];
-      }
-      if (changedType === "countryId") {
-        return products.find((p) => p.Country === selection.countryId) || products[0];
-      }
-      if (changedType === "weight") {
-        return products.find((p) => p.weight === selection.weight) || products[0];
-      }
-
-      return products[0];
-    };
+        return products[0];
+      },
+      [products]
+    );
 
     const getSelectedProduct = useCallback(() => {
       const selected = selectedOptions[groupKey] || {};
       return getMatchingProduct(selected);
-    }, [products, selectedOptions, groupKey]);
+    }, [getMatchingProduct, selectedOptions, groupKey]);
 
     const product = getSelectedProduct();
     const currentQuantity = currentQuantityByProductId[product.id] ?? 0;
@@ -147,7 +148,7 @@ export const ProductCard = memo<ProductCardProps>(
         onOptionChange(groupKey, "countryId", matched.Country || "");
         onOptionChange(groupKey, "weight", matched.weight || "");
       },
-      [onOptionChange, selectedOptions, groupKey]
+      [getMatchingProduct, onOptionChange, selectedOptions, groupKey]
     );
 
     const fallbackImage = `/Img/${getCategoryName(product.Category)}/${product.Product}${
@@ -398,5 +399,12 @@ export const ProductCard = memo<ProductCardProps>(
     );
   }
 );
+
+ProductCardContent.displayName = "ProductCardContent";
+
+export const ProductCard = memo<ProductCardProps>((props) => {
+  if (props.group.products.length === 0) return null;
+  return <ProductCardContent {...props} />;
+});
 
 ProductCard.displayName = "ProductCard";

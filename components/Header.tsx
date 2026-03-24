@@ -98,12 +98,9 @@ export default function Header() {
                 src="/HongGuan_Icon.jpg"
                 width={80}
               />
-              
             </Link>
 
             <div className="flex items-center gap-2">
-              
-
               <TopBarLogin
                 session={session}
                 userRole={userRole}

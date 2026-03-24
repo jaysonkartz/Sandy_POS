@@ -119,7 +119,10 @@ export const useProducts = (
   }, [products, selectedCategory, searchTerm, getCategoryName]);
 
   const productGroups = useMemo(() => {
-    const normalizeKeyPart = (value?: string | null) => String(value || "").trim().toLowerCase();
+    const normalizeKeyPart = (value?: string | null) =>
+      String(value || "")
+        .trim()
+        .toLowerCase();
     const categoryGroups: { [category: string]: Product[] } = {};
 
     filteredProducts.forEach((p) => {

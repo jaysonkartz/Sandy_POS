@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
 import { CldImage } from "next-cloudinary";
@@ -45,23 +45,7 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
   const [globalOrigin, setGlobalOrigin] = useState<string>("All");
   const [selectedGalleryImage, setSelectedGalleryImage] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event: string) => {
-      if (event === "SIGNED_OUT") {
-        router.push("/");
-      }
-    });
-
-    fetchProducts();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  async function fetchProducts() {
+  const fetchProducts = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -120,7 +104,23 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [params.categoryId, router]);
+
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event: string) => {
+      if (event === "SIGNED_OUT") {
+        router.push("/");
+      }
+    });
+
+    fetchProducts();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [fetchProducts, router]);
 
   const productGroups: ProductGroup[] = useMemo(() => {
     const groups: { [title: string]: Product[] } = {};

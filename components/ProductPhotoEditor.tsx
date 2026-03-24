@@ -71,7 +71,7 @@ export default function ProductPhotoEditor({
       }
 
       let list = (data as ProductImageRow[]) || [];
-  
+
       if (currentImageUrl && !list.some((img) => img.image_url === currentImageUrl)) {
         await supabase
           .from("product_images")

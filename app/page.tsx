@@ -126,7 +126,14 @@ function HomeContent({
     } catch (e) {
       console.error("❌ reorder parse failed", e);
     }
-  }, [replaceOrder]);
+  }, [
+    replaceOrder,
+    hasReordered,
+    setCustomerAddress,
+    setCustomerName,
+    setCustomerPhone,
+    setIsOrderPanelOpen,
+  ]);
 
   useEffect(() => {
     const reorderParam = searchParams.get("reorder");

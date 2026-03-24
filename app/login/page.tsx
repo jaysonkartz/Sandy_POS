@@ -91,7 +91,6 @@ export default function LoginPage() {
       transition={{ duration: 0.18 }}
       onClick={() => router.back()}
     >
-      
       <motion.div
         animate={{ y: 0, scale: 1, opacity: 1 }}
         className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-100"
@@ -99,7 +98,6 @@ export default function LoginPage() {
         transition={{ duration: 0.2 }}
         onClick={(e) => e.stopPropagation()}
       >
-        
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Welcome Back</h2>
@@ -116,7 +114,6 @@ export default function LoginPage() {
           </button>
         </div>
 
-        
         <div className="px-5 py-5">
           <form className="space-y-4" onSubmit={handleLogin}>
             <div>

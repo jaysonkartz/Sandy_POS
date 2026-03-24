@@ -129,7 +129,8 @@ export const OrderPanel = memo<OrderPanelProps>(
         if (cached) {
           return JSON.parse(cached);
         }
-      } catch (err) {
+      } catch {
+        /* ignore corrupt cache */
       }
       return null;
     }, []);
@@ -137,7 +138,8 @@ export const OrderPanel = memo<OrderPanelProps>(
     const saveCustomerToCache = useCallback((email: string, data: any) => {
       try {
         localStorage.setItem(`customer_data_${email}`, JSON.stringify(data));
-      } catch (err) {
+      } catch {
+        /* ignore localStorage errors */
       }
     }, []);
 
@@ -324,7 +326,6 @@ export const OrderPanel = memo<OrderPanelProps>(
         setSelectedAddressId("");
       }
     }, [isOpen, session, loadAddresses]);
-
 
     const handleAddressSelect = async (addressId: string) => {
       setSelectedAddressId(addressId);
@@ -547,7 +548,6 @@ export const OrderPanel = memo<OrderPanelProps>(
                 </button>
               </div>
 
-              
               <div className="mb-4 space-y-3">
                 <div className="flex justify-between items-center">
                   <h3 className="font-semibold">
@@ -586,7 +586,6 @@ export const OrderPanel = memo<OrderPanelProps>(
                       {isEnglish ? "Delivery Address" : "配送地址"}
                     </label>
 
-                    
                     {addresses.length > 0 && (
                       <div className="mb-2">
                         <div className="space-y-2">
@@ -650,7 +649,6 @@ export const OrderPanel = memo<OrderPanelProps>(
                       </div>
                     )}
 
-                    
                     <textarea
                       required
                       className="w-full p-2 border rounded-md resize-none"
@@ -660,7 +658,6 @@ export const OrderPanel = memo<OrderPanelProps>(
                       onChange={(e) => handleCustomAddressChange(e.target.value)}
                     />
 
-                    
                     <button
                       className="mt-2 text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
                       type="button"
@@ -773,7 +770,6 @@ export const OrderPanel = memo<OrderPanelProps>(
                 )}
               </button>
 
-              
               {showAddAddress && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-60 flex items-center justify-center p-4">
                   <div className="bg-white rounded-lg p-6 w-full max-w-md">
@@ -861,7 +857,6 @@ export const OrderPanel = memo<OrderPanelProps>(
                 </div>
               )}
 
-              
               <OrderReview
                 countryMap={countryMap}
                 customerAddress={customerAddress}

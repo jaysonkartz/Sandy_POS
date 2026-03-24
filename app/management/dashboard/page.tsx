@@ -243,27 +243,24 @@ export default function ManagementDashboard() {
   const hasLoadedPricingRef = useRef(false);
   const [loadedVariantProductIds, setLoadedVariantProductIds] = useState<Set<number>>(new Set());
   const [loadingVariantProductIds, setLoadingVariantProductIds] = useState<Set<number>>(new Set());
-  const productVariantOptions = useMemo(
-    () => {
-      const uniqueProducts = new Map<string, Product & { categoryName: string }>();
-      categories.forEach((category) => {
-        category.products.forEach((product) => {
-          const productNameKey = (product.Product || "").trim().toLowerCase();
-          const categoryKey = (category.name || "").trim().toLowerCase();
-          const dedupeKey = `${productNameKey}::${categoryKey}`;
+  const productVariantOptions = useMemo(() => {
+    const uniqueProducts = new Map<string, Product & { categoryName: string }>();
+    categories.forEach((category) => {
+      category.products.forEach((product) => {
+        const productNameKey = (product.Product || "").trim().toLowerCase();
+        const categoryKey = (category.name || "").trim().toLowerCase();
+        const dedupeKey = `${productNameKey}::${categoryKey}`;
 
-          if (!uniqueProducts.has(dedupeKey)) {
-            uniqueProducts.set(dedupeKey, {
-              ...product,
-              categoryName: category.name,
-            });
-          }
-        });
+        if (!uniqueProducts.has(dedupeKey)) {
+          uniqueProducts.set(dedupeKey, {
+            ...product,
+            categoryName: category.name,
+          });
+        }
       });
-      return Array.from(uniqueProducts.values());
-    },
-    [categories]
-  );
+    });
+    return Array.from(uniqueProducts.values());
+  }, [categories]);
 
   useEffect(() => {
     if (selectedProductForVariants !== null || productVariantOptions.length === 0) return;
@@ -411,6 +408,7 @@ export default function ManagementDashboard() {
           return ownPropertyParts.join(" | ");
         }
       } catch {
+        /* ignore ownKeys enumeration errors */
       }
 
       try {
@@ -419,6 +417,7 @@ export default function ManagementDashboard() {
           return raw;
         }
       } catch {
+        /* ignore non-serializable error */
       }
 
       const objectTag = Object.prototype.toString.call(error);
@@ -463,7 +462,10 @@ export default function ManagementDashboard() {
       last_price_update: string;
     };
 
-    const rowsFromOffers = (list: typeof uniqueOffers, timeOffsetStart: number): PriceHistoryRow[] =>
+    const rowsFromOffers = (
+      list: typeof uniqueOffers,
+      timeOffsetStart: number
+    ): PriceHistoryRow[] =>
       list.map((offer, index) => ({
         customer_id: String(offer.customer_id).trim(),
         product_id: Number(offer.product_id),
@@ -571,7 +573,9 @@ export default function ManagementDashboard() {
       if (batch.insertedIds.size >= expectedIds.size) {
         return;
       }
-      const missing = uniqueOffers.filter((o) => !batch.insertedIds!.has(String(o.customer_id).trim()));
+      const missing = uniqueOffers.filter(
+        (o) => !batch.insertedIds!.has(String(o.customer_id).trim())
+      );
       const perRowErrors: string[] = [];
       const inserted = new Set(batch.insertedIds);
       for (let i = 0; i < missing.length; i++) {
@@ -609,10 +613,7 @@ export default function ManagementDashboard() {
 
     throw {
       message: "product_price_history insert failed after retries",
-      details:
-        perRowErrors.length > 0
-          ? perRowErrors.join(" || ")
-          : batch.lastErrors.join(" | "),
+      details: perRowErrors.length > 0 ? perRowErrors.join(" || ") : batch.lastErrors.join(" | "),
     };
   };
 
@@ -776,6 +777,7 @@ export default function ManagementDashboard() {
           setCountryMap(countryMapping);
         }
       } catch (countriesError) {
+        console.warn("Failed to load countries mapping", countriesError);
       }
 
       const { data: products, error } = await supabase
@@ -1156,6 +1158,7 @@ export default function ManagementDashboard() {
         .select("*", { count: "exact", head: true });
 
       if (productsError) {
+        console.warn("Dashboard products count failed", productsError);
       }
 
       const { data: completedOrders, error: salesError } = await supabase
@@ -1164,6 +1167,7 @@ export default function ManagementDashboard() {
         .eq("status", "completed");
 
       if (salesError) {
+        console.warn("Dashboard sales query failed", salesError);
       }
 
       const totalSales =
@@ -1180,6 +1184,7 @@ export default function ManagementDashboard() {
         .select("customer_phone, customer_name");
 
       if (customersError) {
+        console.warn("Dashboard customers query failed", customersError);
       }
 
       const uniqueCustomers = new Set(
@@ -1195,6 +1200,7 @@ export default function ManagementDashboard() {
         .eq("status", "pending");
 
       if (pendingError) {
+        console.warn("Dashboard pending orders count failed", pendingError);
       }
 
       setDashboardStats({
@@ -1497,7 +1503,6 @@ export default function ManagementDashboard() {
         className="space-y-6"
         initial={{ opacity: 0, y: 20 }}
       >
-        
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[
             {
@@ -1541,7 +1546,6 @@ export default function ManagementDashboard() {
           ))}
         </div>
 
-        
         <div className="grid grid-cols-1 gap-6">
           <div className="bg-white p-4 rounded-lg shadow-sm">
             <h3 className="text-lg font-semibold mb-4">Sales Overview - Total Sales by Month</h3>
@@ -1606,9 +1610,7 @@ export default function ManagementDashboard() {
           </div>
         </div>
 
-        
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          
           <div className="bg-white p-4 rounded-lg shadow-sm">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Top Selling Products (by Qty)</h3>
@@ -1681,7 +1683,6 @@ export default function ManagementDashboard() {
             </div>
           </div>
 
-          
           <div className="bg-white p-4 rounded-lg shadow-sm">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Top Selling Products (by Price)</h3>
@@ -1749,7 +1750,6 @@ export default function ManagementDashboard() {
           </div>
         </div>
 
-        
         <div className="bg-white p-4 rounded-lg shadow-sm">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold">Recent Activity</h3>
@@ -1912,11 +1912,7 @@ export default function ManagementDashboard() {
                         >
                           Edit
                         </button>
-                        <button
-                          className="text-red-600 hover:text-red-900"
-                          onClick={() => {
-                          }}
-                        >
+                        <button className="text-red-600 hover:text-red-900" onClick={() => {}}>
                           Delete
                         </button>
                       </td>
@@ -1928,7 +1924,6 @@ export default function ManagementDashboard() {
           </div>
         )}
 
-        
         {!isLoading && users.length > 0 && (
           <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
             <div className="flex-1 flex justify-between sm:hidden">
@@ -2056,7 +2051,6 @@ export default function ManagementDashboard() {
           </div>
         )}
 
-        
         <EditUserModal
           isOpen={isEditModalOpen}
           user={selectedUser}
@@ -2087,7 +2081,6 @@ export default function ManagementDashboard() {
               <h2 className="text-2xl font-bold text-gray-900">Product List</h2>
             </div>
 
-            
             <div className="bg-white rounded-lg shadow p-6 mb-6">
               <div className="flex justify-between items-center mb-4">
                 <h4 className="font-medium text-gray-700 text-lg">Product Variants:</h4>
@@ -2102,7 +2095,6 @@ export default function ManagementDashboard() {
                 </label>
               </div>
 
-              
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Select Product to Manage Variants:
@@ -2138,8 +2130,8 @@ export default function ManagementDashboard() {
                 >
                   {(item) => (
                     <AutocompleteItem
-                      className="h-auto py-2"
                       key={String(item.id)}
+                      className="h-auto py-2"
                       textValue={`${item.Product} ${item.Variation || ""} ${item.countryName || ""} ${
                         item.weight || ""
                       } ${item.categoryName || ""}`}
@@ -2345,12 +2337,7 @@ export default function ManagementDashboard() {
                                           </div>
                                         </td>
                                         <td className="px-4 py-2 flex items-center space-x-2">
-                                          {(() => {
-                                            const isEditing = editingProductId === product.id;
-                                            if (isEditing) {
-                                            }
-                                            return isEditing;
-                                          })() ? (
+                                          {editingProductId === product.id ? (
                                             <>
                                               <input
                                                 className="border rounded px-2 py-1 w-20"
@@ -2603,7 +2590,6 @@ export default function ManagementDashboard() {
                                         <tr>
                                           <td className="px-4 py-2 bg-gray-50" colSpan={3}>
                                             <div className="pl-8">
-                                              
                                               <div className="flex justify-between items-center mb-4">
                                                 <div className="flex items-center space-x-2">
                                                   <svg
@@ -2631,40 +2617,40 @@ export default function ManagementDashboard() {
                                                         .replace(/\s+/g, " ")
                                                         .toLowerCase();
                                                     const uniqueCustomerCount = new Set(
-                                                      (product.order_items ?? []).flatMap((oiRaw) => {
-                                                        const oi = oiRaw as {
-                                                          orders?: {
-                                                            customer_name: string;
-                                                            customer_phone: string;
-                                                            customer_id?: string;
-                                                          }[];
-                                                        };
-                                                        const orders = Array.isArray(oi.orders)
-                                                          ? oi.orders
-                                                          : oi.orders
-                                                            ? [oi.orders]
-                                                            : [];
-                                                        return orders.map((order) => {
-                                                          const phoneKey = normalizePhone(
-                                                            order.customer_phone
-                                                          );
-                                                          const nameKey = normalizeName(
-                                                            order.customer_name
-                                                          );
-                                                          const idKey = String(
-                                                            order.customer_id || ""
-                                                          ).trim();
-                                                          return phoneKey || nameKey || idKey;
-                                                        });
-                                                      })
+                                                      (product.order_items ?? []).flatMap(
+                                                        (oiRaw) => {
+                                                          const oi = oiRaw as {
+                                                            orders?: {
+                                                              customer_name: string;
+                                                              customer_phone: string;
+                                                              customer_id?: string;
+                                                            }[];
+                                                          };
+                                                          const orders = Array.isArray(oi.orders)
+                                                            ? oi.orders
+                                                            : oi.orders
+                                                              ? [oi.orders]
+                                                              : [];
+                                                          return orders.map((order) => {
+                                                            const phoneKey = normalizePhone(
+                                                              order.customer_phone
+                                                            );
+                                                            const nameKey = normalizeName(
+                                                              order.customer_name
+                                                            );
+                                                            const idKey = String(
+                                                              order.customer_id || ""
+                                                            ).trim();
+                                                            return phoneKey || nameKey || idKey;
+                                                          });
+                                                        }
+                                                      )
                                                     ).size;
 
                                                     return uniqueCustomerCount > 0 ? (
                                                       <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-full">
                                                         {uniqueCustomerCount} customer
-                                                        {uniqueCustomerCount !== 1
-                                                          ? "s"
-                                                          : ""}
+                                                        {uniqueCustomerCount !== 1 ? "s" : ""}
                                                       </span>
                                                     ) : null;
                                                   })()}
@@ -2706,7 +2692,7 @@ export default function ManagementDashboard() {
                                                   </button>
                                                 )}
                                               </div>
-                                              
+
                                               <div className="mb-4 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 shadow-sm">
                                                 <div className="flex justify-between items-center mb-3">
                                                   <div className="flex items-center space-x-2">
@@ -2734,8 +2720,8 @@ export default function ManagementDashboard() {
                                                         onClick={() => {
                                                           setSelectedCustomersForOffer((prev) => ({
                                                             ...prev,
-                                                            [product.id]: allCustomers.map((customer) =>
-                                                              String(customer.id)
+                                                            [product.id]: allCustomers.map(
+                                                              (customer) => String(customer.id)
                                                             ),
                                                           }));
                                                         }}
@@ -2767,7 +2753,6 @@ export default function ManagementDashboard() {
                                                 </div>
 
                                                 <div className="space-y-3">
-                                                  
                                                   <div className="flex items-center gap-2">
                                                     <div className="flex-1 relative customer-dropdown-container">
                                                       <button
@@ -2800,8 +2785,9 @@ export default function ManagementDashboard() {
                                                           <span className="pl-6 truncate text-gray-700">
                                                             {isLoadingCustomers
                                                               ? "⏳ Loading customers..."
-                                                              : (selectedCustomersForOffer[product.id]
-                                                                    ?.length || 0) > 0
+                                                              : (selectedCustomersForOffer[
+                                                                    product.id
+                                                                  ]?.length || 0) > 0
                                                                 ? `${selectedCustomersForOffer[product.id].length} customer${selectedCustomersForOffer[product.id].length !== 1 ? "s" : ""} selected`
                                                                 : allCustomers.length === 0
                                                                   ? "⚠️ No customers found - Click refresh"
@@ -2823,7 +2809,6 @@ export default function ManagementDashboard() {
                                                         </svg>
                                                       </button>
 
-                                                      
                                                       {isCustomerDropdownOpen[product.id] &&
                                                         !isLoadingCustomers && (
                                                           <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
@@ -2892,176 +2877,209 @@ export default function ManagementDashboard() {
                                                                         allCustomers.length;
                                                                     return (
                                                                       <>
-                                                                <button
-                                                                  className="w-full px-4 py-2.5 text-left hover:bg-purple-50 transition-colors border-b border-gray-200 bg-purple-50"
-                                                                  type="button"
-                                                                  onClick={() => {
-                                                                    setSelectedCustomersForOffer(
-                                                                      (prev) => ({
-                                                                        ...prev,
-                                                                        [product.id]: allSelected
-                                                                          ? []
-                                                                          : allCustomers.map(
-                                                                              (customer) =>
-                                                                                String(customer.id)
-                                                                            ),
-                                                                      })
-                                                                    );
-                                                                  }}
-                                                                >
-                                                                  <div className="flex items-center space-x-3">
-                                                                    <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-purple-500">
-                                                                      <svg
-                                                                        className="w-4 h-4 text-white"
-                                                                        fill="none"
-                                                                        stroke="currentColor"
-                                                                        viewBox="0 0 24 24"
-                                                                      >
-                                                                        <path
-                                                                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                                                                          strokeLinecap="round"
-                                                                          strokeLinejoin="round"
-                                                                          strokeWidth={2}
-                                                                        />
-                                                                      </svg>
-                                                                    </div>
-                                                                    <div className="flex-1 min-w-0">
-                                                                      <div className="font-semibold text-purple-700">
-                                                                        {allSelected
-                                                                          ? "Clear Selection"
-                                                                          : "Select All Customers"}
-                                                                      </div>
-                                                                      <div className="text-xs text-purple-600 mt-0.5">
-                                                                        {allSelected
-                                                                          ? "No customers selected"
-                                                                          : "Send to all"}{" "}
-                                                                        {allCustomers.length}{" "}
-                                                                        customer
-                                                                        {allCustomers.length !== 1
-                                                                          ? "s"
-                                                                          : ""}
-                                                                      </div>
-                                                                    </div>
-                                                                  </div>
-                                                                </button>
-                                                                {filteredCustomers.length === 0 && (
-                                                                  <div className="px-4 py-3 text-sm text-gray-500 text-center">
-                                                                    No matching customers
-                                                                  </div>
-                                                                )}
-                                                                {filteredCustomers.map(
-                                                                  (customer) => {
-                                                                  const isSelected =
-                                                                    selectedIds.has(
-                                                                      String(customer.id)
-                                                                    );
-                                                                  return (
-                                                                    <button
-                                                                      key={String(customer.id)}
-                                                                      className={`w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors ${
-                                                                        isSelected
-                                                                          ? "bg-blue-100 border-l-4 border-blue-500"
-                                                                          : ""
-                                                                      }`}
-                                                                      type="button"
-                                                                      onClick={() => {
-                                                                        setSelectedCustomersForOffer(
-                                                                          (prev) => {
-                                                                            const existing = new Set(
-                                                                              prev[product.id] || []
+                                                                        <button
+                                                                          className="w-full px-4 py-2.5 text-left hover:bg-purple-50 transition-colors border-b border-gray-200 bg-purple-50"
+                                                                          type="button"
+                                                                          onClick={() => {
+                                                                            setSelectedCustomersForOffer(
+                                                                              (prev) => ({
+                                                                                ...prev,
+                                                                                [product.id]:
+                                                                                  allSelected
+                                                                                    ? []
+                                                                                    : allCustomers.map(
+                                                                                        (
+                                                                                          customer
+                                                                                        ) =>
+                                                                                          String(
+                                                                                            customer.id
+                                                                                          )
+                                                                                      ),
+                                                                              })
                                                                             );
-                                                                            const id = String(
-                                                                              customer.id
-                                                                            );
-                                                                            if (
-                                                                              existing.has(id)
-                                                                            ) {
-                                                                              existing.delete(id);
-                                                                            } else {
-                                                                              existing.add(id);
-                                                                            }
-                                                                            return {
-                                                                              ...prev,
-                                                                              [product.id]:
-                                                                                Array.from(existing),
-                                                                            };
-                                                                          }
-                                                                        );
-                                                                      }}
-                                                                    >
-                                                                      <div className="flex items-center space-x-3">
-                                                                        <div
-                                                                          className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                                                                            isSelected
-                                                                              ? "bg-blue-500"
-                                                                              : "bg-gray-200"
-                                                                          }`}
+                                                                          }}
                                                                         >
-                                                                          <span
-                                                                            className={`text-xs font-semibold ${
-                                                                              isSelected
-                                                                                ? "text-white"
-                                                                                : "text-gray-600"
-                                                                            }`}
-                                                                          >
-                                                                            {(customer.name || "U")
-                                                                              .charAt(0)
-                                                                              .toUpperCase()}
-                                                                          </span>
-                                                                        </div>
-                                                                        <div className="flex-1 min-w-0">
-                                                                          <div
-                                                                            className={`font-medium truncate ${
-                                                                              isSelected
-                                                                                ? "text-blue-700"
-                                                                                : "text-gray-900"
-                                                                            }`}
-                                                                          >
-                                                                            {customer.name ||
-                                                                              "Unnamed Customer"}
+                                                                          <div className="flex items-center space-x-3">
+                                                                            <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-purple-500">
+                                                                              <svg
+                                                                                className="w-4 h-4 text-white"
+                                                                                fill="none"
+                                                                                stroke="currentColor"
+                                                                                viewBox="0 0 24 24"
+                                                                              >
+                                                                                <path
+                                                                                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                                                  strokeLinecap="round"
+                                                                                  strokeLinejoin="round"
+                                                                                  strokeWidth={2}
+                                                                                />
+                                                                              </svg>
+                                                                            </div>
+                                                                            <div className="flex-1 min-w-0">
+                                                                              <div className="font-semibold text-purple-700">
+                                                                                {allSelected
+                                                                                  ? "Clear Selection"
+                                                                                  : "Select All Customers"}
+                                                                              </div>
+                                                                              <div className="text-xs text-purple-600 mt-0.5">
+                                                                                {allSelected
+                                                                                  ? "No customers selected"
+                                                                                  : "Send to all"}{" "}
+                                                                                {
+                                                                                  allCustomers.length
+                                                                                }{" "}
+                                                                                customer
+                                                                                {allCustomers.length !==
+                                                                                1
+                                                                                  ? "s"
+                                                                                  : ""}
+                                                                              </div>
+                                                                            </div>
                                                                           </div>
-                                                                          <div className="text-xs text-gray-500 truncate mt-0.5">
-                                                                            {customer.phone && (
-                                                                              <span>
-                                                                                {customer.phone}
-                                                                              </span>
-                                                                            )}
-                                                                            {customer.phone &&
-                                                                              customer.email && (
-                                                                                <span className="mx-1">
-                                                                                  •
-                                                                                </span>
-                                                                              )}
-                                                                            {customer.email && (
-                                                                              <span>
-                                                                                {customer.email}
-                                                                              </span>
-                                                                            )}
+                                                                        </button>
+                                                                        {filteredCustomers.length ===
+                                                                          0 && (
+                                                                          <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                                                                            No matching customers
                                                                           </div>
-                                                                        </div>
-                                                                        {isSelected && (
-                                                                          <svg
-                                                                            className="w-5 h-5 text-blue-500 flex-shrink-0"
-                                                                            fill="none"
-                                                                            stroke="currentColor"
-                                                                            viewBox="0 0 24 24"
-                                                                          >
-                                                                            <path
-                                                                              d="M5 13l4 4L19 7"
-                                                                              strokeLinecap="round"
-                                                                              strokeLinejoin="round"
-                                                                              strokeWidth={2}
-                                                                            />
-                                                                          </svg>
                                                                         )}
-                                                                      </div>
-                                                                    </button>
-                                                                  );
-                                                                }
-                                                                )}
-                                                              </>
-                                                            );
-                                                          })()}
+                                                                        {filteredCustomers.map(
+                                                                          (customer) => {
+                                                                            const isSelected =
+                                                                              selectedIds.has(
+                                                                                String(customer.id)
+                                                                              );
+                                                                            return (
+                                                                              <button
+                                                                                key={String(
+                                                                                  customer.id
+                                                                                )}
+                                                                                className={`w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors ${
+                                                                                  isSelected
+                                                                                    ? "bg-blue-100 border-l-4 border-blue-500"
+                                                                                    : ""
+                                                                                }`}
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                  setSelectedCustomersForOffer(
+                                                                                    (prev) => {
+                                                                                      const existing =
+                                                                                        new Set(
+                                                                                          prev[
+                                                                                            product
+                                                                                              .id
+                                                                                          ] || []
+                                                                                        );
+                                                                                      const id =
+                                                                                        String(
+                                                                                          customer.id
+                                                                                        );
+                                                                                      if (
+                                                                                        existing.has(
+                                                                                          id
+                                                                                        )
+                                                                                      ) {
+                                                                                        existing.delete(
+                                                                                          id
+                                                                                        );
+                                                                                      } else {
+                                                                                        existing.add(
+                                                                                          id
+                                                                                        );
+                                                                                      }
+                                                                                      return {
+                                                                                        ...prev,
+                                                                                        [product.id]:
+                                                                                          Array.from(
+                                                                                            existing
+                                                                                          ),
+                                                                                      };
+                                                                                    }
+                                                                                  );
+                                                                                }}
+                                                                              >
+                                                                                <div className="flex items-center space-x-3">
+                                                                                  <div
+                                                                                    className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                                                                                      isSelected
+                                                                                        ? "bg-blue-500"
+                                                                                        : "bg-gray-200"
+                                                                                    }`}
+                                                                                  >
+                                                                                    <span
+                                                                                      className={`text-xs font-semibold ${
+                                                                                        isSelected
+                                                                                          ? "text-white"
+                                                                                          : "text-gray-600"
+                                                                                      }`}
+                                                                                    >
+                                                                                      {(
+                                                                                        customer.name ||
+                                                                                        "U"
+                                                                                      )
+                                                                                        .charAt(0)
+                                                                                        .toUpperCase()}
+                                                                                    </span>
+                                                                                  </div>
+                                                                                  <div className="flex-1 min-w-0">
+                                                                                    <div
+                                                                                      className={`font-medium truncate ${
+                                                                                        isSelected
+                                                                                          ? "text-blue-700"
+                                                                                          : "text-gray-900"
+                                                                                      }`}
+                                                                                    >
+                                                                                      {customer.name ||
+                                                                                        "Unnamed Customer"}
+                                                                                    </div>
+                                                                                    <div className="text-xs text-gray-500 truncate mt-0.5">
+                                                                                      {customer.phone && (
+                                                                                        <span>
+                                                                                          {
+                                                                                            customer.phone
+                                                                                          }
+                                                                                        </span>
+                                                                                      )}
+                                                                                      {customer.phone &&
+                                                                                        customer.email && (
+                                                                                          <span className="mx-1">
+                                                                                            •
+                                                                                          </span>
+                                                                                        )}
+                                                                                      {customer.email && (
+                                                                                        <span>
+                                                                                          {
+                                                                                            customer.email
+                                                                                          }
+                                                                                        </span>
+                                                                                      )}
+                                                                                    </div>
+                                                                                  </div>
+                                                                                  {isSelected && (
+                                                                                    <svg
+                                                                                      className="w-5 h-5 text-blue-500 flex-shrink-0"
+                                                                                      fill="none"
+                                                                                      stroke="currentColor"
+                                                                                      viewBox="0 0 24 24"
+                                                                                    >
+                                                                                      <path
+                                                                                        d="M5 13l4 4L19 7"
+                                                                                        strokeLinecap="round"
+                                                                                        strokeLinejoin="round"
+                                                                                        strokeWidth={
+                                                                                          2
+                                                                                        }
+                                                                                      />
+                                                                                    </svg>
+                                                                                  )}
+                                                                                </div>
+                                                                              </button>
+                                                                            );
+                                                                          }
+                                                                        )}
+                                                                      </>
+                                                                    );
+                                                                  })()}
                                                                 </div>
                                                               </div>
                                                             )}
@@ -3103,7 +3121,8 @@ export default function ManagementDashboard() {
                                                         );
                                                         const primary =
                                                           c?.name?.trim() || "Unnamed customer";
-                                                        const secondary = c?.phone || c?.email || "";
+                                                        const secondary =
+                                                          c?.phone || c?.email || "";
                                                         const chipLabel = secondary
                                                           ? `${primary} · ${secondary}`
                                                           : primary;
@@ -3127,8 +3146,7 @@ export default function ManagementDashboard() {
                                                                     [product.id]: (
                                                                       prev[product.id] || []
                                                                     ).filter(
-                                                                      (id) =>
-                                                                        String(id) !== cid
+                                                                      (id) => String(id) !== cid
                                                                     ),
                                                                   })
                                                                 );
@@ -3154,7 +3172,6 @@ export default function ManagementDashboard() {
                                                     </div>
                                                   )}
 
-                                                  
                                                   <div className="flex items-center gap-2 p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
                                                     <div className="flex-1 flex items-center gap-2">
                                                       <div className="relative flex-1">
@@ -3218,7 +3235,9 @@ export default function ManagementDashboard() {
                                                               selectedCustomersForOffer[
                                                                 product.id
                                                               ] || []
-                                                            ).map((id) => String(id).trim()).filter(Boolean);
+                                                            )
+                                                              .map((id) => String(id).trim())
+                                                              .filter(Boolean);
                                                             if (selectedCustomerIds.length === 0) {
                                                               toast.error(
                                                                 "Please select at least one customer"
@@ -3286,50 +3305,54 @@ export default function ManagementDashboard() {
                                                             }
                                                           }}
                                                         >
-                                                            <svg
-                                                              className="w-4 h-4"
-                                                              fill="none"
-                                                              stroke="currentColor"
-                                                              viewBox="0 0 24 24"
-                                                            >
-                                                              <path
-                                                                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                                                                strokeLinecap="round"
-                                                                strokeLinejoin="round"
-                                                                strokeWidth={2}
-                                                              />
-                                                            </svg>
-                                                            Send Offer
+                                                          <svg
+                                                            className="w-4 h-4"
+                                                            fill="none"
+                                                            stroke="currentColor"
+                                                            viewBox="0 0 24 24"
+                                                          >
+                                                            <path
+                                                              d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                                                              strokeLinecap="round"
+                                                              strokeLinejoin="round"
+                                                              strokeWidth={2}
+                                                            />
+                                                          </svg>
+                                                          Send Offer
                                                         </button>
                                                         <button
                                                           className="px-3 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-800 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1 transition-all"
                                                           title="Clear selection"
                                                           onClick={() => {
                                                             const key = `custom-selected-${product.id}`;
-                                                            setCustomPriceForSelectedCustomer((prev) => {
-                                                              const newState = { ...prev };
-                                                              delete newState[key];
-                                                              return newState;
-                                                            });
-                                                            setSelectedCustomersForOffer((prev) => ({
-                                                              ...prev,
-                                                              [product.id]: [],
-                                                            }));
+                                                            setCustomPriceForSelectedCustomer(
+                                                              (prev) => {
+                                                                const newState = { ...prev };
+                                                                delete newState[key];
+                                                                return newState;
+                                                              }
+                                                            );
+                                                            setSelectedCustomersForOffer(
+                                                              (prev) => ({
+                                                                ...prev,
+                                                                [product.id]: [],
+                                                              })
+                                                            );
                                                           }}
                                                         >
-                                                            <svg
-                                                              className="w-4 h-4"
-                                                              fill="none"
-                                                              stroke="currentColor"
-                                                              viewBox="0 0 24 24"
-                                                            >
-                                                              <path
-                                                                d="M6 18L18 6M6 6l12 12"
-                                                                strokeLinecap="round"
-                                                                strokeLinejoin="round"
-                                                                strokeWidth={2}
-                                                              />
-                                                            </svg>
+                                                          <svg
+                                                            className="w-4 h-4"
+                                                            fill="none"
+                                                            stroke="currentColor"
+                                                            viewBox="0 0 24 24"
+                                                          >
+                                                            <path
+                                                              d="M6 18L18 6M6 6l12 12"
+                                                              strokeLinecap="round"
+                                                              strokeLinejoin="round"
+                                                              strokeWidth={2}
+                                                            />
+                                                          </svg>
                                                         </button>
                                                       </>
                                                     </div>
@@ -3382,22 +3405,24 @@ export default function ManagementDashboard() {
                                                       if (latestGlobalPriceUpdateTime === null) {
                                                         return true;
                                                       }
-                                                      return entryTime > latestGlobalPriceUpdateTime;
+                                                      return (
+                                                        entryTime > latestGlobalPriceUpdateTime
+                                                      );
                                                     });
 
                                                   const latestEligibleCustomerSpecificPrice =
-                                                    eligibleCustomerPriceEntries.reduce<
-                                                      | {
-                                                          original_price: number;
-                                                          last_price_update?: string;
-                                                          created_at?: string;
-                                                        }
-                                                      | null
-                                                    >((latest, entry) => {
+                                                    eligibleCustomerPriceEntries.reduce<{
+                                                      original_price: number;
+                                                      last_price_update?: string;
+                                                      created_at?: string;
+                                                    } | null>((latest, entry) => {
                                                       if (!latest) return entry;
-                                                      const latestTime = getHistoryTimestamp(latest);
+                                                      const latestTime =
+                                                        getHistoryTimestamp(latest);
                                                       const entryTime = getHistoryTimestamp(entry);
-                                                      return entryTime > latestTime ? entry : latest;
+                                                      return entryTime > latestTime
+                                                        ? entry
+                                                        : latest;
                                                     }, null);
 
                                                   return latestEligibleCustomerSpecificPrice
@@ -3449,9 +3474,8 @@ export default function ManagementDashboard() {
                                                       phoneKey || nameKey || idKey;
                                                     if (!customerKey) return;
 
-                                                    const existing = previousCustomersMap.get(
-                                                      customerKey
-                                                    );
+                                                    const existing =
+                                                      previousCustomersMap.get(customerKey);
                                                     if (
                                                       !existing ||
                                                       (oi.order_id ?? 0) > (existing.order_id ?? 0)
@@ -3471,30 +3495,32 @@ export default function ManagementDashboard() {
                                                         order.customer_name
                                                       );
 
-                                                      (allCustomers || []).forEach((customerRow) => {
-                                                        const rowId = String(
-                                                          customerRow.id || ""
-                                                        ).trim();
-                                                        if (!rowId) return;
+                                                      (allCustomers || []).forEach(
+                                                        (customerRow) => {
+                                                          const rowId = String(
+                                                            customerRow.id || ""
+                                                          ).trim();
+                                                          if (!rowId) return;
 
-                                                        const rowPhone = normalizePhone(
-                                                          customerRow.phone || undefined
-                                                        );
-                                                        const rowName = normalizeName(
-                                                          customerRow.name || ""
-                                                        );
+                                                          const rowPhone = normalizePhone(
+                                                            customerRow.phone || undefined
+                                                          );
+                                                          const rowName = normalizeName(
+                                                            customerRow.name || ""
+                                                          );
 
-                                                        if (
-                                                          (orderPhone &&
-                                                            rowPhone &&
-                                                            orderPhone === rowPhone) ||
-                                                          (orderName &&
-                                                            rowName &&
-                                                            orderName === rowName)
-                                                        ) {
-                                                          matchingCustomerIds.add(rowId);
+                                                          if (
+                                                            (orderPhone &&
+                                                              rowPhone &&
+                                                              orderPhone === rowPhone) ||
+                                                            (orderName &&
+                                                              rowName &&
+                                                              orderName === rowName)
+                                                          ) {
+                                                            matchingCustomerIds.add(rowId);
+                                                          }
                                                         }
-                                                      });
+                                                      );
 
                                                       const currentPriceForCustomer =
                                                         getCurrentPriceForMatchingIds(
@@ -3529,7 +3555,9 @@ export default function ManagementDashboard() {
                                                     row.customer_name
                                                   );
                                                   (allCustomers || []).forEach((customerRow) => {
-                                                    const rowId = String(customerRow.id || "").trim();
+                                                    const rowId = String(
+                                                      customerRow.id || ""
+                                                    ).trim();
                                                     if (!rowId) return;
                                                     const rowPhone = normalizePhone(
                                                       customerRow.phone || undefined
@@ -3574,10 +3602,12 @@ export default function ManagementDashboard() {
 
                                                   const phoneKey = normalizePhone(customer_phone);
                                                   const nameKey = normalizeName(customer_name);
-                                                  let mapKey = phoneKey || nameKey || `id:${custId}`;
+                                                  let mapKey =
+                                                    phoneKey || nameKey || `id:${custId}`;
 
                                                   if (previousCustomersMap.has(mapKey)) {
-                                                    const existing = previousCustomersMap.get(mapKey);
+                                                    const existing =
+                                                      previousCustomersMap.get(mapKey);
                                                     if (
                                                       existing &&
                                                       String(existing.customer_id || "").trim() ===
@@ -3629,9 +3659,8 @@ export default function ManagementDashboard() {
                                                   const byOrderPhone = orderPhone
                                                     ? (allCustomers || []).find(
                                                         (c) =>
-                                                          normalizePhone(
-                                                            c.phone || undefined
-                                                          ) === orderPhone
+                                                          normalizePhone(c.phone || undefined) ===
+                                                          orderPhone
                                                       )
                                                     : undefined;
 
@@ -3660,9 +3689,8 @@ export default function ManagementDashboard() {
                                                     const phoneMatchesOrder = orderPhone
                                                       ? nameMatches.find(
                                                           (c) =>
-                                                            normalizePhone(
-                                                              c.phone || undefined
-                                                            ) === orderPhone
+                                                            normalizePhone(c.phone || undefined) ===
+                                                            orderPhone
                                                         )
                                                       : undefined;
 
@@ -3672,8 +3700,7 @@ export default function ManagementDashboard() {
                                                       profile =
                                                         (id
                                                           ? withUser.find(
-                                                              (c) =>
-                                                                String(c.id).trim() === id
+                                                              (c) => String(c.id).trim() === id
                                                             )
                                                           : undefined) ||
                                                         phoneMatchesOrder ||
@@ -3717,8 +3744,7 @@ export default function ManagementDashboard() {
                                                     ...row,
                                                     customer_id: String(profile.id).trim(),
                                                     customer_name: dirName || row.customer_name,
-                                                    customer_phone:
-                                                      dirPhone || row.customer_phone,
+                                                    customer_phone: dirPhone || row.customer_phone,
                                                     current_price_for_customer,
                                                   };
                                                 };
@@ -3832,9 +3858,7 @@ export default function ManagementDashboard() {
                                                             placeholder="Enter offer price"
                                                             step="0.01"
                                                             type="number"
-                                                            value={
-                                                              offerPrices[offerKey] || ""
-                                                            }
+                                                            value={offerPrices[offerKey] || ""}
                                                             onBlur={(e) => {
                                                               // Validate and clean up on blur
                                                               const key = offerKey;
@@ -3880,9 +3904,7 @@ export default function ManagementDashboard() {
                                                             }}
                                                           />
                                                         </div>
-                                                        {offerPrices[
-                                                          offerKey
-                                                        ] && (
+                                                        {offerPrices[offerKey] && (
                                                           <button
                                                             className="px-3 py-2 text-sm font-medium text-red-600 bg-white border border-red-300 rounded-lg hover:bg-red-50 hover:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 transition-all"
                                                             title="Clear offer price"
@@ -3913,11 +3935,7 @@ export default function ManagementDashboard() {
                                                         )}
                                                         <button
                                                           className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-green-500 to-green-600 rounded-lg hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all shadow-md hover:shadow-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                          disabled={
-                                                            !offerPrices[
-                                                              offerKey
-                                                            ]
-                                                          }
+                                                          disabled={!offerPrices[offerKey]}
                                                           onClick={async () => {
                                                             const key = offerKey;
                                                             const currentOfferPrice =
@@ -3941,28 +3959,28 @@ export default function ManagementDashboard() {
                                                                 customer.customer_name
                                                               );
 
-                                                              const match = (allCustomers || []).find(
-                                                                (row) => {
-                                                                  const rowId = String(
-                                                                    row.id || ""
-                                                                  ).trim();
-                                                                  if (!rowId) return false;
-                                                                  const rowPhone = normalizePhone(
-                                                                    row.phone || undefined
-                                                                  );
-                                                                  const rowName = normalizeName(
-                                                                    row.name || ""
-                                                                  );
-                                                                  return (
-                                                                    (customerPhone &&
-                                                                      rowPhone &&
-                                                                      customerPhone === rowPhone) ||
-                                                                    (customerName &&
-                                                                      rowName &&
-                                                                      customerName === rowName)
-                                                                  );
-                                                                }
-                                                              );
+                                                              const match = (
+                                                                allCustomers || []
+                                                              ).find((row) => {
+                                                                const rowId = String(
+                                                                  row.id || ""
+                                                                ).trim();
+                                                                if (!rowId) return false;
+                                                                const rowPhone = normalizePhone(
+                                                                  row.phone || undefined
+                                                                );
+                                                                const rowName = normalizeName(
+                                                                  row.name || ""
+                                                                );
+                                                                return (
+                                                                  (customerPhone &&
+                                                                    rowPhone &&
+                                                                    customerPhone === rowPhone) ||
+                                                                  (customerName &&
+                                                                    rowName &&
+                                                                    customerName === rowName)
+                                                                );
+                                                              });
 
                                                               return match
                                                                 ? String(match.id).trim()
@@ -3978,8 +3996,7 @@ export default function ManagementDashboard() {
                                                             try {
                                                               await insertPriceOffersWithFallback([
                                                                 {
-                                                                  customer_id:
-                                                                    resolvedCustomerId,
+                                                                  customer_id: resolvedCustomerId,
                                                                   product_id: product.id,
                                                                   offered_price: currentOfferPrice,
                                                                   previous_price:
@@ -4005,8 +4022,7 @@ export default function ManagementDashboard() {
                                                                 "Failed to insert historical customer custom price offer",
                                                                 {
                                                                   error: err,
-                                                                  customerId:
-                                                                    customer.customer_id,
+                                                                  customerId: customer.customer_id,
                                                                   productId: product.id,
                                                                   price: currentOfferPrice,
                                                                 }
@@ -4292,7 +4308,6 @@ export default function ManagementDashboard() {
               </div>
             )}
 
-            
             {!isLoading && orderDetails.length > 0 && (
               <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
                 <div className="flex-1 flex justify-between sm:hidden">
@@ -4527,12 +4542,12 @@ export default function ManagementDashboard() {
           ← Back to Homepage
         </button>
       </div>
-      
+
       <div className="bg-white shadow-sm w-full">
         <div className="max-w-7xl mx-auto px-2 sm:px-4">
           <div className="py-4">
             <h1 className="text-2xl font-bold mb-2">Management Portal</h1>
-            
+
             <button
               aria-label="Open navigation menu"
               className="md:hidden flex items-center px-3 py-2 border rounded text-gray-600 border-gray-400 hover:text-blue-600 hover:border-blue-600 mb-2"
@@ -4547,7 +4562,7 @@ export default function ManagementDashboard() {
                 />
               </svg>
             </button>
-            
+
             {isNavOpen && (
               <nav className="flex flex-col gap-2 md:hidden bg-white rounded shadow p-2 absolute z-50 w-11/12 left-1/2 -translate-x-1/2 mt-2">
                 {sections.map((section) => (
@@ -4572,7 +4587,7 @@ export default function ManagementDashboard() {
                 ))}
               </nav>
             )}
-            
+
             <nav className="hidden md:flex flex-row flex-wrap gap-2 overflow-x-auto">
               {sections.map((section) => (
                 <motion.button

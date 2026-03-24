@@ -144,7 +144,6 @@ export const OrderReview = ({
               </button>
             </div>
 
-            
             <div className="mb-4 p-3 bg-gray-50 rounded-lg">
               <h3 className="font-semibold mb-2">{isEnglish ? "Company Details" : "客户详情"}</h3>
               <p className="text-sm">
@@ -158,7 +157,6 @@ export const OrderReview = ({
               </p>
             </div>
 
-            
             <div className="mb-4">
               <h3 className="font-semibold mb-2">{isEnglish ? "Order Items" : "订单项目"}</h3>
               {selectedProducts.map(({ product, quantity }) => {
@@ -200,7 +198,6 @@ export const OrderReview = ({
                 );
               })}
 
-              
               <div className="mt-3 pt-3 border-t">
                 <div className="flex justify-between text-sm mb-1">
                   <span>{isEnglish ? "Subtotal:" : "小计:"}</span>
@@ -218,7 +215,6 @@ export const OrderReview = ({
               </div>
             </div>
 
-            
             <div className="mb-4">
               <div className="flex items-center gap-2 mb-2">
                 <MessageSquare className="w-4 h-4" />
@@ -235,7 +231,6 @@ export const OrderReview = ({
               />
             </div>
 
-            
             <div className="mb-4">
               <div className="flex items-center gap-2 mb-2">
                 <FileText className="w-4 h-4" />
@@ -250,7 +245,6 @@ export const OrderReview = ({
               />
             </div>
 
-            
             <div className="mb-4">
               <div className="flex items-center gap-2 mb-2">
                 <Upload className="w-4 h-4" />
@@ -282,7 +276,6 @@ export const OrderReview = ({
               )}
             </div>
 
-            
             <div className="flex gap-2 mt-6">
               <button
                 className="flex-1 py-2 px-4 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"

@@ -243,7 +243,6 @@ export default function ProductManagement() {
 
   return (
     <div className="space-y-6">
-      
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Product Management</h1>
@@ -261,7 +260,6 @@ export default function ProductManagement() {
         </button>
       </div>
 
-      
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -296,14 +294,12 @@ export default function ProductManagement() {
         </button>
       </div>
 
-      
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-md">
           <p className="text-red-600">{error}</p>
         </div>
       )}
 
-      
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         <AnimatePresence>
           {filteredProducts.map((product) => (
@@ -314,7 +310,6 @@ export default function ProductManagement() {
               exit={{ opacity: 0, y: -20 }}
               initial={{ opacity: 0, y: 20 }}
             >
-              
               {showImages && (
                 <div className="relative h-48 bg-gray-100">
                   <ProductImage
@@ -339,7 +334,6 @@ export default function ProductManagement() {
                 </div>
               )}
 
-              
               <div className="p-4">
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="font-semibold text-gray-900 truncate flex-1">{product.Product}</h3>
@@ -383,7 +377,6 @@ export default function ProductManagement() {
         </AnimatePresence>
       </div>
 
-      
       {filteredProducts.length === 0 && !loading && (
         <div className="text-center py-12">
           <ImageIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -396,7 +389,6 @@ export default function ProductManagement() {
         </div>
       )}
 
-      
       {editingProduct && (
         <EditProductModal
           product={editingProduct}
@@ -409,7 +401,6 @@ export default function ProductManagement() {
         />
       )}
 
-      
       {selectedProductForPhoto && (
         <ProductPhotoEditor
           currentImageUrl={selectedProductForPhoto.image_url}

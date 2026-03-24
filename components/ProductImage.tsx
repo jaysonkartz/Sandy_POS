@@ -58,14 +58,14 @@ export default function ProductImage({ src, alt, className = "" }: ProductImageP
       )}
 
       <CloudinaryImage
+        unoptimized
         alt={alt}
         className={`h-full w-full object-cover transition-opacity ${
           loading ? "opacity-0" : "opacity-100"
         }`}
+        height={1200}
         src={imgSrc}
         width={1200}
-        height={1200}
-        unoptimized
         onError={() => {
           if (!triedFallback && imgSrc !== placeholder) {
             setTriedFallback(true);

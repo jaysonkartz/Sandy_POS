@@ -1,4 +1,3 @@
-
 const exampleProducts = [
   {
     id: 79,
@@ -74,6 +73,5 @@ const sqlQuery = `
   WHERE Product = 'Byadgi Dried Chilli'
   ORDER BY Variation ASC
 `;
-
 
 export { exampleProducts, groupedVariants, sqlQuery };

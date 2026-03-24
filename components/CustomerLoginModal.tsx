@@ -222,7 +222,6 @@ export default function CustomerLoginModal({
       parts.push(result.ROAD_NAME);
     }
 
-
     const formatted = parts.filter((part) => part && part.toUpperCase() !== "NIL").join(", ");
     return (
       formatted ||
@@ -923,7 +922,6 @@ export default function CustomerLoginModal({
                 </div>
                 {isRegistering && formData.password && (
                   <div className="mt-2">
-                    
                     <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
                       <div
                         className={`h-2 rounded-full transition-all duration-300 ${
@@ -938,7 +936,7 @@ export default function CustomerLoginModal({
                         }}
                       />
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
                       <span
                         className={`text-xs font-medium ${
@@ -954,7 +952,7 @@ export default function CustomerLoginModal({
                           passwordStrength.strength.slice(1)}
                       </span>
                     </div>
-                    
+
                     {passwordStrength.feedback && (
                       <p className="text-xs text-gray-500 mt-1">{passwordStrength.feedback}</p>
                     )}

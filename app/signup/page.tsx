@@ -164,7 +164,6 @@ export default function SignupPage() {
       parts.push(result.ROAD_NAME);
     }
 
-
     const formatted = parts.filter((part) => part && part.toUpperCase() !== "NIL").join(", ");
     return (
       formatted ||
@@ -471,7 +470,6 @@ export default function SignupPage() {
   return (
     <div className="min-h-[100svh] bg-gray-100 flex items-start justify-center overflow-y-auto px-4 py-6 sm:px-6 sm:py-12 lg:px-8">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 relative">
-        
         <button
           className="absolute top-4 left-4 text-gray-500 hover:text-gray-700 transition-colors"
           onClick={() => router.push("/")}
@@ -744,7 +742,6 @@ export default function SignupPage() {
               />
               {formData.password && (
                 <div className="mt-2">
-                  
                   <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
                     <div
                       className={`h-2 rounded-full transition-all duration-300 ${
@@ -759,7 +756,7 @@ export default function SignupPage() {
                       }}
                     />
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <span
                       className={`text-xs font-medium ${
@@ -775,7 +772,7 @@ export default function SignupPage() {
                         passwordStrength.strength.slice(1)}
                     </span>
                   </div>
-                  
+
                   {passwordStrength.feedback && (
                     <p className="text-xs text-gray-500 mt-1">{passwordStrength.feedback}</p>
                   )}

@@ -466,10 +466,8 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
 
   const modalUI = (
     <div aria-modal="true" className="fixed inset-0 z-[9999]" role="dialog">
-      
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
-      
       <div
         className="
           absolute left-1/2 top-1/2
@@ -478,7 +476,6 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
           rounded-2xl bg-white shadow-2xl
         "
       >
-        
         <div className="flex items-center justify-between border-b px-5 py-4">
           <h1 className="text-lg font-bold">
             {isRegistering ? "Register Account" : "Customer Login"}
@@ -494,7 +491,6 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
           </button>
         </div>
 
-        
         <div className="max-h-[80vh] overflow-y-auto px-5 py-5">
           {error && (
             <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700">
@@ -667,7 +663,6 @@ export default function SignupModal({ isOpen, onClose, onLoginSuccess }: SignupM
               </>
             )}
 
-            
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="email">
                 Email Address

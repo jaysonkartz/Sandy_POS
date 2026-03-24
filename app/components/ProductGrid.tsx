@@ -41,7 +41,9 @@ interface ProductGridProps {
   isEnglish: boolean;
   isSessionValid: boolean;
   userRole: string;
-  selectedOptions: { [groupKey: string]: { variation?: string; countryId?: string; weight?: string } };
+  selectedOptions: {
+    [groupKey: string]: { variation?: string; countryId?: string; weight?: string };
+  };
   selectedProducts: { product: Product; quantity: number }[];
   countryMap: { [key: string]: { name: string; chineseName: string } };
   isLoggingIn: boolean;

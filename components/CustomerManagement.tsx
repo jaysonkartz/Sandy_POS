@@ -445,7 +445,6 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
 
   return (
     <div className="space-y-6">
-      
       <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">
@@ -468,7 +467,6 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
         )}
       </div>
 
-      
       <LazyMotion features={domAnimation}>
         {view !== "pending" && isModalOpen && (
           <m.div
@@ -589,7 +587,6 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
         )}
       </LazyMotion>
 
-      
       <LazyMotion features={domAnimation}>
         {editingCustomer && (
           <m.div
@@ -750,8 +747,8 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
               Records
             </label>
             <select
-              id="customer-records-per-page"
               className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              id="customer-records-per-page"
               value={itemsPerPage}
               onChange={(e) => {
                 setItemsPerPage(Number(e.target.value));
@@ -813,77 +810,76 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {paginatedCustomers.map((customer) => (
-                      <tr key={customer.id} className="hover:bg-gray-50">
-                        <td className="px-3 py-3 text-sm text-gray-700 break-words">
-                          <span
-                            className={`font-medium ${customer.customer_code ? "text-gray-900" : "text-gray-400"}`}
+                    <tr key={customer.id} className="hover:bg-gray-50">
+                      <td className="px-3 py-3 text-sm text-gray-700 break-words">
+                        <span
+                          className={`font-medium ${customer.customer_code ? "text-gray-900" : "text-gray-400"}`}
+                        >
+                          {customer.customer_code || "-"}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-sm font-medium text-gray-900 break-words">
+                        {customer.name}
+                      </td>
+                      <td className="px-3 py-3 text-sm text-gray-600 break-all">
+                        {customer.email}
+                      </td>
+                      <td className="px-3 py-3 text-sm text-gray-600 break-words">
+                        {customer.phone || "-"}
+                      </td>
+                      <td className="px-3 py-3 text-sm text-gray-600 break-words">
+                        {customer.address || "-"}
+                      </td>
+                      <td className="px-3 py-3">
+                        <span
+                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            customer.status
+                              ? "bg-green-100 text-green-800"
+                              : "bg-red-100 text-red-800"
+                          }`}
+                        >
+                          {customer.status ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3">
+                        <span
+                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            customer.whatsapp_notifications !== false
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {customer.whatsapp_notifications !== false ? "Enabled" : "Disabled"}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-left">
+                        <div className="flex flex-col lg:flex-row lg:items-center gap-2">
+                          <button
+                            className="text-blue-600 hover:text-blue-900 font-medium text-sm text-left break-words"
+                            onClick={() => handleEdit(customer)}
                           >
-                            {customer.customer_code || "-"}
-                          </span>
-                        </td>
-                        <td className="px-3 py-3 text-sm font-medium text-gray-900 break-words">
-                          {customer.name}
-                        </td>
-                        <td className="px-3 py-3 text-sm text-gray-600 break-all">
-                          {customer.email}
-                        </td>
-                        <td className="px-3 py-3 text-sm text-gray-600 break-words">
-                          {customer.phone || "-"}
-                        </td>
-                        <td className="px-3 py-3 text-sm text-gray-600 break-words">
-                          {customer.address || "-"}
-                        </td>
-                        <td className="px-3 py-3">
-                          <span
-                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            Edit
+                          </button>
+                          <button
+                            className={`font-medium text-sm text-left break-words ${
                               customer.status
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
+                                ? "text-red-600 hover:text-red-900"
+                                : "text-green-600 hover:text-green-900"
                             }`}
+                            onClick={() => handleStatusToggle(customer.id, customer.status)}
                           >
-                            {customer.status ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-                        <td className="px-3 py-3">
-                          <span
-                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              customer.whatsapp_notifications !== false
-                                ? "bg-green-100 text-green-800"
-                                : "bg-gray-100 text-gray-800"
-                            }`}
-                          >
-                            {customer.whatsapp_notifications !== false ? "Enabled" : "Disabled"}
-                          </span>
-                        </td>
-                        <td className="px-3 py-3 text-left">
-                          <div className="flex flex-col lg:flex-row lg:items-center gap-2">
-                            <button
-                              className="text-blue-600 hover:text-blue-900 font-medium text-sm text-left break-words"
-                              onClick={() => handleEdit(customer)}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              className={`font-medium text-sm text-left break-words ${
-                                customer.status
-                                  ? "text-red-600 hover:text-red-900"
-                                  : "text-green-600 hover:text-green-900"
-                              }`}
-                              onClick={() => handleStatusToggle(customer.id, customer.status)}
-                            >
-                              {customer.status ? "Deactivate" : "Activate"}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                            {customer.status ? "Deactivate" : "Activate"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             )}
           </div>
         )}
 
-        
         {!isLoading && customers.length > 0 && (
           <div className="bg-white px-4 py-3 flex flex-col gap-3 border-t border-gray-200 sm:px-6">
             <div className="flex items-center justify-end">
@@ -892,8 +888,8 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
                   Records per page
                 </label>
                 <select
-                  id="customer-records-per-page-footer"
                   className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  id="customer-records-per-page-footer"
                   value={itemsPerPage}
                   onChange={(e) => {
                     setItemsPerPage(Number(e.target.value));
@@ -919,9 +915,7 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
               <button
                 className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={currentPage >= totalPages}
-                onClick={() =>
-                  setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-                }
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
               >
                 Next
               </button>
@@ -929,8 +923,7 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
             <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm text-gray-700">
-                  Showing{" "}
-                  <span className="font-medium">{offset + 1}</span> to{" "}
+                  Showing <span className="font-medium">{offset + 1}</span> to{" "}
                   <span className="font-medium">
                     {Math.min(offset + itemsPerPage, customers.length)}
                   </span>{" "}
@@ -1002,9 +995,7 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
                   <button
                     className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={currentPage >= totalPages}
-                    onClick={() =>
-                      setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-                    }
+                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                   >
                     <span className="sr-only">Next</span>
                     <svg
