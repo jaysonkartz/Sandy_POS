@@ -4,7 +4,6 @@ import ProtectedRoute from "../protected-route";
 import { useAuth } from "@/app/hooks/useAuth";
 import { useRouter } from "next/navigation";
 
-// Mock supabase client first to prevent initialization errors
 vi.mock("@/app/lib/supabaseClient", () => ({
   supabase: {
     auth: {
@@ -16,7 +15,6 @@ vi.mock("@/app/lib/supabaseClient", () => ({
   },
 }));
 
-// Mock hooks
 vi.mock("@/app/hooks/useAuth");
 vi.mock("next/navigation", () => ({
   useRouter: vi.fn(),

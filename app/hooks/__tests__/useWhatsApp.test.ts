@@ -86,7 +86,6 @@ describe("useWhatsApp", () => {
     expect(callArgs[0]).toContain("text=");
     expect(callArgs[1]).toBe("_blank");
 
-    // Verify the message contains order details
     const url = new URL(callArgs[0]);
     const message = decodeURIComponent(url.searchParams.get("text") || "");
     expect(message).toContain("New Order Notification");

@@ -47,7 +47,6 @@ export default function BottomNav() {
                   ? pathname === "/"
                   : pathname.startsWith(href);
 
-            // ✅ Cart: open panel, no navigation
             if (label === "Cart") {
               return (
                 <button
@@ -69,7 +68,6 @@ export default function BottomNav() {
               );
             }
 
-            // ✅ Others: normal navigation
             return (
               <Link
                 key={label}

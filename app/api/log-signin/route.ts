@@ -10,13 +10,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Get client IP address
     const ipAddress = SignInLogger.getClientIP(request);
 
-    // Get device info from user agent
     const deviceInfo = SignInLogger.getDeviceInfo(userAgent);
 
-    // Log the sign-in attempt
     await SignInLogger.logSignIn({
       userId,
       email,

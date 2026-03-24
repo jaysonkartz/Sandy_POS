@@ -138,7 +138,7 @@ export default function ForgotPasswordPage() {
           </form>
         )}
 
-        {/* Back to Login Link */}
+        
         <motion.div
           animate={{ opacity: 1 }}
           className="text-center"

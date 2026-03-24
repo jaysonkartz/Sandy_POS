@@ -16,9 +16,6 @@ export interface SignInData {
 }
 
 export class SignInLogger {
-  /**
-   * Log a sign-in attempt to the database
-   */
   static async logSignIn(data: SignInData): Promise<void> {
     try {
       const record: SignInRecord = {
@@ -34,22 +31,16 @@ export class SignInLogger {
         sign_in_at: new Date().toISOString(),
       };
 
-      // Always create a new sign-in record for tracking purposes
       const { error } = await supabase.from("sign_in_records").insert([record]);
 
       if (error) {
         console.error("Failed to log sign-in record:", error);
-        // Don't throw error to avoid breaking the login flow
       }
     } catch (error) {
       console.error("Error logging sign-in:", error);
-      // Don't throw error to avoid breaking the login flow
     }
   }
 
-  /**
-   * Get client IP address (for server-side usage)
-   */
   static getClientIP(request: Request): string | undefined {
     const forwarded = request.headers.get("x-forwarded-for");
     const realIP = request.headers.get("x-real-ip");
@@ -62,28 +53,22 @@ export class SignInLogger {
     return undefined;
   }
 
-  /**
-   * Get device information from user agent
-   */
   static getDeviceInfo(userAgent?: string): Record<string, any> {
     if (!userAgent) return {};
 
     const deviceInfo: Record<string, any> = {};
 
-    // Detect browser
     if (userAgent.includes("Chrome")) deviceInfo.browser = "Chrome";
     else if (userAgent.includes("Firefox")) deviceInfo.browser = "Firefox";
     else if (userAgent.includes("Safari")) deviceInfo.browser = "Safari";
     else if (userAgent.includes("Edge")) deviceInfo.browser = "Edge";
 
-    // Detect OS
     if (userAgent.includes("Windows")) deviceInfo.os = "Windows";
     else if (userAgent.includes("Mac")) deviceInfo.os = "macOS";
     else if (userAgent.includes("Linux")) deviceInfo.os = "Linux";
     else if (userAgent.includes("Android")) deviceInfo.os = "Android";
     else if (userAgent.includes("iOS")) deviceInfo.os = "iOS";
 
-    // Detect device type
     if (userAgent.includes("Mobile")) deviceInfo.deviceType = "Mobile";
     else if (userAgent.includes("Tablet")) deviceInfo.deviceType = "Tablet";
     else deviceInfo.deviceType = "Desktop";
@@ -91,9 +76,6 @@ export class SignInLogger {
     return deviceInfo;
   }
 
-  /**
-   * Get user's sign-in history
-   */
   static async getUserSignInHistory(
     userId: string,
     limit: number = 10
@@ -114,9 +96,6 @@ export class SignInLogger {
     }
   }
 
-  /**
-   * Get recent sign-ins for admin dashboard
-   */
   static async getRecentSignIns(
     limit: number = 50
   ): Promise<Database["public"]["Tables"]["sign_in_records"]["Row"][]> {
@@ -135,9 +114,6 @@ export class SignInLogger {
     }
   }
 
-  /**
-   * Get sign-in statistics
-   */
   static async getSignInStats(
     startDate?: string,
     endDate?: string

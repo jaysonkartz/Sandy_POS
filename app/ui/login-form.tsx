@@ -29,14 +29,12 @@ export default function LoginForm() {
       });
 
       if (error) {
-        // Log failed sign-in attempt
         await logSignInFailure("", email, error.message);
         setError(error.message);
         return;
       }
 
       if (data?.user) {
-        // Log successful sign-in
         await logSignInSuccess(data.user.id, data.user.email || email, data.session?.access_token);
 
         router.push("/dashboard");

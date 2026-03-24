@@ -14,12 +14,9 @@ export const useSignInLogging = (): UseSignInLoggingReturn => {
   const logSignIn = useCallback(
     async (data: Omit<SignInData, "userId" | "email"> & { userId: string; email: string }) => {
       try {
-        // Get client-side information
         const userAgent = navigator.userAgent;
         const deviceInfo = SignInLogger.getDeviceInfo(userAgent);
 
-        // Note: IP address cannot be reliably obtained client-side
-        // For production, consider using a service like ipify.org or similar
         const signInData: SignInData = {
           ...data,
           userAgent,
@@ -46,7 +43,6 @@ export const useSignInLogging = (): UseSignInLoggingReturn => {
         });
         console.warn("Successfully logged sign-in");
       } catch (error) {
-        // Log but don't throw - we don't want logging failures to break the login flow
         console.error("Error in logSignInSuccess:", error);
       }
     },
@@ -57,7 +53,6 @@ export const useSignInLogging = (): UseSignInLoggingReturn => {
     async (userId: string, email: string, failureReason: string) => {
       try {
         if (!userId) {
-          // Avoid inserting invalid UUIDs when user is not identified
           return;
         }
         await logSignIn({
@@ -67,7 +62,6 @@ export const useSignInLogging = (): UseSignInLoggingReturn => {
           failureReason,
         });
       } catch (error) {
-        // Silently handle logging errors to not disrupt the login flow
         console.warn("Failed to log sign-in failure:", error);
       }
     },

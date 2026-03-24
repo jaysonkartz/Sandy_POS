@@ -7,9 +7,6 @@ export interface RefreshTokenError {
   code?: string;
 }
 
-/**
- * Check if an error is a refresh token error
- */
 export const isRefreshTokenError = (error: unknown): boolean => {
   if (!error) return false;
 
@@ -27,9 +24,6 @@ export const isRefreshTokenError = (error: unknown): boolean => {
   );
 };
 
-/**
- * Clear invalid session data from localStorage
- */
 export const clearInvalidSession = (): void => {
   try {
     const keys = Object.keys(localStorage);
@@ -38,14 +32,11 @@ export const clearInvalidSession = (): void => {
     );
     supabaseKeys.forEach((key) => localStorage.removeItem(key));
     localStorage.removeItem(STORAGE_KEYS.SESSION);
-  } catch (error) {
-    // Silently fail if localStorage is not available
+  } catch {
+    void 0;
   }
 };
 
-/**
- * Attempt to refresh the current session
- */
 export const refreshSession = async (): Promise<Session | null> => {
   try {
     const {
@@ -70,9 +61,6 @@ export const refreshSession = async (): Promise<Session | null> => {
   }
 };
 
-/**
- * Handle refresh token error by clearing session
- */
 export const handleRefreshTokenError = (
   setSession: (session: Session | null) => void,
   setUserRole: (role: string) => void
@@ -82,9 +70,6 @@ export const handleRefreshTokenError = (
   setUserRole("");
 };
 
-/**
- * Persist session to localStorage
- */
 export const persistSession = (session: Session | null): void => {
   try {
     if (session?.user) {
@@ -98,7 +83,7 @@ export const persistSession = (session: Session | null): void => {
     } else {
       localStorage.removeItem(STORAGE_KEYS.SESSION);
     }
-  } catch (error) {
-    // Failed to persist session - silently continue
+  } catch {
+    void 0;
   }
 };

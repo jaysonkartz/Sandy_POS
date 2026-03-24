@@ -125,7 +125,7 @@ export default function VariantManager({
         </button>
       </div>
 
-      {/* Variants List */}
+      
       <div className="space-y-3">
         <AnimatePresence>
           {variants.map((variant) => (
@@ -138,7 +138,7 @@ export default function VariantManager({
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  {/* Variant Image */}
+                  
                   <div className="relative">
                     {variant.image_url ? (
                       <CldImage
@@ -156,7 +156,7 @@ export default function VariantManager({
                     )}
                   </div>
 
-                  {/* Variant Details */}
+                  
                   <div>
                     <h4 className="font-medium">{variant.variation_name}</h4>
                     {variant.variation_name_ch && (
@@ -173,7 +173,7 @@ export default function VariantManager({
                   </div>
                 </div>
 
-                {/* Action Buttons */}
+                
                 <div className="flex gap-2">
                   <button
                     className="p-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
@@ -213,12 +213,12 @@ export default function VariantManager({
         )}
       </div>
 
-      {/* Add Variant Modal */}
+      
       {isAddingVariant && (
         <AddVariantModal onClose={() => setIsAddingVariant(false)} onSave={handleAddVariant} />
       )}
 
-      {/* Edit Variant Modal */}
+      
       {editingVariant && (
         <EditVariantModal
           variant={editingVariant}
@@ -229,7 +229,7 @@ export default function VariantManager({
         />
       )}
 
-      {/* Photo Editor Modal */}
+      
       <ProductPhotoEditor
         currentImageUrl={selectedVariantForPhoto?.image_url || ""}
         isOpen={isPhotoEditorOpen}
@@ -251,7 +251,6 @@ export default function VariantManager({
   );
 }
 
-// Add Variant Modal Component
 interface AddVariantModalProps {
   onClose: () => void;
   onSave: (variantData: Omit<ProductVariant, "id" | "product_id">) => void;
@@ -388,7 +387,6 @@ function AddVariantModal({ onClose, onSave }: AddVariantModalProps) {
   );
 }
 
-// Edit Variant Modal Component
 interface EditVariantModalProps {
   variant: ProductVariant;
   onClose: () => void;

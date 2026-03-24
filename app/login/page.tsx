@@ -16,7 +16,6 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Prevent background scroll if this is rendered as an overlay/modal
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -86,14 +85,13 @@ export default function LoginPage() {
     <motion.div
       animate={{ opacity: 1 }}
       aria-modal="true"
-      // Fullscreen overlay so it never "mixes" with the page behind
       className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center px-4 py-10"
       initial={{ opacity: 0 }}
       role="dialog"
       transition={{ duration: 0.18 }}
       onClick={() => router.back()}
     >
-      {/* Card */}
+      
       <motion.div
         animate={{ y: 0, scale: 1, opacity: 1 }}
         className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-100"
@@ -101,7 +99,7 @@ export default function LoginPage() {
         transition={{ duration: 0.2 }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
+        
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Welcome Back</h2>
@@ -118,7 +116,7 @@ export default function LoginPage() {
           </button>
         </div>
 
-        {/* Body */}
+        
         <div className="px-5 py-5">
           <form className="space-y-4" onSubmit={handleLogin}>
             <div>

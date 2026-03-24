@@ -24,7 +24,6 @@ export default function QuickSignInCheck({
       setLoading(true);
       setError(null);
 
-      // Fetch more records if filtering to ensure we have enough after filtering
       const fetchLimit = showFailedOnly ? limit * 3 : limit;
       const allRecords = await SignInLogger.getRecentSignIns(fetchLimit);
 

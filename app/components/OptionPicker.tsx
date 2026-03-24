@@ -8,7 +8,6 @@ type OptionPickerProps = {
   value: string;
   onChange: (next: string) => void;
 
-  // behavior tweaks
   emptyMode?: "hide" | "na"; // default "hide"
   disabledWhenSingle?: boolean; // default true (shows pill)
   className?: string;
@@ -28,7 +27,6 @@ export default function OptionPicker({
 }: OptionPickerProps) {
   const list = uniq(options);
 
-  // 0 options
   if (list.length === 0) {
     if (emptyMode === "na") {
       return (
@@ -40,13 +38,10 @@ export default function OptionPicker({
     return null;
   }
 
-  // 1 option => fixed display (no dropdown)
   if (list.length === 1 && disabledWhenSingle) {
     const single = list[0];
 
-    // keep internal value consistent
     if (value !== single) {
-      // avoid state updates during render; do it in microtask
       queueMicrotask(() => onChange(single));
     }
 
@@ -58,7 +53,6 @@ export default function OptionPicker({
     );
   }
 
-  // 2+ options => dropdown
   const safeValue = list.includes(value) ? value : list[0];
 
   return (

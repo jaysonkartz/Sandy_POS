@@ -3,7 +3,6 @@ import { render, screen, waitFor } from "@testing-library/react";
 import QuickSignInCheck from "../QuickSignInCheck";
 import { SignInLogger } from "@/app/lib/signin-logger";
 
-// Mock SignInLogger
 vi.mock("@/app/lib/signin-logger", () => ({
   SignInLogger: {
     getRecentSignIns: vi.fn(),

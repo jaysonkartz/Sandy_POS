@@ -28,7 +28,6 @@ export default function SignupPage() {
   const [unitNumber, setUnitNumber] = useState("");
   const [addressSource, setAddressSource] = useState<"manual" | "postal" | "geolocation">("manual");
 
-  // Password strength calculation
   const getPasswordStrength = (
     password: string
   ): { strength: "weak" | "medium" | "strong"; score: number; feedback: string } => {
@@ -39,13 +38,11 @@ export default function SignupPage() {
     let score = 0;
     const feedback: string[] = [];
 
-    // Length checks
     if (password.length >= 8) score += 1;
     else feedback.push("At least 8 characters");
 
     if (password.length >= 12) score += 1;
 
-    // Character variety checks
     if (/[a-z]/.test(password)) score += 1;
     else feedback.push("lowercase letter");
 
@@ -79,7 +76,6 @@ export default function SignupPage() {
     [formData.password]
   );
 
-  // Function to get current location and convert to address
   const getCurrentLocation = async () => {
     setIsGettingLocation(true);
     setLocationError("");
@@ -95,7 +91,6 @@ export default function SignupPage() {
         const { latitude, longitude } = position.coords;
 
         try {
-          // Use OpenStreetMap Nominatim API for reverse geocoding (free, no API key needed)
           const response = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`,
             {
@@ -156,26 +151,20 @@ export default function SignupPage() {
     );
   };
 
-  // Function to format address from OneMap.sg data
   const formatOneMapAddress = (result: any): string => {
     const parts: string[] = [];
 
-    // Building name or block number (skip if NIL)
     if (result.BUILDING && result.BUILDING.toUpperCase() !== "NIL") {
       parts.push(result.BUILDING);
     } else if (result.BLK_NO && result.BLK_NO.toUpperCase() !== "NIL") {
       parts.push(`Blk ${result.BLK_NO}`);
     }
 
-    // Street name (skip if NIL)
     if (result.ROAD_NAME && result.ROAD_NAME.toUpperCase() !== "NIL") {
       parts.push(result.ROAD_NAME);
     }
 
-    // Don't include unit/floor from API - user will enter separately
-    // Don't include Singapore/postal code here - we'll add it at the end
 
-    // Filter out NIL and empty values
     const formatted = parts.filter((part) => part && part.toUpperCase() !== "NIL").join(", ");
     return (
       formatted ||
@@ -187,7 +176,6 @@ export default function SignupPage() {
     );
   };
 
-  // Function to search address by postal code
   const searchAddressByPostalCode = async (code: string) => {
     if (!code || code.trim().length < 4) {
       return; // Don't search if postal code is too short
@@ -198,7 +186,6 @@ export default function SignupPage() {
     setResolvedPostalCode("");
 
     try {
-      // First, try OneMap.sg API (Singapore's official mapping service - more accurate)
       const oneMapResponse = await fetch(
         `https://www.onemap.gov.sg/api/common/elastic/search?searchVal=${encodeURIComponent(code)}&returnGeom=Y&getAddrDetails=Y&pageNum=1`
       );
@@ -207,27 +194,22 @@ export default function SignupPage() {
         const oneMapData = await oneMapResponse.json();
 
         if (oneMapData.results && oneMapData.results.length > 0) {
-          // Find the exact postal code match
           const exactMatch = oneMapData.results.find((r: any) => r.POSTAL === code);
           const result = exactMatch || oneMapData.results[0];
 
           let formattedAddress = formatOneMapAddress(result);
 
-          // Remove NIL from address if present
           formattedAddress = formattedAddress
             .replace(/NIL,?\s*/gi, "")
             .replace(/,\s*,/g, ",")
             .trim();
 
-          // Ensure Singapore and postal code are at the end
           if (formattedAddress) {
-            // Remove existing "Singapore" and postal code if present
             formattedAddress = formattedAddress
               .replace(/,\s*Singapore\s+\d{6}$/i, "")
               .replace(/Singapore\s+\d{6}$/i, "")
               .trim();
 
-            // Add Singapore and postal code at the end
             if (code && code.length === 6) {
               formattedAddress = `${formattedAddress}, Singapore ${code}`;
             }
@@ -245,7 +227,6 @@ export default function SignupPage() {
         }
       }
 
-      // Fallback to Nominatim if OneMap doesn't work
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&postalcode=${encodeURIComponent(code)}&countrycodes=SG&addressdetails=1&limit=1`,
         {
@@ -262,7 +243,6 @@ export default function SignupPage() {
       const data = await response.json();
 
       if (data && data.length > 0 && data[0].display_name) {
-        // Format Nominatim address better
         const addr = data[0].address || {};
         let formattedAddr = "";
 
@@ -287,15 +267,12 @@ export default function SignupPage() {
             .replace(/,\s*,/g, ",")
             .trim() || data[0].display_name.replace(/NIL,?\s*/gi, "");
 
-        // Ensure Singapore and postal code are at the end
         if (formattedAddr) {
-          // Remove existing "Singapore" and postal code if present
           formattedAddr = formattedAddr
             .replace(/,\s*Singapore\s+\d{6}$/i, "")
             .replace(/Singapore\s+\d{6}$/i, "")
             .trim();
 
-          // Add Singapore and postal code at the end
           if (code && code.length === 6) {
             formattedAddr = `${formattedAddr}, Singapore ${code}`;
           }
@@ -319,7 +296,6 @@ export default function SignupPage() {
     }
   };
 
-  // Handle postal code input with debounce
   const handlePostalCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, ""); // Only allow numbers
     setError("");
@@ -338,7 +314,6 @@ export default function SignupPage() {
       }
     }
 
-    // Auto-search when postal code is 6 digits (Singapore postal code format)
     if (value.length === 6) {
       searchAddressByPostalCode(value);
     }
@@ -349,7 +324,6 @@ export default function SignupPage() {
     setError("");
     setIsLoading(true);
 
-    // Validate all mandatory fields
     if (!formData.name || !formData.name.trim()) {
       setError("Full name is required");
       setIsLoading(false);
@@ -380,14 +354,12 @@ export default function SignupPage() {
       return;
     }
 
-    // Validate password length
     if (formData.password.length < 8) {
       setError("Password must be at least 8 characters long");
       setIsLoading(false);
       return;
     }
 
-    // Validate postal code if provided
     if (postalCode && postalCode.length > 0 && postalCode.length !== 6) {
       setError("Postal code must be exactly 6 digits");
       setIsLoading(false);
@@ -407,14 +379,12 @@ export default function SignupPage() {
     }
 
     try {
-      // 1. Check if customer already exists
       const { data: existingCustomer, error: customerCheckError } = await supabase
         .from("customers")
         .select("email")
         .eq("email", formData.email)
         .maybeSingle();
 
-      // If there's an error and it's not a "no rows" error, throw it
       if (customerCheckError && customerCheckError.code !== "PGRST116") {
         throw customerCheckError;
       }
@@ -423,14 +393,12 @@ export default function SignupPage() {
         throw new Error("An account with this email already exists");
       }
 
-      // 2. Sign up the user in auth
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
       });
 
       if (signUpError) {
-        // Handle specific Supabase auth errors
         if (signUpError.message.includes("already registered")) {
           throw new Error("An account with this email already exists");
         }
@@ -441,7 +409,6 @@ export default function SignupPage() {
         throw new Error("Failed to create user account");
       }
 
-      // 3. Create user record in users table
       const userData = {
         id: authData.user.id,
         email: formData.email,
@@ -453,17 +420,12 @@ export default function SignupPage() {
 
       if (userError) throw userError;
 
-      // 4. Create customer record
-      // Combine address with unit number if provided
       let finalAddress = formData.address;
       if (unitNumber && unitNumber.trim()) {
-        // Add unit number to address if not already included
         if (finalAddress && !finalAddress.includes(unitNumber.trim())) {
-          // Insert unit number before "Singapore" or at the end if no Singapore
           if (finalAddress.includes("Singapore")) {
             finalAddress = finalAddress.replace("Singapore", `#${unitNumber.trim()}, Singapore`);
           } else {
-            // If no Singapore/postal code, add unit number and then Singapore + postal code
             if (postalCode && postalCode.length === 6) {
               finalAddress = `${finalAddress}, #${unitNumber.trim()}, Singapore ${postalCode}`;
             } else {
@@ -472,7 +434,6 @@ export default function SignupPage() {
           }
         }
       } else {
-        // If no unit number but we have postal code, ensure Singapore and postal code are at the end
         if (postalCode && postalCode.length === 6 && !finalAddress.includes("Singapore")) {
           finalAddress = `${finalAddress}, Singapore ${postalCode}`;
         }
@@ -495,7 +456,6 @@ export default function SignupPage() {
 
       if (customerError) throw customerError;
 
-      // Success handling
       alert(
         "Account created successfully! Please check your email to verify your account. Your login will be enabled after admin approval."
       );
@@ -511,7 +471,7 @@ export default function SignupPage() {
   return (
     <div className="min-h-[100svh] bg-gray-100 flex items-start justify-center overflow-y-auto px-4 py-6 sm:px-6 sm:py-12 lg:px-8">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 relative">
-        {/* Back Button */}
+        
         <button
           className="absolute top-4 left-4 text-gray-500 hover:text-gray-700 transition-colors"
           onClick={() => router.push("/")}
@@ -721,10 +681,8 @@ export default function SignupPage() {
                   placeholder="Enter your address or click 'Use My Location' button above"
                   rows={3}
                   value={(() => {
-                    // Combine address with unit number for display
                     let displayAddress = formData.address;
                     if (unitNumber && unitNumber.trim() && displayAddress) {
-                      // Check if unit number is already in address
                       if (!displayAddress.includes(unitNumber.trim())) {
                         if (displayAddress.includes("Singapore")) {
                           displayAddress = displayAddress.replace(
@@ -739,7 +697,6 @@ export default function SignupPage() {
                     return displayAddress;
                   })()}
                   onChange={(e) => {
-                    // Extract base address (remove unit number if user edits)
                     let baseAddress = e.target.value;
                     if (unitNumber && unitNumber.trim()) {
                       baseAddress = baseAddress
@@ -787,7 +744,7 @@ export default function SignupPage() {
               />
               {formData.password && (
                 <div className="mt-2">
-                  {/* Strength Bar */}
+                  
                   <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
                     <div
                       className={`h-2 rounded-full transition-all duration-300 ${
@@ -802,7 +759,7 @@ export default function SignupPage() {
                       }}
                     />
                   </div>
-                  {/* Strength Text */}
+                  
                   <div className="flex items-center justify-between">
                     <span
                       className={`text-xs font-medium ${
@@ -818,7 +775,7 @@ export default function SignupPage() {
                         passwordStrength.strength.slice(1)}
                     </span>
                   </div>
-                  {/* Feedback */}
+                  
                   {passwordStrength.feedback && (
                     <p className="text-xs text-gray-500 mt-1">{passwordStrength.feedback}</p>
                   )}

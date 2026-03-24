@@ -25,7 +25,6 @@ export default function EditUserModal({ user, isOpen, onClose, onUpdate }: EditU
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  // Update role when user changes
   useEffect(() => {
     if (user?.role) {
       setRole(user.role);
@@ -39,7 +38,6 @@ export default function EditUserModal({ user, isOpen, onClose, onUpdate }: EditU
     setSuccess(false);
 
     try {
-      // Validate role value
       const validRoles: string[] = [USER_ROLES.ADMIN, USER_ROLES.CUSTOMER];
       if (!validRoles.includes(role)) {
         throw new Error("Invalid role value");
@@ -53,7 +51,6 @@ export default function EditUserModal({ user, isOpen, onClose, onUpdate }: EditU
       if (updateError) throw updateError;
 
       setSuccess(true);
-      // Wait a moment to show success message, then refresh and close
       setTimeout(() => {
         onUpdate();
         onClose();

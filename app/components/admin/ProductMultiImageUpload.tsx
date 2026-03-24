@@ -18,8 +18,6 @@ export default function ProductMultiImageUpload({
       }}
       uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!}
       onSuccess={(result: any, { widget }) => {
-        // Cloudinary fires once per file; easiest is to use "queuesEnd"
-        // But quick approach: capture URL on each success and let parent handle batching if needed.
         const info = result?.info;
         if (info?.secure_url) onUploaded([info.secure_url]);
       }}

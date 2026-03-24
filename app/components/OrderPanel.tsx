@@ -123,7 +123,6 @@ export const OrderPanel = memo<OrderPanelProps>(
     const [showReview, setShowReview] = useState(false);
     const [customerDataLoaded, setCustomerDataLoaded] = useState(false);
 
-    // Load customer data from cache
     const loadCustomerFromCache = useCallback((email: string) => {
       try {
         const cached = localStorage.getItem(`customer_data_${email}`);
@@ -131,21 +130,17 @@ export const OrderPanel = memo<OrderPanelProps>(
           return JSON.parse(cached);
         }
       } catch (err) {
-        // Silent fail
       }
       return null;
     }, []);
 
-    // Save customer data to cache
     const saveCustomerToCache = useCallback((email: string, data: any) => {
       try {
         localStorage.setItem(`customer_data_${email}`, JSON.stringify(data));
       } catch (err) {
-        // Silent fail
       }
     }, []);
 
-    // Load addresses from addresses table
     const loadAddresses = useCallback(
       async (session: any) => {
         if (!session?.user?.email && !session?.user?.id) {
@@ -155,7 +150,6 @@ export const OrderPanel = memo<OrderPanelProps>(
         try {
           let customerData = null;
 
-          // Try to get customer ID by user_id first (more reliable)
           if (session.user.id) {
             const { data: customerByUserId, error: userIdError } = await supabase
               .from("customers")
@@ -168,7 +162,6 @@ export const OrderPanel = memo<OrderPanelProps>(
             }
           }
 
-          // Fallback to email lookup if user_id didn't work
           if (!customerData && session.user.email) {
             const { data: allCustomers, error: allError } = await supabase
               .from("customers")
@@ -176,7 +169,6 @@ export const OrderPanel = memo<OrderPanelProps>(
               .eq("email", session.user.email);
 
             if (!allError && allCustomers && allCustomers.length > 0) {
-              // If multiple customers with same email, prefer one matching user_id
               customerData =
                 allCustomers.find((c: any) => c.user_id === session.user.id) || allCustomers[0];
             }
@@ -187,7 +179,6 @@ export const OrderPanel = memo<OrderPanelProps>(
             return;
           }
 
-          // Load ALL addresses for this customer (no limit)
           const { data: addressesData, error: addressesError } = await supabase
             .from("addresses")
             .select("*")
@@ -210,13 +201,11 @@ export const OrderPanel = memo<OrderPanelProps>(
 
             setAddresses(formattedAddresses);
 
-            // Auto-select default address if available
             const defaultAddress = formattedAddresses.find((addr) => addr.isDefault);
             if (defaultAddress) {
               setSelectedAddressId(defaultAddress.id);
               onCustomerAddressChange(defaultAddress.address);
             } else if (formattedAddresses.length > 0) {
-              // If no default, select the first one
               setSelectedAddressId(formattedAddresses[0].id);
               onCustomerAddressChange(formattedAddresses[0].address);
             }
@@ -239,10 +228,8 @@ export const OrderPanel = memo<OrderPanelProps>(
     const gstAmount = subtotal * gstRate;
     const totalAmount = subtotal + gstAmount;
 
-    // Auto-fill customer data when panel opens
     useEffect(() => {
       if (isOpen && session?.user?.email && !customerDataLoaded) {
-        // First, try to load from cache
         const cachedData = loadCustomerFromCache(session.user.email);
         if (cachedData) {
           if (!customerName && cachedData.name) {
@@ -261,10 +248,8 @@ export const OrderPanel = memo<OrderPanelProps>(
           return;
         }
 
-        // If no cache, try database
         const trySimpleQuery = async () => {
           try {
-            // Add timeout to prevent hanging
             const timeoutPromise = new Promise((_, reject) => {
               setTimeout(() => reject(new Error("Customer data query timeout")), 4000);
             });
@@ -284,10 +269,8 @@ export const OrderPanel = memo<OrderPanelProps>(
               );
 
               if (customer) {
-                // Save to cache
                 saveCustomerToCache(session.user.email, customer);
 
-                // Auto-fill the data
                 if (!customerName && customer.name) {
                   onCustomerNameChange(customer.name);
                 }
@@ -305,12 +288,10 @@ export const OrderPanel = memo<OrderPanelProps>(
               }
             }
 
-            // Fallback to session data
             if (!customerName) {
               onCustomerNameChange(session.user.email.split("@")[0] || "Customer");
             }
           } catch (err) {
-            // Fallback to session data
             if (!customerName) {
               onCustomerNameChange(session.user.email.split("@")[0] || "Customer");
             }
@@ -335,20 +316,16 @@ export const OrderPanel = memo<OrderPanelProps>(
       saveCustomerToCache,
     ]);
 
-    // Load addresses when panel opens - reset state on close
     useEffect(() => {
       if (isOpen && session?.user) {
         loadAddresses(session);
       } else if (!isOpen) {
-        // Reset addresses when panel closes to avoid stale data
         setAddresses([]);
         setSelectedAddressId("");
       }
     }, [isOpen, session, loadAddresses]);
 
-    // Note: Old complex useEffect removed - using simplified approach above
 
-    // Address management functions
     const handleAddressSelect = async (addressId: string) => {
       setSelectedAddressId(addressId);
       const selectedAddress = addresses.find((addr) => addr.id === addressId);
@@ -370,7 +347,6 @@ export const OrderPanel = memo<OrderPanelProps>(
       setIsSavingAddress(true);
 
       try {
-        // Get customer ID using the same approach that works
         const { data: allCustomers, error: allError } = await supabase
           .from("customers")
           .select("id, email, user_id")
@@ -383,7 +359,6 @@ export const OrderPanel = memo<OrderPanelProps>(
 
         const customerData = allCustomers[0];
 
-        // Save to addresses table
         const { data: newAddressData, error } = await supabase
           .from("addresses")
           .insert([
@@ -402,7 +377,6 @@ export const OrderPanel = memo<OrderPanelProps>(
           return;
         }
 
-        // Update local state
         const newAddr: Address = {
           id: newAddressData.id.toString(),
           name: newAddressData.name,
@@ -427,7 +401,6 @@ export const OrderPanel = memo<OrderPanelProps>(
       setSelectedAddressId("custom");
     };
 
-    // Address management functions
     const handleEditAddress = (address: Address) => {
       setEditingAddress(address);
       setNewAddress({ name: address.name, address: address.address });
@@ -446,10 +419,8 @@ export const OrderPanel = memo<OrderPanelProps>(
           return;
         }
 
-        // Update local state
         setAddresses((prev) => prev.filter((addr) => addr.id !== addressId));
 
-        // If deleted address was selected, clear selection
         if (selectedAddressId === addressId) {
           setSelectedAddressId("");
           onCustomerAddressChange("");
@@ -464,7 +435,6 @@ export const OrderPanel = memo<OrderPanelProps>(
       if (!session?.user?.id) return;
 
       try {
-        // Get customer ID using the same approach that works
         const { data: allCustomers, error: allError } = await supabase
           .from("customers")
           .select("id, email, user_id")
@@ -476,13 +446,11 @@ export const OrderPanel = memo<OrderPanelProps>(
 
         const customerData = allCustomers[0];
 
-        // Update all addresses for this customer to not be default
         await supabase
           .from("addresses")
           .update({ is_default: false })
           .eq("customer_id", customerData.id);
 
-        // Set the selected address as default
         const { error } = await supabase
           .from("addresses")
           .update({ is_default: true })
@@ -494,7 +462,6 @@ export const OrderPanel = memo<OrderPanelProps>(
           return;
         }
 
-        // Update local state
         setAddresses((prev) =>
           prev.map((addr) => ({
             ...addr,
@@ -529,7 +496,6 @@ export const OrderPanel = memo<OrderPanelProps>(
           return;
         }
 
-        // Update local state
         setAddresses((prev) =>
           prev.map((addr) =>
             addr.id === editingAddress.id
@@ -538,7 +504,6 @@ export const OrderPanel = memo<OrderPanelProps>(
           )
         );
 
-        // If this was the selected address, update the form
         if (selectedAddressId === editingAddress.id) {
           onCustomerAddressChange(newAddress.address.trim());
         }
@@ -582,7 +547,7 @@ export const OrderPanel = memo<OrderPanelProps>(
                 </button>
               </div>
 
-              {/* Customer Information */}
+              
               <div className="mb-4 space-y-3">
                 <div className="flex justify-between items-center">
                   <h3 className="font-semibold">
@@ -621,7 +586,7 @@ export const OrderPanel = memo<OrderPanelProps>(
                       {isEnglish ? "Delivery Address" : "配送地址"}
                     </label>
 
-                    {/* Address Management */}
+                    
                     {addresses.length > 0 && (
                       <div className="mb-2">
                         <div className="space-y-2">
@@ -685,7 +650,7 @@ export const OrderPanel = memo<OrderPanelProps>(
                       </div>
                     )}
 
-                    {/* Address Input */}
+                    
                     <textarea
                       required
                       className="w-full p-2 border rounded-md resize-none"
@@ -695,7 +660,7 @@ export const OrderPanel = memo<OrderPanelProps>(
                       onChange={(e) => handleCustomAddressChange(e.target.value)}
                     />
 
-                    {/* Add New Address Button */}
+                    
                     <button
                       className="mt-2 text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
                       type="button"
@@ -808,7 +773,7 @@ export const OrderPanel = memo<OrderPanelProps>(
                 )}
               </button>
 
-              {/* Add/Edit Address Modal */}
+              
               {showAddAddress && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-60 flex items-center justify-center p-4">
                   <div className="bg-white rounded-lg p-6 w-full max-w-md">
@@ -896,7 +861,7 @@ export const OrderPanel = memo<OrderPanelProps>(
                 </div>
               )}
 
-              {/* Order Review Component */}
+              
               <OrderReview
                 countryMap={countryMap}
                 customerAddress={customerAddress}
@@ -910,7 +875,6 @@ export const OrderPanel = memo<OrderPanelProps>(
                 onClose={() => setShowReview(false)}
                 onConfirmOrder={(data) => {
                   setShowReview(false);
-                  // Pass review data to the parent component
                   if (typeof onSubmitOrder === "function") {
                     onSubmitOrder(data);
                   }

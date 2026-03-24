@@ -39,7 +39,7 @@ export default function LoginButton() {
         {user ? (
           <div className="flex items-center space-x-2">
             <span>{user.email}</span>
-            {/* Optional: Add a dropdown arrow or user icon */}
+            
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 d="M19 9l-7 7-7-7"
@@ -59,7 +59,6 @@ export default function LoginButton() {
         onClose={() => setIsModalOpen(false)}
         onLoginSuccess={() => {
           setIsModalOpen(false);
-          // The auth state change listener will handle updating the user state
         }}
       />
     </>

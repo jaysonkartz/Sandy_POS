@@ -1,7 +1,4 @@
-// Example: How to extract variants from your current products table
-// This shows how the VariantExtractor component works with your existing data
 
-// Your current table structure (from Supabase):
 const exampleProducts = [
   {
     id: 79,
@@ -44,7 +41,6 @@ const exampleProducts = [
   },
 ];
 
-// How VariantExtractor groups these:
 const groupedVariants = {
   productName: "Byadgi Dried Chilli",
   variants: [
@@ -54,7 +50,6 @@ const groupedVariants = {
       Variation_CH: "2寸",
       price: 13.7,
       stock_quantity: 26,
-      // ... other fields
     },
     {
       id: 80,
@@ -62,7 +57,6 @@ const groupedVariants = {
       Variation_CH: "4寸",
       price: 15.2,
       stock_quantity: 40,
-      // ... other fields
     },
     {
       id: 81,
@@ -70,12 +64,10 @@ const groupedVariants = {
       Variation_CH: "60 70",
       price: 18.5,
       stock_quantity: 77,
-      // ... other fields
     },
   ],
 };
 
-// SQL Query used by VariantExtractor:
 const sqlQuery = `
   SELECT * 
   FROM products 
@@ -83,7 +75,5 @@ const sqlQuery = `
   ORDER BY Variation ASC
 `;
 
-// This returns all rows with the same Product name but different Variation values
-// Each row becomes a variant in the UI
 
 export { exampleProducts, groupedVariants, sqlQuery };
