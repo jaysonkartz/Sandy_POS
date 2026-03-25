@@ -12,6 +12,8 @@ export const USER_ACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes
 export const STORAGE_KEYS = {
   SESSION: "supabase_session",
   SUPABASE_PREFIX: "sb-",
+  /** Persisted cart / draft order on the home order flow (see useOrder) */
+  PENDING_ORDER: "pendingOrder_v1",
 } as const;
 
 export const WHATSAPP_PHONE_NUMBER = "6593254825";

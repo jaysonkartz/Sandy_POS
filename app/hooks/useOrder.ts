@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/app/lib/supabaseClient";
 import { OrderDetails, OrderReviewData, isAuthenticatedSession } from "@/app/types/common";
+import { STORAGE_KEYS } from "@/app/constants/app-constants";
 
 interface Product {
   id: number;
@@ -52,7 +53,7 @@ interface UseOrderReturn {
   ) => Promise<boolean>;
 }
 
-const STORAGE_KEY = "pendingOrder_v1";
+const STORAGE_KEY = STORAGE_KEYS.PENDING_ORDER;
 
 type StoredOrder = {
   selectedProducts: CartItem[];

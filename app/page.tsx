@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, Suspense } from "react";
+import { useState, useCallback, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import SignupModal from "@/components/SignupModal";
 import ProductPhotoEditor from "@/components/ProductPhotoEditor";
@@ -494,12 +494,26 @@ export default function Home() {
     submitOrder,
   } = useOrder();
 
+  /** After first auth resolution, clear cart only when user id changes (logout, login, or account switch). */
+  const resolvedUserIdRef = useRef<string | null | undefined>(undefined);
+
   useEffect(() => {
-    if (!session) {
+    if (sessionLoading) return;
+
+    const userId = session?.user?.id ?? null;
+
+    if (resolvedUserIdRef.current === undefined) {
+      resolvedUserIdRef.current = userId;
+      return;
+    }
+
+    const prev = resolvedUserIdRef.current;
+    if (prev !== userId) {
       clearOrder();
       setIsOrderPanelOpen(false);
+      resolvedUserIdRef.current = userId;
     }
-  }, [session, clearOrder, setIsOrderPanelOpen]);
+  }, [session, sessionLoading, clearOrder, setIsOrderPanelOpen]);
 
   return (
     <Suspense fallback={<LoadingSkeleton />}>
