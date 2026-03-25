@@ -12,12 +12,6 @@ export const EVENT_ADMIN_PAGE_CONTEXT: PageContext = {
   BASE_URL: "/dashboard/events",
 };
 
-export const EVENT_CUSTOMER_PAGE_CONTEXT: PageContext = {
-  ENTITY: "Event",
-  ENTITIES: "Events",
-  BASE_URL: "/events",
-};
-
 export const EVENT_ORDERS_PAGE_CONTEXT: PageContext = {
   ENTITY: "Event Order",
   ENTITIES: "Event Orders",

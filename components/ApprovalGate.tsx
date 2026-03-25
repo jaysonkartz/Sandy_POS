@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
+import { isAdminRoutePath } from "@/app/lib/admin-route-prefixes";
 
 const ALLOWLIST = new Set([
   "/login",
@@ -13,8 +14,6 @@ const ALLOWLIST = new Set([
   "/unauthorized",
   "/403",
 ]);
-
-const ADMIN_PREFIXES = ["/management"];
 
 export default function ApprovalGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -29,7 +28,7 @@ export default function ApprovalGate({ children }: { children: React.ReactNode }
       return false;
     };
 
-    const isAdminArea = (path: string) => ADMIN_PREFIXES.some((p) => path.startsWith(p));
+    const isAdminArea = (path: string) => isAdminRoutePath(path);
 
     const checkApproval = async () => {
       if (inFlight.current) return;
