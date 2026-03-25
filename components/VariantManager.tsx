@@ -125,7 +125,6 @@ export default function VariantManager({
         </button>
       </div>
 
-      
       <div className="space-y-3">
         <AnimatePresence>
           {variants.map((variant) => (
@@ -138,7 +137,6 @@ export default function VariantManager({
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  
                   <div className="relative">
                     {variant.image_url ? (
                       <CldImage
@@ -156,7 +154,6 @@ export default function VariantManager({
                     )}
                   </div>
 
-                  
                   <div>
                     <h4 className="font-medium">{variant.variation_name}</h4>
                     {variant.variation_name_ch && (
@@ -173,7 +170,6 @@ export default function VariantManager({
                   </div>
                 </div>
 
-                
                 <div className="flex gap-2">
                   <button
                     className="p-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
@@ -213,12 +209,10 @@ export default function VariantManager({
         )}
       </div>
 
-      
       {isAddingVariant && (
         <AddVariantModal onClose={() => setIsAddingVariant(false)} onSave={handleAddVariant} />
       )}
 
-      
       {editingVariant && (
         <EditVariantModal
           variant={editingVariant}
@@ -229,7 +223,6 @@ export default function VariantManager({
         />
       )}
 
-      
       <ProductPhotoEditor
         currentImageUrl={selectedVariantForPhoto?.image_url || ""}
         isOpen={isPhotoEditorOpen}

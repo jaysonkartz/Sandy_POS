@@ -232,7 +232,6 @@ export default function VariantExtractor({
         </button>
       </div>
 
-      
       <div className="space-y-3">
         <AnimatePresence>
           {variants.map((variant) => (
@@ -245,7 +244,6 @@ export default function VariantExtractor({
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  
                   <div className="relative">
                     {variant.image_url ? (
                       <CldImage
@@ -263,7 +261,6 @@ export default function VariantExtractor({
                     )}
                   </div>
 
-                  
                   <div>
                     <h4 className="font-medium">{variant.Variation}</h4>
                     {variant.Variation_CH && (
@@ -278,7 +275,6 @@ export default function VariantExtractor({
                   </div>
                 </div>
 
-                
                 <div className="flex gap-2">
                   <button
                     className="p-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
@@ -308,7 +304,6 @@ export default function VariantExtractor({
         )}
       </div>
 
-      
       {isAddingVariant && (
         <AddVariantModal
           productName={productName}
@@ -317,7 +312,6 @@ export default function VariantExtractor({
         />
       )}
 
-      
       {editingVariant && (
         <EditVariantModal
           variant={editingVariant}

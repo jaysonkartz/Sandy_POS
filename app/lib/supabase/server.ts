@@ -24,6 +24,7 @@ export async function createSupabaseServerClient() {
               cookieStore.set(name, value, options);
             });
           } catch {
+            /* cookie set can fail outside a Server Action / Route Handler */
           }
         },
       },

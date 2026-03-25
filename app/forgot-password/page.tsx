@@ -138,7 +138,6 @@ export default function ForgotPasswordPage() {
           </form>
         )}
 
-        
         <motion.div
           animate={{ opacity: 1 }}
           className="text-center"

@@ -32,6 +32,8 @@ interface OrderReviewProps {
   customerPhone: string;
   customerAddress: string;
   isSubmitting: boolean;
+  /** When true, renders only the form content inside the parent sheet (no second overlay). */
+  embedded?: boolean;
   onClose: () => void;
   onConfirmOrder: (reviewData: {
     remarks: string;
@@ -54,6 +56,7 @@ export const OrderReview = ({
   customerPhone,
   customerAddress,
   isSubmitting,
+  embedded = false,
   onClose,
   onConfirmOrder,
   onBackToEdit,
@@ -116,6 +119,181 @@ export const OrderReview = ({
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const body = (
+    <>
+      {!embedded && (
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">{isEnglish ? "Review Order" : "审核订单"}</h2>
+          <button className="text-gray-500 hover:text-gray-700" onClick={onClose}>
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      )}
+
+      <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+        <h3 className="font-semibold mb-2">{isEnglish ? "Company Details" : "客户详情"}</h3>
+        <p className="text-sm">
+          <strong>{isEnglish ? "Name" : "姓名"}:</strong> {customerName}
+        </p>
+        <p className="text-sm">
+          <strong>{isEnglish ? "Phone" : "电话"}:</strong> {customerPhone}
+        </p>
+        <p className="text-sm">
+          <strong>{isEnglish ? "Address" : "地址"}:</strong> {customerAddress}
+        </p>
+      </div>
+
+      <div className="mb-4">
+        <h3 className="font-semibold mb-2">{isEnglish ? "Order Items" : "订单项目"}</h3>
+        {selectedProducts.map(({ product, quantity }) => {
+          const variation = getVariationLabel(product);
+          const origin = getOriginLabel(product);
+          const weight = getWeightLabel(product);
+
+          return (
+            <div key={product.id} className="flex justify-between items-start py-2 border-b">
+              <div className="flex-1">
+                <p className="font-medium text-sm">
+                  {isEnglish ? product.Product : product.Product_CH}
+                </p>
+                {variation && (
+                  <p className="text-xs text-gray-500">
+                    {isEnglish ? "Variation:" : "规格:"} {variation}
+                  </p>
+                )}
+                {origin && (
+                  <p className="text-xs text-gray-500">
+                    {isEnglish ? "Origin:" : "产地:"} {origin}
+                  </p>
+                )}
+                {weight && (
+                  <p className="text-xs text-gray-500">
+                    {isEnglish ? "Weight:" : "重量:"} {weight}
+                  </p>
+                )}
+                <p className="text-xs text-gray-600">
+                  {quantity} x ${product.price.toFixed(2)}/{product.UOM}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-medium">${(product.price * quantity).toFixed(2)}</p>
+              </div>
+            </div>
+          );
+        })}
+
+        <div className="mt-3 pt-3 border-t">
+          <div className="flex justify-between text-sm mb-1">
+            <span>{isEnglish ? "Subtotal:" : "小计:"}</span>
+            <span>${subtotal.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-sm mb-1">
+            <span>{isEnglish ? "GST (9%):" : "消费税 (9%):"}</span>
+            <span>${gstAmount.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-lg font-semibold">
+            <span>{isEnglish ? "Total:" : "总计:"}</span>
+            <span>${totalAmount.toFixed(2)}</span>
+          </div>
+          <p className="text-xs text-gray-500 text-right mt-1">w gst</p>
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <div className="flex items-center gap-2 mb-2">
+          <MessageSquare className="w-4 h-4" />
+          <h3 className="font-semibold">{isEnglish ? "Remarks" : "备注"}</h3>
+        </div>
+        <textarea
+          className="w-full p-2 border rounded-md resize-none"
+          placeholder={isEnglish ? "Enter any special instructions..." : "输入任何特殊说明..."}
+          rows={3}
+          value={remarks}
+          onChange={(e) => setRemarks(e.target.value)}
+        />
+      </div>
+
+      <div className="mb-4">
+        <div className="flex items-center gap-2 mb-2">
+          <FileText className="w-4 h-4" />
+          <h3 className="font-semibold">{isEnglish ? "Purchase Order" : "采购订单"}</h3>
+        </div>
+        <input
+          className="w-full p-2 border rounded-md"
+          placeholder={isEnglish ? "Enter PO number..." : "输入采购订单号..."}
+          type="text"
+          value={purchaseOrder}
+          onChange={(e) => setPurchaseOrder(e.target.value)}
+        />
+      </div>
+
+      <div className="mb-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Upload className="w-4 h-4" />
+          <h3 className="font-semibold">{isEnglish ? "Upload" : "上传"}</h3>
+        </div>
+        <input
+          multiple
+          className="w-full p-2 border rounded-md mb-2"
+          type="file"
+          onChange={handleFileUpload}
+        />
+        {uploadedFiles.length > 0 && (
+          <div className="space-y-1">
+            {uploadedFiles.map((file, index) => (
+              <div
+                key={index}
+                className="flex items-center justify-between text-xs bg-gray-50 p-2 rounded border"
+              >
+                <span className="truncate">{file.name}</span>
+                <button
+                  className="text-red-500 hover:text-red-700"
+                  onClick={() => removeFile(index)}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="flex gap-2 mt-6">
+        <button
+          className="flex-1 py-2 px-4 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+          onClick={onBackToEdit}
+        >
+          {isEnglish ? "Back to Edit" : "返回编辑"}
+        </button>
+        <button
+          className="flex-1 py-2 px-4 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-300 flex items-center justify-center gap-2"
+          disabled={isSubmitting}
+          onClick={() =>
+            onConfirmOrder({
+              remarks,
+              purchaseOrder,
+              uploadedFiles,
+            })
+          }
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              {isEnglish ? "Confirming..." : "确认中..."}
+            </>
+          ) : (
+            <>{isEnglish ? "Confirm Order" : "确认订单"}</>
+          )}
+        </button>
+      </div>
+    </>
+  );
+
+  if (embedded) {
+    if (!isOpen) return null;
+    return <div className="w-full">{body}</div>;
+  }
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -137,180 +315,7 @@ export const OrderReview = ({
             initial={{ x: "100%" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">{isEnglish ? "Review Order" : "审核订单"}</h2>
-              <button className="text-gray-500 hover:text-gray-700" onClick={onClose}>
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            
-            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-              <h3 className="font-semibold mb-2">{isEnglish ? "Company Details" : "客户详情"}</h3>
-              <p className="text-sm">
-                <strong>{isEnglish ? "Name" : "姓名"}:</strong> {customerName}
-              </p>
-              <p className="text-sm">
-                <strong>{isEnglish ? "Phone" : "电话"}:</strong> {customerPhone}
-              </p>
-              <p className="text-sm">
-                <strong>{isEnglish ? "Address" : "地址"}:</strong> {customerAddress}
-              </p>
-            </div>
-
-            
-            <div className="mb-4">
-              <h3 className="font-semibold mb-2">{isEnglish ? "Order Items" : "订单项目"}</h3>
-              {selectedProducts.map(({ product, quantity }) => {
-                const variation = getVariationLabel(product);
-                const origin = getOriginLabel(product);
-                const weight = getWeightLabel(product);
-
-                return (
-                  <div key={product.id} className="flex justify-between items-start py-2 border-b">
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">
-                        {isEnglish ? product.Product : product.Product_CH}
-                      </p>
-                      {variation && (
-                        <p className="text-xs text-gray-500">
-                          {isEnglish ? "Variation:" : "规格:"} {variation}
-                        </p>
-                      )}
-                      {origin && (
-                        <p className="text-xs text-gray-500">
-                          {isEnglish ? "Origin:" : "产地:"} {origin}
-                        </p>
-                      )}
-                      {weight && (
-                        <p className="text-xs text-gray-500">
-                          {isEnglish ? "Weight:" : "重量:"} {weight}
-                        </p>
-                      )}
-                      <p className="text-xs text-gray-600">
-                        {quantity} x ${product.price.toFixed(2)}/{product.UOM}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium">
-                        ${(product.price * quantity).toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-
-              
-              <div className="mt-3 pt-3 border-t">
-                <div className="flex justify-between text-sm mb-1">
-                  <span>{isEnglish ? "Subtotal:" : "小计:"}</span>
-                  <span>${subtotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>{isEnglish ? "GST (9%):" : "消费税 (9%):"}</span>
-                  <span>${gstAmount.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-lg font-semibold">
-                  <span>{isEnglish ? "Total:" : "总计:"}</span>
-                  <span>${totalAmount.toFixed(2)}</span>
-                </div>
-                <p className="text-xs text-gray-500 text-right mt-1">w gst</p>
-              </div>
-            </div>
-
-            
-            <div className="mb-4">
-              <div className="flex items-center gap-2 mb-2">
-                <MessageSquare className="w-4 h-4" />
-                <h3 className="font-semibold">{isEnglish ? "Remarks" : "备注"}</h3>
-              </div>
-              <textarea
-                className="w-full p-2 border rounded-md resize-none"
-                placeholder={
-                  isEnglish ? "Enter any special instructions..." : "输入任何特殊说明..."
-                }
-                rows={3}
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-              />
-            </div>
-
-            
-            <div className="mb-4">
-              <div className="flex items-center gap-2 mb-2">
-                <FileText className="w-4 h-4" />
-                <h3 className="font-semibold">{isEnglish ? "Purchase Order" : "采购订单"}</h3>
-              </div>
-              <input
-                className="w-full p-2 border rounded-md"
-                placeholder={isEnglish ? "Enter PO number..." : "输入采购订单号..."}
-                type="text"
-                value={purchaseOrder}
-                onChange={(e) => setPurchaseOrder(e.target.value)}
-              />
-            </div>
-
-            
-            <div className="mb-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Upload className="w-4 h-4" />
-                <h3 className="font-semibold">{isEnglish ? "Upload" : "上传"}</h3>
-              </div>
-              <input
-                multiple
-                className="w-full p-2 border rounded-md mb-2"
-                type="file"
-                onChange={handleFileUpload}
-              />
-              {uploadedFiles.length > 0 && (
-                <div className="space-y-1">
-                  {uploadedFiles.map((file, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between text-xs bg-gray-50 p-2 rounded border"
-                    >
-                      <span className="truncate">{file.name}</span>
-                      <button
-                        className="text-red-500 hover:text-red-700"
-                        onClick={() => removeFile(index)}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            
-            <div className="flex gap-2 mt-6">
-              <button
-                className="flex-1 py-2 px-4 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                onClick={onBackToEdit}
-              >
-                {isEnglish ? "Back to Edit" : "返回编辑"}
-              </button>
-              <button
-                className="flex-1 py-2 px-4 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-300 flex items-center justify-center gap-2"
-                disabled={isSubmitting}
-                onClick={() =>
-                  onConfirmOrder({
-                    remarks,
-                    purchaseOrder,
-                    uploadedFiles,
-                  })
-                }
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    {isEnglish ? "Confirming..." : "确认中..."}
-                  </>
-                ) : (
-                  <>{isEnglish ? "Confirm Order" : "确认订单"}</>
-                )}
-              </button>
-            </div>
+            {body}
           </motion.div>
         </motion.div>
       )}

@@ -46,6 +46,9 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const [error, setError] = useState<string | null>(null);
+  const totalPages = Math.max(1, Math.ceil(customers.length / itemsPerPage));
+  const offset = (currentPage - 1) * itemsPerPage;
+  const paginatedCustomers = customers.slice(offset, offset + itemsPerPage);
 
   const fetchCustomers = useCallback(async () => {
     setIsLoading(true);
@@ -111,8 +114,8 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
   }, [fetchCustomers]);
 
   useEffect(() => {
-    const totalPages = Math.ceil(customers.length / itemsPerPage);
-    if (currentPage > totalPages && totalPages > 0) {
+    const nextTotalPages = Math.ceil(customers.length / itemsPerPage);
+    if (currentPage > nextTotalPages && nextTotalPages > 0) {
       setCurrentPage(1);
     }
   }, [customers.length, itemsPerPage, currentPage]);
@@ -442,7 +445,6 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
 
   return (
     <div className="space-y-6">
-      
       <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">
@@ -465,7 +467,6 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
         )}
       </div>
 
-      
       <LazyMotion features={domAnimation}>
         {view !== "pending" && isModalOpen && (
           <m.div
@@ -586,7 +587,6 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
         )}
       </LazyMotion>
 
-      
       <LazyMotion features={domAnimation}>
         {editingCustomer && (
           <m.div
@@ -733,13 +733,35 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
         )}
       </LazyMotion>
 
-      
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-        <div className="p-4 bg-gray-50">
-          <h2 className="text-lg font-semibold text-gray-900">Customers List</h2>
-          <p className="text-sm text-gray-500 mt-1">
-            {customers.length} customer{customers.length !== 1 ? "s" : ""} total
-          </p>
+      {/* Customers List */}
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden w-full">
+        <div className="p-4 bg-gray-50 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Customers List</h2>
+            <p className="text-sm text-gray-500 mt-1">
+              {customers.length} customer{customers.length !== 1 ? "s" : ""} total
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-600" htmlFor="customer-records-per-page">
+              Records
+            </label>
+            <select
+              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              id="customer-records-per-page"
+              value={itemsPerPage}
+              onChange={(e) => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+            >
+              {[10, 25, 50, 100].map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
         {error ? (
           <div className="p-4 text-red-500">Error loading customers: {error}</div>
@@ -748,7 +770,7 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
           </div>
         ) : (
-          <div className="overflow-x-auto overflow-y-visible">
+          <div className="w-full overflow-x-hidden overflow-y-visible">
             {customers.length === 0 ? (
               <div className="p-8 text-center text-gray-500">
                 <p className="text-lg mb-2">No customers found</p>
@@ -757,116 +779,131 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
                 </p>
               </div>
             ) : (
-              <table className="w-full divide-y divide-gray-200" style={{ minWidth: "100%" }}>
+              <table className="table-fixed w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="w-[10%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Customer Code
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="w-[16%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Name
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="w-[20%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Email
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="w-[12%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Phone
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="w-[20%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Address
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="w-[8%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="w-[8%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       WhatsApp
                     </th>
-                    <th
-                      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      style={{ minWidth: "200px", width: "200px" }}
-                    >
+                    <th className="w-[14%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {customers
-                    .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                    .map((customer) => (
-                      <tr key={customer.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`font-medium ${customer.customer_code ? "text-gray-900" : "text-gray-400"}`}
-                          >
-                            {customer.customer_code || "-"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
-                          {customer.name}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-gray-600">
-                          {customer.email}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-gray-600">
-                          {customer.phone || "-"}
-                        </td>
-                        <td className="px-6 py-4 text-gray-600">{customer.address || "-"}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              customer.status
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
-                            }`}
-                          >
-                            {customer.status ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              customer.whatsapp_notifications !== false
-                                ? "bg-green-100 text-green-800"
-                                : "bg-gray-100 text-gray-800"
-                            }`}
-                          >
-                            {customer.whatsapp_notifications !== false ? "Enabled" : "Disabled"}
-                          </span>
-                        </td>
-                        <td
-                          className="px-4 py-4 text-left"
-                          style={{ minWidth: "200px", width: "200px" }}
+                  {paginatedCustomers.map((customer) => (
+                    <tr key={customer.id} className="hover:bg-gray-50">
+                      <td className="px-3 py-3 text-sm text-gray-700 break-words">
+                        <span
+                          className={`font-medium ${customer.customer_code ? "text-gray-900" : "text-gray-400"}`}
                         >
-                          <div className="flex items-center gap-3">
-                            <button
-                              className="text-blue-600 hover:text-blue-900 font-medium text-sm whitespace-nowrap"
-                              onClick={() => handleEdit(customer)}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              className={`font-medium text-sm whitespace-nowrap ${
-                                customer.status
-                                  ? "text-red-600 hover:text-red-900"
-                                  : "text-green-600 hover:text-green-900"
-                              }`}
-                              onClick={() => handleStatusToggle(customer.id, customer.status)}
-                            >
-                              {customer.status ? "Deactivate" : "Activate"}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                          {customer.customer_code || "-"}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-sm font-medium text-gray-900 break-words">
+                        {customer.name}
+                      </td>
+                      <td className="px-3 py-3 text-sm text-gray-600 break-all">
+                        {customer.email}
+                      </td>
+                      <td className="px-3 py-3 text-sm text-gray-600 break-words">
+                        {customer.phone || "-"}
+                      </td>
+                      <td className="px-3 py-3 text-sm text-gray-600 break-words">
+                        {customer.address || "-"}
+                      </td>
+                      <td className="px-3 py-3">
+                        <span
+                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            customer.status
+                              ? "bg-green-100 text-green-800"
+                              : "bg-red-100 text-red-800"
+                          }`}
+                        >
+                          {customer.status ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3">
+                        <span
+                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            customer.whatsapp_notifications !== false
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {customer.whatsapp_notifications !== false ? "Enabled" : "Disabled"}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-left">
+                        <div className="flex flex-col lg:flex-row lg:items-center gap-2">
+                          <button
+                            className="text-blue-600 hover:text-blue-900 font-medium text-sm text-left break-words"
+                            onClick={() => handleEdit(customer)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className={`font-medium text-sm text-left break-words ${
+                              customer.status
+                                ? "text-red-600 hover:text-red-900"
+                                : "text-green-600 hover:text-green-900"
+                            }`}
+                            onClick={() => handleStatusToggle(customer.id, customer.status)}
+                          >
+                            {customer.status ? "Deactivate" : "Activate"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             )}
           </div>
         )}
 
-        
         {!isLoading && customers.length > 0 && (
-          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+          <div className="bg-white px-4 py-3 flex flex-col gap-3 border-t border-gray-200 sm:px-6">
+            <div className="flex items-center justify-end">
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600" htmlFor="customer-records-per-page-footer">
+                  Records per page
+                </label>
+                <select
+                  className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  id="customer-records-per-page-footer"
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  {[10, 25, 50, 100].map((size) => (
+                    <option key={size} value={size}>
+                      {size}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
             <div className="flex-1 flex justify-between sm:hidden">
               <button
                 className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -877,12 +914,8 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
               </button>
               <button
                 className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={currentPage >= Math.ceil(customers.length / itemsPerPage)}
-                onClick={() =>
-                  setCurrentPage((prev) =>
-                    Math.min(Math.ceil(customers.length / itemsPerPage), prev + 1)
-                  )
-                }
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
               >
                 Next
               </button>
@@ -890,10 +923,9 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
             <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm text-gray-700">
-                  Showing{" "}
-                  <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to{" "}
+                  Showing <span className="font-medium">{offset + 1}</span> to{" "}
                   <span className="font-medium">
-                    {Math.min(currentPage * itemsPerPage, customers.length)}
+                    {Math.min(offset + itemsPerPage, customers.length)}
                   </span>{" "}
                   of <span className="font-medium">{customers.length}</span> results
                 </p>
@@ -923,19 +955,14 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
                       />
                     </svg>
                   </button>
-                  {Array.from(
-                    { length: Math.ceil(customers.length / itemsPerPage) },
-                    (_, i) => i + 1
-                  )
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
                     .filter((page) => {
-                      const totalPages = Math.ceil(customers.length / itemsPerPage);
                       if (totalPages <= 7) return true;
                       if (page === 1 || page === totalPages) return true;
                       if (page >= currentPage - 1 && page <= currentPage + 1) return true;
                       return false;
                     })
                     .map((page, index, array) => {
-                      const totalPages = Math.ceil(customers.length / itemsPerPage);
                       const showEllipsisBefore = index > 0 && array[index - 1] !== page - 1;
                       const showEllipsisAfter =
                         index < array.length - 1 && array[index + 1] !== page + 1;
@@ -967,12 +994,8 @@ export default function CustomerManagement({ view = "all" }: { view?: CustomerMa
                     })}
                   <button
                     className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={currentPage >= Math.ceil(customers.length / itemsPerPage)}
-                    onClick={() =>
-                      setCurrentPage((prev) =>
-                        Math.min(Math.ceil(customers.length / itemsPerPage), prev + 1)
-                      )
-                    }
+                    disabled={currentPage >= totalPages}
+                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                   >
                     <span className="sr-only">Next</span>
                     <svg

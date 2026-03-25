@@ -16,7 +16,7 @@ interface CustomerLoginModalProps {
 
 export default function CustomerLoginModal({
   isOpen,
-  onClose,  
+  onClose,
   onLoginSuccess,
 }: CustomerLoginModalProps) {
   const router = useRouter();
@@ -163,7 +163,7 @@ export default function CustomerLoginModal({
           }
 
           const data = await response.json();
-          
+
           if (data && data.display_name) {
             setFormData((prev) => ({
               ...prev,
@@ -222,7 +222,6 @@ export default function CustomerLoginModal({
       parts.push(result.ROAD_NAME);
     }
 
-
     const formatted = parts.filter((part) => part && part.toUpperCase() !== "NIL").join(", ");
     return (
       formatted ||
@@ -263,8 +262,13 @@ export default function CustomerLoginModal({
             .trim();
 
           if (formattedAddress) {
-            formattedAddress = formattedAddress.replace(/,\s*Singapore\s+\d{6}$/i, '').replace(/Singapore\s+\d{6}$/i, '').trim();
-            
+            // Remove existing "Singapore" and postal code if present
+            formattedAddress = formattedAddress
+              .replace(/,\s*Singapore\s+\d{6}$/i, "")
+              .replace(/Singapore\s+\d{6}$/i, "")
+              .trim();
+
+            // Add Singapore and postal code at the end
             if (code && code.length === 6) {
               formattedAddress = `${formattedAddress}, Singapore ${code}`;
             }
@@ -313,12 +317,24 @@ export default function CustomerLoginModal({
           if (city.toUpperCase() !== "NIL") formattedAddr += `${city} `;
         }
         if (addr.postcode) formattedAddr += `${addr.postcode}`;
-        
-        formattedAddr = formattedAddr.trim().replace(/,$/, '').replace(/NIL,?\s*/gi, '').replace(/,\s*,/g, ',').trim() || data[0].display_name.replace(/NIL,?\s*/gi, '');
-        
+
+        formattedAddr =
+          formattedAddr
+            .trim()
+            .replace(/,$/, "")
+            .replace(/NIL,?\s*/gi, "")
+            .replace(/,\s*,/g, ",")
+            .trim() || data[0].display_name.replace(/NIL,?\s*/gi, "");
+
+        // Ensure Singapore and postal code are at the end
         if (formattedAddr) {
-          formattedAddr = formattedAddr.replace(/,\s*Singapore\s+\d{6}$/i, '').replace(/Singapore\s+\d{6}$/i, '').trim();
-          
+          // Remove existing "Singapore" and postal code if present
+          formattedAddr = formattedAddr
+            .replace(/,\s*Singapore\s+\d{6}$/i, "")
+            .replace(/Singapore\s+\d{6}$/i, "")
+            .trim();
+
+          // Add Singapore and postal code at the end
           if (code && code.length === 6) {
             formattedAddr = `${formattedAddr}, Singapore ${code}`;
           }
@@ -343,7 +359,7 @@ export default function CustomerLoginModal({
   };
 
   const handlePostalCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, ''); // Only allow numbers
+    const value = e.target.value.replace(/\D/g, ""); // Only allow numbers
     setError("");
     setPostalCode(value);
 
@@ -482,8 +498,10 @@ export default function CustomerLoginModal({
       if (!formData.address.trim()) throw new Error("Address is required");
       if (!formData.email.trim()) throw new Error("Email address is required");
       if (!formData.password.trim()) throw new Error("Password is required");
-      if (formData.password.length < 8) throw new Error("Password must be at least 8 characters long");
-      if (postalCode && postalCode.length !== 6) throw new Error("Postal code must be exactly 6 digits");
+      if (formData.password.length < 8)
+        throw new Error("Password must be at least 8 characters long");
+      if (postalCode && postalCode.length !== 6)
+        throw new Error("Postal code must be exactly 6 digits");
 
       const { data: existingCustomer, error: customerCheckError } = await supabase
         .from("customers")
@@ -578,20 +596,20 @@ export default function CustomerLoginModal({
   return createPortal(
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 p-4 overflow-y-auto">
       <div className="min-h-full flex items-center justify-center">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full relative">
-        <button
-          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
-          onClick={onClose}
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              d="M6 18L18 6M6 6l12 12"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-            />
-          </svg>
-        </button>
+        <div className="bg-white rounded-lg shadow-xl max-w-md w-full relative">
+          <button
+            className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+            onClick={onClose}
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M6 18L18 6M6 6l12 12"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+              />
+            </svg>
+          </button>
 
           <div className="p-8">
             <h1 className="text-2xl font-bold text-center mb-8">
@@ -608,203 +626,251 @@ export default function CustomerLoginModal({
               {isRegistering && (
                 <>
                   <div>
+                    <div>
+                      <label
+                        className="block text-sm font-medium text-gray-700 mb-2"
+                        htmlFor="phone"
+                      >
+                        Mobile Number
+                      </label>
+                      <input
+                        required
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        id="phone"
+                        placeholder="Enter your mobile number"
+                        type="tel"
+                        value={formData.phone}
+                        onChange={(e) =>
+                          setFormData((prev) => ({ ...prev, phone: e.target.value }))
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        className="block text-sm font-medium text-gray-700 mb-2"
+                        htmlFor="postal_code"
+                      >
+                        Postal Code
+                      </label>
+                      <input
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        id="postal_code"
+                        maxLength={6}
+                        placeholder="Enter postal code (e.g., 654321)"
+                        type="text"
+                        value={postalCode}
+                        onChange={handlePostalCodeChange}
+                      />
+                      {isSearchingPostalCode && (
+                        <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                          <svg
+                            className="animate-spin h-3 w-3"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              fill="currentColor"
+                            ></path>
+                          </svg>
+                          Searching address...
+                        </p>
+                      )}
+                      {postalCode && postalCode.length > 0 && postalCode.length !== 6 && (
+                        <p className="text-xs text-red-600 mt-1">
+                          Postal code must be exactly 6 digits
+                        </p>
+                      )}
+                      {postalCodeError && (
+                        <p className="text-xs text-red-600 mt-1">{postalCodeError}</p>
+                      )}
+                      {postalCode &&
+                        postalCode.length === 6 &&
+                        !isSearchingPostalCode &&
+                        !postalCodeError && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            {resolvedPostalCode === postalCode
+                              ? "Address auto-filled from postal code"
+                              : "Address will be auto-filled when you enter 6 digits"}
+                          </p>
+                        )}
+                    </div>
+                  </div>
+
                   <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="phone">
-                    Mobile Number
-                  </label>
-                  <input
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    id="phone"
-                    placeholder="Enter your mobile number"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="postal_code">
-                    Postal Code 
-                  </label>
-                  <input
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    id="postal_code"
-                    placeholder="Enter postal code (e.g., 654321)"
-                    type="text"
-                    maxLength={6}
-                    value={postalCode}
-                    onChange={handlePostalCodeChange}
-                  />
-                  {isSearchingPostalCode && (
-                    <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
-                      <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Searching address...
-                    </p>
-                  )}
-                  {postalCode && postalCode.length > 0 && postalCode.length !== 6 && (
-                    <p className="text-xs text-red-600 mt-1">Postal code must be exactly 6 digits</p>
-                  )}
-                  {postalCodeError && (
-                    <p className="text-xs text-red-600 mt-1">{postalCodeError}</p>
-                  )}
-                  {postalCode && postalCode.length === 6 && !isSearchingPostalCode && !postalCodeError && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      {resolvedPostalCode === postalCode
-                        ? "Address auto-filled from postal code"
-                        : "Address will be auto-filled when you enter 6 digits"}
-                    </p>
-                  )}
-                </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="unit_number">
-                    Unit Number (Optional)
-                  </label>
-                  <input
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    id="unit_number"
-                    placeholder="Enter unit number (e.g., 01-123)"
-                    type="text"
-                    value={unitNumber}
-                    onChange={(e) => setUnitNumber(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="unit_number">
-                    Unit Number (Optional)
-                  </label>
-                  <input
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    id="unit_number"
-                    placeholder="Enter unit number (e.g., 01-123)"
-                    type="text"
-                    value={unitNumber}
-                    onChange={(e) => setUnitNumber(e.target.value)}
-                  />
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-700" htmlFor="address">
-                      Address
-                    </label>
-                    <button
-                      type="button"
-                      onClick={getCurrentLocation}
-                      disabled={isGettingLocation}
-                      className="px-3 py-1.5 text-xs bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-green-400"
+                    <label
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                      htmlFor="unit_number"
                     >
-                      {isGettingLocation ? "Getting..." : "Use My Location"}
-                    </button>
+                      Unit Number (Optional)
+                    </label>
+                    <input
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      id="unit_number"
+                      placeholder="Enter unit number (e.g., 01-123)"
+                      type="text"
+                      value={unitNumber}
+                      onChange={(e) => setUnitNumber(e.target.value)}
+                    />
                   </div>
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-700" htmlFor="address">
-                      Address
-                    </label>
-                    <button
-                      type="button"
-                      onClick={getCurrentLocation}
-                      disabled={isGettingLocation}
-                      className="px-3 py-1.5 text-xs bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-green-400"
+                  <div>
+                    <label
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                      htmlFor="unit_number"
                     >
-                      {isGettingLocation ? "Getting..." : "Use My Location"}
-                    </button>
+                      Unit Number (Optional)
+                    </label>
+                    <input
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      id="unit_number"
+                      placeholder="Enter unit number (e.g., 01-123)"
+                      type="text"
+                      value={unitNumber}
+                      onChange={(e) => setUnitNumber(e.target.value)}
+                    />
                   </div>
 
-                  <textarea
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    id="address"
-                    placeholder="Enter your address"
-                    rows={3}
-                    value={(() => {
-                      let displayAddress = formData.address;
-                      if (unitNumber && unitNumber.trim() && displayAddress) {
-                        if (!displayAddress.includes(unitNumber.trim())) {
-                          if (displayAddress.includes("Singapore")) {
-                            displayAddress = displayAddress.replace(
-                              "Singapore",
-                              `#${unitNumber.trim()}, Singapore`
-                            );
-                          } else {
-                            displayAddress = `${displayAddress}, #${unitNumber.trim()}`;
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700" htmlFor="address">
+                        Address
+                      </label>
+                      <button
+                        className="px-3 py-1.5 text-xs bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-green-400"
+                        disabled={isGettingLocation}
+                        type="button"
+                        onClick={getCurrentLocation}
+                      >
+                        {isGettingLocation ? "Getting..." : "Use My Location"}
+                      </button>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label
+                          className="block text-sm font-medium text-gray-700"
+                          htmlFor="address"
+                        >
+                          Address
+                        </label>
+                        <button
+                          className="px-3 py-1.5 text-xs bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-green-400"
+                          disabled={isGettingLocation}
+                          type="button"
+                          onClick={getCurrentLocation}
+                        >
+                          {isGettingLocation ? "Getting..." : "Use My Location"}
+                        </button>
+                      </div>
+
+                      <textarea
+                        required
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        id="address"
+                        placeholder="Enter your address"
+                        rows={3}
+                        value={(() => {
+                          // Combine address with unit number for display
+                          let displayAddress = formData.address;
+                          if (unitNumber && unitNumber.trim() && displayAddress) {
+                            // Check if unit number is already in address
+                            if (!displayAddress.includes(unitNumber.trim())) {
+                              if (displayAddress.includes("Singapore")) {
+                                displayAddress = displayAddress.replace(
+                                  "Singapore",
+                                  `#${unitNumber.trim()}, Singapore`
+                                );
+                              } else {
+                                displayAddress = `${displayAddress}, #${unitNumber.trim()}`;
+                              }
+                            }
+                          }
+                          return displayAddress;
+                        })()}
+                        onChange={(e) => {
+                          // Extract base address (remove unit number if user edits)
+                          let baseAddress = e.target.value;
+                          if (unitNumber && unitNumber.trim()) {
+                            baseAddress = baseAddress
+                              .replace(`#${unitNumber.trim()}, `, "")
+                              .replace(`, #${unitNumber.trim()}`, "")
+                              .trim();
+                          }
+                          setLocationError("");
+                          setAddressSource("manual");
+                          setFormData((prev) => ({ ...prev, address: baseAddress }));
+                        }}
+                      />
+                      {locationError && (
+                        <p className="text-xs text-red-600 mt-1">{locationError}</p>
+                      )}
+                    </div>
+
+                    <textarea
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      id="address"
+                      placeholder="Enter your address"
+                      rows={3}
+                      value={(() => {
+                        // Combine address with unit number for display
+                        let displayAddress = formData.address;
+                        if (unitNumber && unitNumber.trim() && displayAddress) {
+                          // Check if unit number is already in address
+                          if (!displayAddress.includes(unitNumber.trim())) {
+                            if (displayAddress.includes("Singapore")) {
+                              displayAddress = displayAddress.replace(
+                                "Singapore",
+                                `#${unitNumber.trim()}, Singapore`
+                              );
+                            } else {
+                              displayAddress = `${displayAddress}, #${unitNumber.trim()}`;
+                            }
                           }
                         }
-                      }
-                      return displayAddress;
-                    })()}
-                    onChange={(e) => {
-                      let baseAddress = e.target.value;
-                      if (unitNumber && unitNumber.trim()) {
-                        baseAddress = baseAddress
-                          .replace(`#${unitNumber.trim()}, `, "")
-                          .replace(`, #${unitNumber.trim()}`, "")
-                          .trim();
-                      }
-                      setLocationError("");
-                      setAddressSource("manual");
-                      setFormData((prev) => ({ ...prev, address: baseAddress }));
-                    }}
-                  />
-                  {locationError && <p className="text-xs text-red-600 mt-1">{locationError}</p>}
-                </div>
-
-                  <textarea
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    id="address"
-                    placeholder="Enter your address"
-                    rows={3}
-                    value={(() => {
-                      let displayAddress = formData.address;
-                      if (unitNumber && unitNumber.trim() && displayAddress) {
-                        if (!displayAddress.includes(unitNumber.trim())) {
-                          if (displayAddress.includes("Singapore")) {
-                            displayAddress = displayAddress.replace(
-                              "Singapore",
-                              `#${unitNumber.trim()}, Singapore`
-                            );
-                          } else {
-                            displayAddress = `${displayAddress}, #${unitNumber.trim()}`;
-                          }
+                        return displayAddress;
+                      })()}
+                      onChange={(e) => {
+                        // Extract base address (remove unit number if user edits)
+                        let baseAddress = e.target.value;
+                        if (unitNumber && unitNumber.trim()) {
+                          baseAddress = baseAddress
+                            .replace(`#${unitNumber.trim()}, `, "")
+                            .replace(`, #${unitNumber.trim()}`, "")
+                            .trim();
                         }
-                      }
-                      return displayAddress;
-                    })()}
-                    onChange={(e) => {
-                      let baseAddress = e.target.value;
-                      if (unitNumber && unitNumber.trim()) {
-                        baseAddress = baseAddress
-                          .replace(`#${unitNumber.trim()}, `, "")
-                          .replace(`, #${unitNumber.trim()}`, "")
-                          .trim();
-                      }
-                      setLocationError("");
-                      setAddressSource("manual");
-                      setFormData((prev) => ({ ...prev, address: baseAddress }));
-                    }}
-                  />
-                  {locationError && <p className="text-xs text-red-600 mt-1">{locationError}</p>}
-                </div>
-
+                        setLocationError("");
+                        setAddressSource("manual");
+                        setFormData((prev) => ({ ...prev, address: baseAddress }));
+                      }}
+                    />
+                    {locationError && <p className="text-xs text-red-600 mt-1">{locationError}</p>}
+                  </div>
 
                   <div className="flex items-center">
                     <input
-                      type="checkbox"
-                      id="whatsapp_notifications"
                       checked={formData.whatsapp_notifications}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      id="whatsapp_notifications"
+                      type="checkbox"
                       onChange={(e) =>
                         setFormData((p) => ({ ...p, whatsapp_notifications: e.target.checked }))
                       }
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
-                    <label htmlFor="whatsapp_notifications" className="ml-2 block text-sm text-gray-700">
+                    <label
+                      className="ml-2 block text-sm text-gray-700"
+                      htmlFor="whatsapp_notifications"
+                    >
                       I want to receive WhatsApp notifications
                     </label>
                   </div>
@@ -856,7 +922,6 @@ export default function CustomerLoginModal({
                 </div>
                 {isRegistering && formData.password && (
                   <div className="mt-2">
-                    
                     <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
                       <div
                         className={`h-2 rounded-full transition-all duration-300 ${
@@ -871,7 +936,7 @@ export default function CustomerLoginModal({
                         }}
                       />
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
                       <span
                         className={`text-xs font-medium ${
@@ -887,7 +952,7 @@ export default function CustomerLoginModal({
                           passwordStrength.strength.slice(1)}
                       </span>
                     </div>
-                    
+
                     {passwordStrength.feedback && (
                       <p className="text-xs text-gray-500 mt-1">{passwordStrength.feedback}</p>
                     )}
@@ -954,7 +1019,7 @@ export default function CustomerLoginModal({
         </div>
       </div>
     </div>,
-   
+
     portalEl
   );
 }

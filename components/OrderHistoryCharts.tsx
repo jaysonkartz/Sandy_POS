@@ -94,7 +94,6 @@ export default function OrderHistoryCharts({ orders }: OrderHistoryChartsProps) 
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Monthly Sales</h3>
           <Line
@@ -115,7 +114,6 @@ export default function OrderHistoryCharts({ orders }: OrderHistoryChartsProps) 
           />
         </div>
 
-        
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Order Status Distribution</h3>
           <Pie
@@ -131,7 +129,6 @@ export default function OrderHistoryCharts({ orders }: OrderHistoryChartsProps) 
           />
         </div>
 
-        
         <div className="bg-white p-6 rounded-lg shadow md:col-span-2">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Daily Orders</h3>
           <Bar
@@ -153,7 +150,6 @@ export default function OrderHistoryCharts({ orders }: OrderHistoryChartsProps) 
         </div>
       </div>
 
-      
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-lg font-medium text-gray-900">Total Orders</h3>

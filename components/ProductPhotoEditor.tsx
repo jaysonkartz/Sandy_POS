@@ -2,11 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X, Trash2 } from "@/app/lib/icons";
-import {
-  CldImage,
-  getCloudinaryCloudName,
-  getCloudinaryUploadPreset,
-} from "@/app/lib/cloudinary";
+import { CldImage, getCloudinaryCloudName, getCloudinaryUploadPreset } from "@/app/lib/cloudinary";
 import { supabase } from "@/app/lib/supabaseClient";
 import ImageCropEditor from "@/components/ImageCropEditor";
 
@@ -51,12 +47,12 @@ export default function ProductPhotoEditor({
 
   useEffect(() => {
     if (!isOpen || !productId) return;
-  
+
     let alive = true;
-  
+
     const loadImages = async () => {
       setLoading(true);
-  
+
       let { data, error } = await supabase
         .from("product_images")
         .select("id,product_id,image_url,sort_order,is_cover")
@@ -64,33 +60,33 @@ export default function ProductPhotoEditor({
         .order("is_cover", { ascending: false })
         .order("sort_order", { ascending: true })
         .order("id", { ascending: true });
-  
+
       if (!alive) return;
-  
+
       if (error) {
         console.error("[PhotoEditor] load images error:", error);
         setImages([]);
         setLoading(false);
         return;
       }
-  
+
       let list = (data as ProductImageRow[]) || [];
-  
+
       if (currentImageUrl && !list.some((img) => img.image_url === currentImageUrl)) {
         await supabase
           .from("product_images")
           .update({ is_cover: false })
           .eq("product_id", productId);
-  
+
         const maxSort = list.reduce((m, x) => Math.max(m, x.sort_order ?? 0), -1);
-  
+
         const { error: insertErr } = await supabase.from("product_images").insert({
           product_id: productId,
           image_url: currentImageUrl,
           sort_order: maxSort + 1,
           is_cover: true,
         });
-  
+
         if (insertErr) {
           console.error("[PhotoEditor] sync insert failed:", insertErr);
         } else {
@@ -101,21 +97,21 @@ export default function ProductPhotoEditor({
             .order("is_cover", { ascending: false })
             .order("sort_order", { ascending: true })
             .order("id", { ascending: true });
-  
+
           list = (reload.data as ProductImageRow[]) || [];
         }
       }
-  
+
       setImages(list);
-  
+
       const maxSort = list.reduce((m, x) => Math.max(m, x.sort_order ?? 0), -1);
       nextSortRef.current = maxSort + 1;
-  
+
       setLoading(false);
     };
-  
+
     loadImages();
-  
+
     return () => {
       alive = false;
     };
@@ -306,7 +302,7 @@ export default function ProductPhotoEditor({
               <div className="font-semibold">Edit Product Photo</div>
               <div className="text-sm text-gray-500">{productName}</div>
             </div>
-            <button onClick={onClose} className="rounded p-2 hover:bg-gray-100">
+            <button className="rounded p-2 hover:bg-gray-100" onClick={onClose}>
               <X size={18} />
             </button>
           </div>
@@ -316,11 +312,11 @@ export default function ProductPhotoEditor({
               <div className="mb-2 text-sm font-medium">Cover</div>
               {coverUrl ? (
                 <CldImage
-                  src={coverUrl}
                   alt={`${productName} cover image`}
-                  width={1200}
-                  height={560}
                   className="h-56 w-full rounded bg-white object-contain"
+                  height={560}
+                  src={coverUrl}
+                  width={1200}
                 />
               ) : (
                 <div className="flex h-56 items-center justify-center text-gray-400">
@@ -331,18 +327,18 @@ export default function ProductPhotoEditor({
 
             <div className="flex flex-wrap items-center gap-3">
               <button
+                className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
                 type="button"
                 onClick={() => uploadEditInputRef.current?.click()}
-                className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
               >
                 Add Photo
               </button>
 
               <input
                 ref={uploadEditInputRef}
-                type="file"
                 accept="image/*"
                 className="hidden"
+                type="file"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
@@ -356,69 +352,65 @@ export default function ProductPhotoEditor({
             </div>
 
             <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
-  {images.map((img) => (
-    <div
-      key={img.id}
-      className="group relative overflow-hidden rounded-lg border bg-white"
-      title="Click to edit this photo"
-    >
-      <div
-        role="button"
-        tabIndex={0}
-        className="cursor-pointer"
-        onClick={() => openEditorForExisting(img)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            openEditorForExisting(img);
-          }
-        }}
-      >
-        <CldImage
-          src={img.image_url}
-          alt={`${productName} thumbnail`}
-          width={320}
-          height={192}
-          className="h-24 w-full object-cover"
-        />
-      </div>
+              {images.map((img) => (
+                <div
+                  key={img.id}
+                  className="group relative overflow-hidden rounded-lg border bg-white"
+                  title="Click to edit this photo"
+                >
+                  <div
+                    className="cursor-pointer"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openEditorForExisting(img)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openEditorForExisting(img);
+                      }
+                    }}
+                  >
+                    <CldImage
+                      alt={`${productName} thumbnail`}
+                      className="h-24 w-full object-cover"
+                      height={192}
+                      src={img.image_url}
+                      width={320}
+                    />
+                  </div>
 
-      <div className="absolute inset-x-0 bottom-0 flex gap-1 bg-black/40 p-1 opacity-0 transition group-hover:opacity-100">
-        <button
-          type="button"
-          className="flex-1 rounded bg-white/90 px-2 py-1 text-xs"
-          onClick={(e) => {
-            e.stopPropagation();
-            setAsCover(img.image_url);
-          }}
-        >
-          {img.is_cover ? "Cover" : "Set cover"}
-        </button>
+                  <div className="absolute inset-x-0 bottom-0 flex gap-1 bg-black/40 p-1 opacity-0 transition group-hover:opacity-100">
+                    <button
+                      className="flex-1 rounded bg-white/90 px-2 py-1 text-xs"
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAsCover(img.image_url);
+                      }}
+                    >
+                      {img.is_cover ? "Cover" : "Set cover"}
+                    </button>
 
-        <button
-          type="button"
-          className="rounded bg-white/90 p-2"
-          onClick={(e) => {
-            e.stopPropagation();
-            deleteImage(img);
-          }}
-          title="Delete"
-        >
-          <Trash2 size={14} />
-        </button>
-      </div>
-    </div>
-  ))}
-</div>
-
-            <div className="text-sm text-gray-500">
-              Click an existing photo to edit it.
+                    <button
+                      className="rounded bg-white/90 p-2"
+                      title="Delete"
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteImage(img);
+                      }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
 
+            <div className="text-sm text-gray-500">Click an existing photo to edit it.</div>
+
             {images.length === 0 && !loading && (
-              <div className="text-sm text-gray-500">
-                No extra photos yet. Add one to start.
-              </div>
+              <div className="text-sm text-gray-500">No extra photos yet. Add one to start.</div>
             )}
           </div>
         </div>
@@ -426,8 +418,8 @@ export default function ProductPhotoEditor({
 
       {cropSource && (
         <ImageCropEditor
-          isOpen={cropOpen}
           imageSrc={cropSource}
+          isOpen={cropOpen}
           title={editingRow ? "Edit Existing Photo" : "Add Photo"}
           onClose={() => {
             if (cropSource.startsWith("blob:")) {

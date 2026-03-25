@@ -3,7 +3,7 @@
   "packageManager": "pnpm@10.32.1",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "eslint . --ext .ts,.tsx --fix && next build",
     "start": "next start",
     "lint": "eslint . --ext .ts,.tsx --fix",
     "test": "vitest",
@@ -13,6 +13,7 @@
   "dependencies": {
     "@headlessui/react": "^2.2.9",
     "@heroicons/react": "^2.2.0",
+    "@heroui/react": "^2.8.10",
     "@supabase/auth-helpers-nextjs": "^0.15.0",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.100.0",
@@ -61,8 +62,10 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-unused-imports": "^4.4.1",
+    "flatted": "3.4.2",
     "globals": "^16.5.0",
     "jsdom": "^23.2.0",
+    "playwright": "^1.58.2",
     "postcss": "8.4.38",
     "prettier": "^3.8.1",
     "tailwind-variants": "0.1.20",

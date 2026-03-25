@@ -10,8 +10,7 @@ interface Order {
 }
 
 export default function OrderHistoryPage() {
-  const orders: Order[] = [
-  ];
+  const orders: Order[] = [];
 
   return (
     <div className="py-4 sm:py-6">

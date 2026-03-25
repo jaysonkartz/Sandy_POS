@@ -17,7 +17,6 @@ export default function CartPage() {
     try {
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
-
       alert("Order placed successfully! Redirecting to order confirmation...");
     } catch {
       alert("Checkout failed. Please try again.");
@@ -80,7 +79,6 @@ export default function CartPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
         <div className="lg:col-span-2 space-y-4">
           {cart.map((item) => (
             <div
@@ -89,7 +87,6 @@ export default function CartPage() {
             >
               <div className="p-6">
                 <div className="flex gap-4">
-                  
                   {item.imagesUrl && (
                     <div className="flex-shrink-0">
                       <CldImage
@@ -106,7 +103,6 @@ export default function CartPage() {
                     </div>
                   )}
 
-                  
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-lg text-gray-800 mb-2">{item.title}</h3>
                     {(getVariationLabel(item) || getOriginLabel(item)) && (
@@ -133,7 +129,6 @@ export default function CartPage() {
                       ${(item.price ?? 0).toFixed(2)}/kg
                     </div>
 
-                    
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <span className="text-gray-600 font-medium">Quantity:</span>
@@ -187,7 +182,6 @@ export default function CartPage() {
                   </div>
                 </div>
 
-                
                 <div className="mt-4 pt-4 border-t border-gray-100">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Item Total:</span>
@@ -201,7 +195,6 @@ export default function CartPage() {
           ))}
         </div>
 
-        
         <div className="lg:col-span-1">
           <div className="bg-white border border-gray-200 rounded-xl p-6 sticky top-4">
             <h2 className="text-xl font-bold text-gray-800 mb-6">Order Summary</h2>

@@ -27,12 +27,10 @@ export const FloatingOrderButton: React.FC<FloatingOrderButtonProps> = ({
     >
       <ShoppingCart size={20} />
 
-      
       <span className="hidden sm:inline font-semibold text-sm">
         {isEnglish ? "View Order" : "查看订单"}
       </span>
 
-      
       {selectedProductsCount > 0 && (
         <span className="ml-1 bg-white text-blue-600 rounded-full min-w-6 h-6 px-2 text-xs font-bold flex items-center justify-center">
           {selectedProductsCount > 9 ? "9+" : selectedProductsCount}

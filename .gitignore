@@ -130,3 +130,5 @@ dist
 .pnp.*
 /Sandy_POS
 package-lock.json
+
+.cursor/

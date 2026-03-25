@@ -8,9 +8,9 @@ const supabaseUrl = getSupabaseUrl();
 const supabaseAnonKey = getSupabaseAnonKey();
 
 const createSafeFetch = () => {
-  return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  return async (...args: Parameters<typeof fetch>): Promise<Response> => {
     try {
-      return await fetch(input, init);
+      return await fetch(...args);
     } catch (error: unknown) {
       const errorStack = error instanceof Error ? error.stack || "" : "";
       const isExtensionError =

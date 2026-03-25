@@ -248,7 +248,7 @@ export default function ProductPhotoEditorModal({
               <div className="font-semibold">Edit Product Photo</div>
               <div className="text-sm text-gray-500">{productName}</div>
             </div>
-            <button onClick={onClose} className="rounded p-2 hover:bg-gray-100">
+            <button className="rounded p-2 hover:bg-gray-100" onClick={onClose}>
               <X size={18} />
             </button>
           </div>
@@ -258,11 +258,11 @@ export default function ProductPhotoEditorModal({
               <div className="mb-2 text-sm font-medium">Cover</div>
               {coverUrl ? (
                 <CldImage
-                  src={coverUrl}
                   alt={`${productName} cover image`}
-                  width={1200}
-                  height={560}
                   className="h-56 w-full rounded bg-white object-contain"
+                  height={560}
+                  src={coverUrl}
+                  width={1200}
                 />
               ) : (
                 <div className="flex h-56 items-center justify-center text-gray-400">
@@ -273,7 +273,6 @@ export default function ProductPhotoEditorModal({
 
             <div className="flex flex-wrap items-center gap-3">
               <CldUploadWidget
-                uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!}
                 options={{
                   multiple: true,
                   maxFiles: 10,
@@ -282,6 +281,11 @@ export default function ProductPhotoEditorModal({
                   sources: ["local", "camera"],
                   clientAllowedFormats: ["jpg", "jpeg", "png", "webp"],
                   cropping: false,
+                }}
+                uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!}
+                onError={(err) => {
+                  console.error("Upload error:", err);
+                  setIsUploading(false);
                 }}
                 onSuccess={async (result: any) => {
                   const url = result?.info?.secure_url;
@@ -296,16 +300,12 @@ export default function ProductPhotoEditorModal({
                     setIsUploading(false);
                   }
                 }}
-                onError={(err) => {
-                  console.error("Upload error:", err);
-                  setIsUploading(false);
-                }}
               >
                 {({ open }) => (
                   <button
+                    className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
                     type="button"
                     onClick={() => open?.()}
-                    className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
                   >
                     Upload Photos
                   </button>
@@ -313,18 +313,18 @@ export default function ProductPhotoEditorModal({
               </CldUploadWidget>
 
               <button
+                className="rounded bg-gray-700 px-4 py-2 text-white hover:bg-gray-800"
                 type="button"
                 onClick={() => editOneInputRef.current?.click()}
-                className="rounded bg-gray-700 px-4 py-2 text-white hover:bg-gray-800"
               >
                 Edit One Before Upload
               </button>
 
               <input
                 ref={editOneInputRef}
-                type="file"
                 accept="image/*"
                 className="hidden"
+                type="file"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
@@ -339,13 +339,16 @@ export default function ProductPhotoEditorModal({
 
             <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
               {images.map((img) => (
-                <div key={img.id} className="group relative overflow-hidden rounded-lg border bg-white">
+                <div
+                  key={img.id}
+                  className="group relative overflow-hidden rounded-lg border bg-white"
+                >
                   <CldImage
-                    src={img.image_url}
                     alt={`${productName} thumbnail`}
-                    width={320}
-                    height={192}
                     className="h-24 w-full object-cover"
+                    height={192}
+                    src={img.image_url}
+                    width={320}
                   />
 
                   <div className="absolute inset-x-0 bottom-0 flex gap-1 bg-black/40 p-1 opacity-0 transition group-hover:opacity-100">
@@ -358,21 +361,21 @@ export default function ProductPhotoEditorModal({
 
                     <button
                       className="rounded bg-white/90 p-2"
+                      title="Edit"
                       onClick={() => {
                         setEditingRow(img);
                         setPendingFileName(`edited-${img.id}-${Date.now()}.jpg`);
                         setCropSource(img.image_url);
                         setCropOpen(true);
                       }}
-                      title="Edit"
                     >
                       <Pencil size={14} />
                     </button>
 
                     <button
                       className="rounded bg-white/90 p-2"
-                      onClick={() => deleteImage(img)}
                       title="Delete"
+                      onClick={() => deleteImage(img)}
                     >
                       <Trash2 size={14} />
                     </button>
@@ -390,8 +393,8 @@ export default function ProductPhotoEditorModal({
 
       {cropSource && (
         <ImageCropEditor
-          isOpen={cropOpen}
           imageSrc={cropSource}
+          isOpen={cropOpen}
           title={editingRow ? "Edit Uploaded Photo" : "Edit Before Upload"}
           onClose={() => {
             if (cropSource.startsWith("blob:")) {

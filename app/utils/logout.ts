@@ -1,5 +1,5 @@
 import { supabase } from "../lib/supabaseClient";
-import { LOGOUT_TIMEOUT_MS } from "../constants/app-constants";
+import { LOGOUT_TIMEOUT_MS, STORAGE_KEYS } from "../constants/app-constants";
 
 const AUTH_STORAGE_PREFIXES = ["sb-", "supabase.auth", "customerToken"];
 
@@ -35,6 +35,8 @@ const clearClientAuthState = (): void => {
       localStorage.removeItem(key);
     }
   });
+
+  localStorage.removeItem(STORAGE_KEYS.PENDING_ORDER);
 
   document.cookie
     .split(";")
