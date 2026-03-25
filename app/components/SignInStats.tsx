@@ -51,7 +51,7 @@ export default function SignInStats({
 
   if (loading) {
     return (
-      <div className="bg-white shadow rounded-lg p-6">
+      <div className="bg-white shadow rounded-lg p-6 min-w-0 max-w-full">
         <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">{title}</h3>
         <div className="flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -62,7 +62,7 @@ export default function SignInStats({
 
   if (error) {
     return (
-      <div className="bg-white shadow rounded-lg p-6">
+      <div className="bg-white shadow rounded-lg p-6 min-w-0 max-w-full">
         <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">{title}</h3>
         <div className="text-red-600 text-center">{error}</div>
       </div>
@@ -75,13 +75,13 @@ export default function SignInStats({
       : "0";
 
   return (
-    <div className="bg-white shadow rounded-lg p-6">
-      <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">{title}</h3>
+    <div className="bg-white shadow rounded-lg p-6 min-w-0 max-w-full">
+      <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4 break-words">{title}</h3>
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="bg-blue-50 overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
+      <div className="grid grid-cols-2 gap-3 sm:gap-5">
+        <div className="bg-blue-50 shadow rounded-lg min-w-0">
+          <div className="p-3 sm:p-5">
+            <div className="flex items-start gap-2 sm:gap-3 sm:items-center">
               <div className="flex-shrink-0">
                 <div className="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
                   <svg
@@ -99,19 +99,23 @@ export default function SignInStats({
                   </svg>
                 </div>
               </div>
-              <div className="ml-5 w-0 flex-1">
+              <div className="min-w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Total Sign-ins</dt>
-                  <dd className="text-lg font-medium text-gray-900">{stats.totalSignIns}</dd>
+                  <dt className="text-sm font-medium text-gray-500 leading-snug break-words">
+                    Total Sign-ins
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900 tabular-nums break-all">
+                    {stats.totalSignIns}
+                  </dd>
                 </dl>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-green-50 overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
+        <div className="bg-green-50 shadow rounded-lg min-w-0">
+          <div className="p-3 sm:p-5">
+            <div className="flex items-start gap-2 sm:gap-3 sm:items-center">
               <div className="flex-shrink-0">
                 <div className="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
                   <svg
@@ -129,19 +133,23 @@ export default function SignInStats({
                   </svg>
                 </div>
               </div>
-              <div className="ml-5 w-0 flex-1">
+              <div className="min-w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Successful</dt>
-                  <dd className="text-lg font-medium text-gray-900">{stats.successfulSignIns}</dd>
+                  <dt className="text-sm font-medium text-gray-500 leading-snug break-words">
+                    Successful
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900 tabular-nums break-all">
+                    {stats.successfulSignIns}
+                  </dd>
                 </dl>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-red-50 overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
+        <div className="bg-red-50 shadow rounded-lg min-w-0">
+          <div className="p-3 sm:p-5">
+            <div className="flex items-start gap-2 sm:gap-3 sm:items-center">
               <div className="flex-shrink-0">
                 <div className="w-8 h-8 bg-red-500 rounded-md flex items-center justify-center">
                   <svg
@@ -159,19 +167,23 @@ export default function SignInStats({
                   </svg>
                 </div>
               </div>
-              <div className="ml-5 w-0 flex-1">
+              <div className="min-w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Failed</dt>
-                  <dd className="text-lg font-medium text-gray-900">{stats.failedSignIns}</dd>
+                  <dt className="text-sm font-medium text-gray-500 leading-snug break-words">
+                    Failed
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900 tabular-nums break-all">
+                    {stats.failedSignIns}
+                  </dd>
                 </dl>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-purple-50 overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
+        <div className="bg-purple-50 shadow rounded-lg min-w-0">
+          <div className="p-3 sm:p-5">
+            <div className="flex items-start gap-2 sm:gap-3 sm:items-center">
               <div className="flex-shrink-0">
                 <div className="w-8 h-8 bg-purple-500 rounded-md flex items-center justify-center">
                   <svg
@@ -189,10 +201,14 @@ export default function SignInStats({
                   </svg>
                 </div>
               </div>
-              <div className="ml-5 w-0 flex-1">
+              <div className="min-w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Success Rate</dt>
-                  <dd className="text-lg font-medium text-gray-900">{successRate}%</dd>
+                  <dt className="text-sm font-medium text-gray-500 leading-snug break-words">
+                    Success Rate
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900 tabular-nums break-all">
+                    {successRate}%
+                  </dd>
                 </dl>
               </div>
             </div>
@@ -200,11 +216,15 @@ export default function SignInStats({
         </div>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-6 min-w-0">
         <div className="bg-gray-50 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-500">Unique Users</span>
-            <span className="text-2xl font-bold text-gray-900">{stats.uniqueUsers}</span>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-sm font-medium text-gray-500 break-words min-w-0">
+              Unique Users
+            </span>
+            <span className="text-2xl font-bold text-gray-900 tabular-nums shrink-0">
+              {stats.uniqueUsers}
+            </span>
           </div>
         </div>
       </div>
