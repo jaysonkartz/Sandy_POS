@@ -116,10 +116,6 @@ export default function ManagementDashboard() {
   });
   const hasLoadedOverviewRef = useRef(false);
   const hasLoadedPricingRef = useRef(false);
-  const [pricingDataVersion, setPricingDataVersion] = useState(0);
-  const bumpVariantCacheVersion = useCallback(() => {
-    setPricingDataVersion((v) => v + 1);
-  }, []);
 
   const getReadableErrorMessage = (error: unknown, fallback: string) => {
     if (!error) return fallback;
@@ -1224,7 +1220,6 @@ export default function ManagementDashboard() {
       case "pricing":
         return (
           <PricingTab
-            bumpVariantCacheVersion={bumpVariantCacheVersion}
             categories={categories}
             countryMap={countryMap}
             error={error}
@@ -1232,7 +1227,6 @@ export default function ManagementDashboard() {
             getReadableErrorMessage={getReadableErrorMessage}
             insertPriceOffersWithFallback={insertPriceOffersWithFallback}
             isLoading={isLoading}
-            pricingDataVersion={pricingDataVersion}
             setCategories={setCategories}
           />
         );
