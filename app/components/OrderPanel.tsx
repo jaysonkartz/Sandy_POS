@@ -1,6 +1,6 @@
 "use client";
 
-import React, { memo, useState, useEffect, useCallback } from "react";
+import React, { memo, useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence as FramerAnimatePresence } from "framer-motion";
 import { Loader2, Plus } from "lucide-react";
 import { supabase } from "@/app/lib/supabaseClient";
@@ -35,6 +35,9 @@ interface Address {
   address: string;
   isDefault?: boolean;
 }
+
+const PROFILE_DELIVERY_ID = "__profile_delivery__";
+const PROFILE_CURRENT_ID = "__profile_current__";
 
 interface OrderPanelProps {
   isOpen: boolean;
@@ -115,6 +118,9 @@ export const OrderPanel = memo<OrderPanelProps>(
     };
 
     const [addresses, setAddresses] = useState<Address[]>([]);
+    const [ephemeralAddresses, setEphemeralAddresses] = useState<Address[]>([]);
+    const [profileDeliveryAddress, setProfileDeliveryAddress] = useState("");
+    const [profileCurrentAddress, setProfileCurrentAddress] = useState("");
     const [selectedAddressId, setSelectedAddressId] = useState<string>("");
     const [showAddAddress, setShowAddAddress] = useState(false);
     const [editingAddress, setEditingAddress] = useState<Address | null>(null);
@@ -122,6 +128,8 @@ export const OrderPanel = memo<OrderPanelProps>(
     const [isSavingAddress, setIsSavingAddress] = useState(false);
     const [showReview, setShowReview] = useState(false);
     const [customerDataLoaded, setCustomerDataLoaded] = useState(false);
+    const [addressesFetchDone, setAddressesFetchDone] = useState(false);
+    const addressDefaultsAppliedRef = useRef(false);
 
     const loadCustomerFromCache = useCallback((email: string) => {
       try {
@@ -143,83 +151,77 @@ export const OrderPanel = memo<OrderPanelProps>(
       }
     }, []);
 
-    const loadAddresses = useCallback(
-      async (session: any) => {
-        if (!session?.user?.email && !session?.user?.id) {
+    const loadAddresses = useCallback(async (session: any) => {
+      setAddressesFetchDone(false);
+      if (!session?.user?.email && !session?.user?.id) {
+        setAddresses([]);
+        setAddressesFetchDone(true);
+        return;
+      }
+
+      try {
+        let customerData = null;
+
+        if (session.user.id) {
+          const { data: customerByUserId, error: userIdError } = await supabase
+            .from("customers")
+            .select("id, email, user_id")
+            .eq("user_id", session.user.id)
+            .maybeSingle();
+
+          if (!userIdError && customerByUserId) {
+            customerData = customerByUserId;
+          }
+        }
+
+        if (!customerData && session.user.email) {
+          const { data: allCustomers, error: allError } = await supabase
+            .from("customers")
+            .select("id, email, user_id")
+            .eq("email", session.user.email);
+
+          if (!allError && allCustomers && allCustomers.length > 0) {
+            customerData =
+              allCustomers.find((c: any) => c.user_id === session.user.id) || allCustomers[0];
+          }
+        }
+
+        if (!customerData) {
+          setAddresses([]);
+          setAddressesFetchDone(true);
           return;
         }
 
-        try {
-          let customerData = null;
+        const { data: addressesData, error: addressesError } = await supabase
+          .from("addresses")
+          .select("*")
+          .eq("customer_id", customerData.id)
+          .order("is_default", { ascending: false })
+          .order("created_at", { ascending: true });
 
-          if (session.user.id) {
-            const { data: customerByUserId, error: userIdError } = await supabase
-              .from("customers")
-              .select("id, email, user_id")
-              .eq("user_id", session.user.id)
-              .maybeSingle();
+        if (addressesError) {
+          setAddresses([]);
+          setAddressesFetchDone(true);
+          return;
+        }
 
-            if (!userIdError && customerByUserId) {
-              customerData = customerByUserId;
-            }
-          }
-
-          if (!customerData && session.user.email) {
-            const { data: allCustomers, error: allError } = await supabase
-              .from("customers")
-              .select("id, email, user_id")
-              .eq("email", session.user.email);
-
-            if (!allError && allCustomers && allCustomers.length > 0) {
-              customerData =
-                allCustomers.find((c: any) => c.user_id === session.user.id) || allCustomers[0];
-            }
-          }
-
-          if (!customerData) {
-            setAddresses([]);
-            return;
-          }
-
-          const { data: addressesData, error: addressesError } = await supabase
-            .from("addresses")
-            .select("*")
-            .eq("customer_id", customerData.id)
-            .order("is_default", { ascending: false })
-            .order("created_at", { ascending: true });
-
-          if (addressesError) {
-            setAddresses([]);
-            return;
-          }
-
-          if (addressesData && addressesData.length > 0) {
-            const formattedAddresses: Address[] = addressesData.map((addr: any) => ({
-              id: addr.id.toString(),
-              name: addr.name,
-              address: addr.address,
-              isDefault: addr.is_default,
-            }));
-
-            setAddresses(formattedAddresses);
-
-            const defaultAddress = formattedAddresses.find((addr) => addr.isDefault);
-            if (defaultAddress) {
-              setSelectedAddressId(defaultAddress.id);
-              onCustomerAddressChange(defaultAddress.address);
-            } else if (formattedAddresses.length > 0) {
-              setSelectedAddressId(formattedAddresses[0].id);
-              onCustomerAddressChange(formattedAddresses[0].address);
-            }
-          } else {
-            setAddresses([]);
-          }
-        } catch (error) {
+        if (addressesData && addressesData.length > 0) {
+          const formattedAddresses: Address[] = addressesData.map((addr: any) => ({
+            id: addr.id.toString(),
+            name: addr.name,
+            address: addr.address,
+            isDefault: addr.is_default,
+          }));
+          setAddresses(formattedAddresses);
+        } else {
           setAddresses([]);
         }
-      },
-      [onCustomerAddressChange]
-    );
+      } catch {
+        setAddresses([]);
+      } finally {
+        setAddressesFetchDone(true);
+      }
+    }, []);
 
     const subtotal = selectedProducts.reduce(
       (sum, item) => sum + item.product.price * item.quantity,
@@ -240,12 +242,8 @@ export const OrderPanel = memo<OrderPanelProps>(
           if (!customerPhone && cachedData.phone) {
             onCustomerPhoneChange(cachedData.phone);
           }
-          if (!customerAddress) {
-            const fallbackAddress = cachedData.delivery_address || cachedData.address;
-            if (fallbackAddress) {
-              onCustomerAddressChange(fallbackAddress);
-            }
-          }
+          setProfileDeliveryAddress(String(cachedData.delivery_address ?? "").trim());
+          setProfileCurrentAddress(String(cachedData.address ?? "").trim());
           setCustomerDataLoaded(true);
           return;
         }
@@ -279,21 +277,21 @@ export const OrderPanel = memo<OrderPanelProps>(
                 if (!customerPhone && customer.phone) {
                   onCustomerPhoneChange(customer.phone);
                 }
-                if (!customerAddress) {
-                  const fallbackAddress = customer.delivery_address || customer.address;
-                  if (fallbackAddress) {
-                    onCustomerAddressChange(fallbackAddress);
-                  }
-                }
+                setProfileDeliveryAddress(String(customer.delivery_address ?? "").trim());
+                setProfileCurrentAddress(String(customer.address ?? "").trim());
                 setCustomerDataLoaded(true);
                 return;
               }
             }
 
+            setProfileDeliveryAddress("");
+            setProfileCurrentAddress("");
             if (!customerName) {
               onCustomerNameChange(session.user.email.split("@")[0] || "Customer");
             }
           } catch (err) {
+            setProfileDeliveryAddress("");
+            setProfileCurrentAddress("");
             if (!customerName) {
               onCustomerNameChange(session.user.email.split("@")[0] || "Customer");
             }
@@ -308,98 +306,116 @@ export const OrderPanel = memo<OrderPanelProps>(
       isOpen,
       session,
       customerDataLoaded,
-      customerAddress,
       customerName,
       customerPhone,
       loadCustomerFromCache,
-      onCustomerAddressChange,
       onCustomerNameChange,
       onCustomerPhoneChange,
       saveCustomerToCache,
     ]);
 
     useEffect(() => {
+      if (isOpen && !session?.user?.email && !session?.user?.id) {
+        setProfileDeliveryAddress("");
+        setProfileCurrentAddress("");
+        setCustomerDataLoaded(true);
+      }
+    }, [isOpen, session]);
+
+    useEffect(() => {
       if (isOpen && session?.user) {
         loadAddresses(session);
+      } else if (isOpen && !session?.user) {
+        setAddresses([]);
+        setAddressesFetchDone(true);
       } else if (!isOpen) {
         setAddresses([]);
         setSelectedAddressId("");
+        setEphemeralAddresses([]);
+        addressDefaultsAppliedRef.current = false;
+        setAddressesFetchDone(false);
       }
     }, [isOpen, session, loadAddresses]);
 
-    const handleAddressSelect = async (addressId: string) => {
+    useEffect(() => {
+      if (!isOpen) return;
+      if (!customerDataLoaded || !addressesFetchDone || addressDefaultsAppliedRef.current) return;
+
+      const delivery = profileDeliveryAddress.trim();
+      const current = profileCurrentAddress.trim();
+
+      addressDefaultsAppliedRef.current = true;
+
+      if (delivery) {
+        setSelectedAddressId(PROFILE_DELIVERY_ID);
+        onCustomerAddressChange(delivery);
+        return;
+      }
+      if (current) {
+        setSelectedAddressId(PROFILE_CURRENT_ID);
+        onCustomerAddressChange(current);
+        return;
+      }
+      if (addresses.length > 0) {
+        const defaultAddress = addresses.find((addr) => addr.isDefault) || addresses[0];
+        setSelectedAddressId(defaultAddress.id);
+        onCustomerAddressChange(defaultAddress.address);
+        return;
+      }
+      if (ephemeralAddresses.length > 0) {
+        setSelectedAddressId(ephemeralAddresses[0].id);
+        onCustomerAddressChange(ephemeralAddresses[0].address);
+        return;
+      }
+      setSelectedAddressId("");
+      onCustomerAddressChange("");
+    }, [
+      isOpen,
+      customerDataLoaded,
+      addressesFetchDone,
+      profileDeliveryAddress,
+      profileCurrentAddress,
+      addresses,
+      ephemeralAddresses,
+      onCustomerAddressChange,
+    ]);
+
+    const handleAddressSelect = (addressId: string) => {
       setSelectedAddressId(addressId);
+      if (addressId === PROFILE_DELIVERY_ID) {
+        onCustomerAddressChange(profileDeliveryAddress.trim());
+        return;
+      }
+      if (addressId === PROFILE_CURRENT_ID) {
+        onCustomerAddressChange(profileCurrentAddress.trim());
+        return;
+      }
+      const ephemeral = ephemeralAddresses.find((addr) => addr.id === addressId);
+      if (ephemeral) {
+        onCustomerAddressChange(ephemeral.address);
+        return;
+      }
       const selectedAddress = addresses.find((addr) => addr.id === addressId);
       if (selectedAddress) {
         onCustomerAddressChange(selectedAddress.address);
       }
     };
 
-    const handleAddNewAddress = async () => {
-      if (!newAddress.name?.trim() || !newAddress.address?.trim()) {
+    const handleAddEphemeralAddress = () => {
+      if (!newAddress.address?.trim()) {
         return;
       }
-
-      if (!session?.user?.id) {
-        alert(isEnglish ? "Please log in to save addresses." : "请登录以保存地址。");
-        return;
-      }
-
-      setIsSavingAddress(true);
-
-      try {
-        const { data: allCustomers, error: allError } = await supabase
-          .from("customers")
-          .select("id, email, user_id")
-          .eq("email", session.user.email);
-
-        if (allError || !allCustomers || allCustomers.length === 0) {
-          alert(isEnglish ? "Failed to get customer information." : "获取客户信息失败。");
-          return;
-        }
-
-        const customerData = allCustomers[0];
-
-        const { data: newAddressData, error } = await supabase
-          .from("addresses")
-          .insert([
-            {
-              customer_id: customerData.id,
-              name: newAddress.name.trim(),
-              address: newAddress.address.trim(),
-              is_default: addresses.length === 0, // First address becomes default
-            },
-          ])
-          .select()
-          .single();
-
-        if (error) {
-          alert(isEnglish ? "Failed to save address. Please try again." : "保存地址失败，请重试。");
-          return;
-        }
-
-        const newAddr: Address = {
-          id: newAddressData.id.toString(),
-          name: newAddressData.name,
-          address: newAddressData.address,
-          isDefault: newAddressData.is_default,
-        };
-        setAddresses((prev) => [...prev, newAddr]);
-        setSelectedAddressId(newAddr.id);
-        onCustomerAddressChange(newAddr.address);
-        setNewAddress({ name: "", address: "" });
-        setShowAddAddress(false);
-      } catch (error) {
-        console.error("Error saving address:", error);
-        alert(isEnglish ? "Failed to save address. Please try again." : "保存地址失败，请重试。");
-      } finally {
-        setIsSavingAddress(false);
-      }
-    };
-
-    const handleCustomAddressChange = async (value: string) => {
-      onCustomerAddressChange(value);
-      setSelectedAddressId("custom");
+      const id = `ephemeral-${Date.now()}`;
+      const addr: Address = {
+        id,
+        name: "",
+        address: newAddress.address.trim(),
+      };
+      setEphemeralAddresses((prev) => [...prev, addr]);
+      setSelectedAddressId(id);
+      onCustomerAddressChange(addr.address);
+      setNewAddress({ name: "", address: "" });
+      setShowAddAddress(false);
     };
 
     const handleEditAddress = (address: Address) => {
@@ -409,6 +425,31 @@ export const OrderPanel = memo<OrderPanelProps>(
     };
 
     const handleDeleteAddress = async (addressId: string) => {
+      if (addressId.startsWith("ephemeral-")) {
+        const nextEphem = ephemeralAddresses.filter((a) => a.id !== addressId);
+        setEphemeralAddresses(nextEphem);
+        if (selectedAddressId === addressId) {
+          const delivery = profileDeliveryAddress.trim();
+          if (delivery) {
+            setSelectedAddressId(PROFILE_DELIVERY_ID);
+            onCustomerAddressChange(delivery);
+          } else if (profileCurrentAddress.trim()) {
+            setSelectedAddressId(PROFILE_CURRENT_ID);
+            onCustomerAddressChange(profileCurrentAddress.trim());
+          } else if (addresses[0]) {
+            setSelectedAddressId(addresses[0].id);
+            onCustomerAddressChange(addresses[0].address);
+          } else if (nextEphem[0]) {
+            setSelectedAddressId(nextEphem[0].id);
+            onCustomerAddressChange(nextEphem[0].address);
+          } else {
+            setSelectedAddressId("");
+            onCustomerAddressChange("");
+          }
+        }
+        return;
+      }
+
       if (!session?.user?.id) return;
 
       try {
@@ -420,11 +461,27 @@ export const OrderPanel = memo<OrderPanelProps>(
           return;
         }
 
-        setAddresses((prev) => prev.filter((addr) => addr.id !== addressId));
+        const nextSaved = addresses.filter((addr) => addr.id !== addressId);
+        setAddresses(nextSaved);
 
         if (selectedAddressId === addressId) {
-          setSelectedAddressId("");
-          onCustomerAddressChange("");
+          const delivery = profileDeliveryAddress.trim();
+          if (delivery) {
+            setSelectedAddressId(PROFILE_DELIVERY_ID);
+            onCustomerAddressChange(delivery);
+          } else if (profileCurrentAddress.trim()) {
+            setSelectedAddressId(PROFILE_CURRENT_ID);
+            onCustomerAddressChange(profileCurrentAddress.trim());
+          } else if (nextSaved[0]) {
+            setSelectedAddressId(nextSaved[0].id);
+            onCustomerAddressChange(nextSaved[0].address);
+          } else if (ephemeralAddresses[0]) {
+            setSelectedAddressId(ephemeralAddresses[0].id);
+            onCustomerAddressChange(ephemeralAddresses[0].address);
+          } else {
+            setSelectedAddressId("");
+            onCustomerAddressChange("");
+          }
         }
       } catch (error) {
         console.error("Error deleting address:", error);
@@ -586,91 +643,164 @@ export const OrderPanel = memo<OrderPanelProps>(
                       {isEnglish ? "Delivery Address" : "配送地址"}
                     </label>
 
-                    {addresses.length > 0 && (
-                      <div className="mb-2">
-                        <div className="space-y-2">
-                          {addresses.map((address) => (
-                            <div
-                              key={address.id}
-                              className="p-2 bg-gray-50 rounded border flex items-center gap-3"
-                            >
-                              <div className="flex items-center">
-                                <input
-                                  checked={selectedAddressId === address.id}
-                                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
-                                  name="address"
-                                  type="radio"
-                                  value={address.id}
-                                  onChange={() => {
-                                    handleAddressSelect(address.id);
-                                    onCustomerAddressChange(address.address);
-                                  }}
-                                />
-                              </div>
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium text-sm">{address.name}</span>
-                                  {address.isDefault && (
-                                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                                      {isEnglish ? "Default" : "默认"}
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-xs text-gray-600 mt-1">{address.address}</p>
-                              </div>
-                              <div className="flex gap-1">
-                                <button
-                                  className="text-blue-600 hover:text-blue-800 text-xs px-2 py-1"
-                                  title={isEnglish ? "Edit" : "编辑"}
-                                  onClick={() => handleEditAddress(address)}
-                                >
-                                  ✏️
-                                </button>
-                                {!address.isDefault && (
-                                  <button
-                                    className="text-yellow-600 hover:text-yellow-800 text-xs px-2 py-1"
-                                    title={isEnglish ? "Set as default" : "设为默认"}
-                                    onClick={() => handleSetDefaultAddress(address.id)}
-                                  >
-                                    ⭐
-                                  </button>
-                                )}
-                                <button
-                                  className="text-red-600 hover:text-red-800 text-xs px-2 py-1"
-                                  title={isEnglish ? "Delete" : "删除"}
-                                  onClick={() => handleDeleteAddress(address.id)}
-                                >
-                                  🗑️
-                                </button>
-                              </div>
-                            </div>
-                          ))}
+                    <div className="mb-2 space-y-2">
+                      <div
+                        className={`p-2 bg-gray-50 rounded border flex items-center gap-3 ${
+                          !profileDeliveryAddress.trim() ? "opacity-60" : ""
+                        }`}
+                      >
+                        <input
+                          checked={selectedAddressId === PROFILE_DELIVERY_ID}
+                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 shrink-0"
+                          disabled={!profileDeliveryAddress.trim()}
+                          name="address"
+                          type="radio"
+                          value={PROFILE_DELIVERY_ID}
+                          onChange={() => handleAddressSelect(PROFILE_DELIVERY_ID)}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="font-medium text-sm">
+                            {isEnglish ? "Delivery address" : "配送地址"}
+                          </span>
+                          <p className="text-xs text-gray-600 mt-1 whitespace-pre-wrap break-words">
+                            {profileDeliveryAddress.trim()
+                              ? profileDeliveryAddress
+                              : isEnglish
+                                ? "(Not set)"
+                                : "（未设置）"}
+                          </p>
                         </div>
                       </div>
-                    )}
 
-                    <textarea
-                      required
-                      className="w-full p-2 border rounded-md resize-none"
-                      placeholder={isEnglish ? "Enter delivery address" : "输入配送地址"}
-                      rows={3}
-                      value={customerAddress}
-                      onChange={(e) => handleCustomAddressChange(e.target.value)}
-                    />
+                      <div
+                        className={`p-2 bg-gray-50 rounded border flex items-center gap-3 ${
+                          !profileCurrentAddress.trim() ? "opacity-60" : ""
+                        }`}
+                      >
+                        <input
+                          checked={selectedAddressId === PROFILE_CURRENT_ID}
+                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 shrink-0"
+                          disabled={!profileCurrentAddress.trim()}
+                          name="address"
+                          type="radio"
+                          value={PROFILE_CURRENT_ID}
+                          onChange={() => handleAddressSelect(PROFILE_CURRENT_ID)}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="font-medium text-sm">
+                            {isEnglish ? "Current address" : "当前地址"}
+                          </span>
+                          <p className="text-xs text-gray-600 mt-1 whitespace-pre-wrap break-words">
+                            {profileCurrentAddress.trim()
+                              ? profileCurrentAddress
+                              : isEnglish
+                                ? "(Not set)"
+                                : "（未设置）"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {ephemeralAddresses.map((address) => (
+                        <div
+                          key={address.id}
+                          className="p-2 bg-amber-50 rounded border border-amber-100 flex items-center gap-3"
+                        >
+                          <input
+                            checked={selectedAddressId === address.id}
+                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 shrink-0"
+                            name="address"
+                            type="radio"
+                            value={address.id}
+                            onChange={() => handleAddressSelect(address.id)}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-gray-600 whitespace-pre-wrap break-words">
+                              {address.address}
+                            </p>
+                            <p className="text-xs text-amber-800 mt-1">
+                              {isEnglish ? "Not saved — this order only" : "未保存 — 仅本订单"}
+                            </p>
+                          </div>
+                          <button
+                            className="text-red-600 hover:text-red-800 text-xs px-2 py-1 shrink-0"
+                            title={isEnglish ? "Remove" : "移除"}
+                            type="button"
+                            onClick={() => handleDeleteAddress(address.id)}
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      ))}
+
+                      {addresses.map((address) => (
+                        <div
+                          key={address.id}
+                          className="p-2 bg-gray-50 rounded border flex items-center gap-3"
+                        >
+                          <input
+                            checked={selectedAddressId === address.id}
+                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 shrink-0"
+                            name="address"
+                            type="radio"
+                            value={address.id}
+                            onChange={() => handleAddressSelect(address.id)}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-sm">{address.name}</span>
+                              {address.isDefault && (
+                                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                  {isEnglish ? "Default" : "默认"}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-600 mt-1 whitespace-pre-wrap break-words">
+                              {address.address}
+                            </p>
+                          </div>
+                          <div className="flex gap-1 shrink-0">
+                            <button
+                              className="text-blue-600 hover:text-blue-800 text-xs px-2 py-1"
+                              title={isEnglish ? "Edit" : "编辑"}
+                              type="button"
+                              onClick={() => handleEditAddress(address)}
+                            >
+                              ✏️
+                            </button>
+                            {!address.isDefault && (
+                              <button
+                                className="text-yellow-600 hover:text-yellow-800 text-xs px-2 py-1"
+                                title={isEnglish ? "Set as default" : "设为默认"}
+                                type="button"
+                                onClick={() => handleSetDefaultAddress(address.id)}
+                              >
+                                ⭐
+                              </button>
+                            )}
+                            <button
+                              className="text-red-600 hover:text-red-800 text-xs px-2 py-1"
+                              title={isEnglish ? "Delete" : "删除"}
+                              type="button"
+                              onClick={() => handleDeleteAddress(address.id)}
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
 
                     <button
                       className="mt-2 text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
                       type="button"
-                      onClick={() => setShowAddAddress(true)}
+                      onClick={() => {
+                        setEditingAddress(null);
+                        setNewAddress({ name: "", address: "" });
+                        setShowAddAddress(true);
+                      }}
                     >
                       <Plus className="w-3 h-3" />
-                      {addresses.length === 0
-                        ? isEnglish
-                          ? "Add New Address"
-                          : "添加新地址"
-                        : isEnglish
-                          ? "Add another address"
-                          : "添加另一个地址"}
+                      {isEnglish ? "Add another address" : "添加另一个地址"}
                     </button>
                   </div>
                 </div>
@@ -779,25 +909,38 @@ export const OrderPanel = memo<OrderPanelProps>(
                           ? "Edit Address"
                           : "编辑地址"
                         : isEnglish
-                          ? "Add New Address"
-                          : "添加新地址"}
+                          ? "Add address for this order"
+                          : "添加本订单地址"}
                     </h3>
 
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {isEnglish ? "Address Name" : "地址名称"}
-                        </label>
-                        <input
-                          className="w-full p-2 border rounded-md"
-                          placeholder={isEnglish ? "e.g., Home, Office" : "例如：家、办公室"}
-                          type="text"
-                          value={newAddress.name}
-                          onChange={(e) =>
-                            setNewAddress((prev) => ({ ...prev, name: e.target.value }))
-                          }
-                        />
+                    {!editingAddress && (
+                      <div
+                        className="mb-4 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-md p-3"
+                        role="alert"
+                      >
+                        {isEnglish
+                          ? "This address will not be saved to your account. It applies to this order only."
+                          : "此地址不会保存到您的账户，仅用于本次订单。"}
                       </div>
+                    )}
+
+                    <div className="space-y-4">
+                      {editingAddress && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            {isEnglish ? "Address Name" : "地址名称"}
+                          </label>
+                          <input
+                            className="w-full p-2 border rounded-md"
+                            placeholder={isEnglish ? "e.g., Home, Office" : "例如：家、办公室"}
+                            type="text"
+                            value={newAddress.name}
+                            onChange={(e) =>
+                              setNewAddress((prev) => ({ ...prev, name: e.target.value }))
+                            }
+                          />
+                        </div>
+                      )}
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -830,12 +973,16 @@ export const OrderPanel = memo<OrderPanelProps>(
                       <button
                         className="flex-1 py-2 px-4 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         disabled={
-                          !newAddress.name?.trim() || !newAddress.address?.trim() || isSavingAddress
+                          editingAddress
+                            ? !newAddress.name?.trim() ||
+                              !newAddress.address?.trim() ||
+                              isSavingAddress
+                            : !newAddress.address?.trim()
                         }
                         type="button"
-                        onClick={editingAddress ? handleUpdateAddress : handleAddNewAddress}
+                        onClick={editingAddress ? handleUpdateAddress : handleAddEphemeralAddress}
                       >
-                        {isSavingAddress ? (
+                        {editingAddress && isSavingAddress ? (
                           <>
                             <Loader2 className="w-4 h-4 animate-spin" />
                             {isEnglish ? "Saving..." : "保存中..."}
@@ -847,8 +994,8 @@ export const OrderPanel = memo<OrderPanelProps>(
                                 ? "Update Address"
                                 : "更新地址"
                               : isEnglish
-                                ? "Add Address"
-                                : "添加地址"}
+                                ? "Use for this order"
+                                : "用于本订单"}
                           </>
                         )}
                       </button>
