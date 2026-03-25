@@ -2,7 +2,7 @@
 
 import React, { memo, useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence as FramerAnimatePresence } from "framer-motion";
-import { Loader2, Plus } from "lucide-react";
+import { ChevronLeft, Loader2, Plus } from "lucide-react";
 import { supabase } from "@/app/lib/supabaseClient";
 import OrderReview from "./OrderReview";
 
@@ -126,7 +126,8 @@ export const OrderPanel = memo<OrderPanelProps>(
     const [editingAddress, setEditingAddress] = useState<Address | null>(null);
     const [newAddress, setNewAddress] = useState({ name: "", address: "" });
     const [isSavingAddress, setIsSavingAddress] = useState(false);
-    const [showReview, setShowReview] = useState(false);
+    /** 0 = cart & customer details, 1 = review & confirm */
+    const [checkoutStep, setCheckoutStep] = useState<0 | 1>(0);
     const [customerDataLoaded, setCustomerDataLoaded] = useState(false);
     const [addressesFetchDone, setAddressesFetchDone] = useState(false);
     const addressDefaultsAppliedRef = useRef(false);
@@ -334,6 +335,7 @@ export const OrderPanel = memo<OrderPanelProps>(
         setEphemeralAddresses([]);
         addressDefaultsAppliedRef.current = false;
         setAddressesFetchDone(false);
+        setCheckoutStep(0);
       }
     }, [isOpen, session, loadAddresses]);
 
@@ -598,307 +600,370 @@ export const OrderPanel = memo<OrderPanelProps>(
               initial={{ x: "100%" }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">{isEnglish ? "Create Order" : "创建订单"}</h2>
-                <button className="text-gray-500 hover:text-gray-700" onClick={onClose}>
+              <div className="flex justify-between items-center gap-2 mb-3">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  {checkoutStep === 1 && (
+                    <button
+                      aria-label={isEnglish ? "Back to details" : "返回详情"}
+                      className="shrink-0 p-1 rounded-md text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                      type="button"
+                      onClick={() => setCheckoutStep(0)}
+                    >
+                      <ChevronLeft className="w-6 h-6" />
+                    </button>
+                  )}
+                  <h2 className="text-xl font-semibold truncate">
+                    {checkoutStep === 0
+                      ? isEnglish
+                        ? "Create Order"
+                        : "创建订单"
+                      : isEnglish
+                        ? "Review Order"
+                        : "审核订单"}
+                  </h2>
+                </div>
+                <button className="text-gray-500 hover:text-gray-700 shrink-0" onClick={onClose}>
                   ✕
                 </button>
               </div>
 
-              <div className="mb-4 space-y-3">
-                <div className="flex justify-between items-center">
-                  <h3 className="font-semibold">
-                    {isEnglish ? "Customer Information" : "客户信息"}
-                  </h3>
-                </div>
-                <div className="space-y-2">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {isEnglish ? "Customer Name" : "客户姓名"}
-                    </label>
-                    <input
-                      required
-                      className="w-full p-2 border rounded-md"
-                      placeholder={isEnglish ? "Enter customer name" : "输入客户姓名"}
-                      type="text"
-                      value={customerName}
-                      onChange={(e) => onCustomerNameChange(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {isEnglish ? "Mobile Number" : "电话号码"}
-                    </label>
-                    <input
-                      required
-                      className="w-full p-2 border rounded-md"
-                      placeholder={isEnglish ? "Enter mobile number" : "输入电话号码"}
-                      type="tel"
-                      value={customerPhone}
-                      onChange={(e) => onCustomerPhoneChange(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {isEnglish ? "Delivery Address" : "配送地址"}
-                    </label>
-
-                    <div className="mb-2 space-y-2">
-                      <div
-                        className={`p-2 bg-gray-50 rounded border flex items-center gap-3 ${
-                          !profileDeliveryAddress.trim() ? "opacity-60" : ""
-                        }`}
-                      >
-                        <input
-                          checked={selectedAddressId === PROFILE_DELIVERY_ID}
-                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 shrink-0"
-                          disabled={!profileDeliveryAddress.trim()}
-                          name="address"
-                          type="radio"
-                          value={PROFILE_DELIVERY_ID}
-                          onChange={() => handleAddressSelect(PROFILE_DELIVERY_ID)}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <span className="font-medium text-sm">
-                            {isEnglish ? "Delivery address" : "配送地址"}
-                          </span>
-                          <p className="text-xs text-gray-600 mt-1 whitespace-pre-wrap break-words">
-                            {profileDeliveryAddress.trim()
-                              ? profileDeliveryAddress
-                              : isEnglish
-                                ? "(Not set)"
-                                : "（未设置）"}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div
-                        className={`p-2 bg-gray-50 rounded border flex items-center gap-3 ${
-                          !profileCurrentAddress.trim() ? "opacity-60" : ""
-                        }`}
-                      >
-                        <input
-                          checked={selectedAddressId === PROFILE_CURRENT_ID}
-                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 shrink-0"
-                          disabled={!profileCurrentAddress.trim()}
-                          name="address"
-                          type="radio"
-                          value={PROFILE_CURRENT_ID}
-                          onChange={() => handleAddressSelect(PROFILE_CURRENT_ID)}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <span className="font-medium text-sm">
-                            {isEnglish ? "Current address" : "当前地址"}
-                          </span>
-                          <p className="text-xs text-gray-600 mt-1 whitespace-pre-wrap break-words">
-                            {profileCurrentAddress.trim()
-                              ? profileCurrentAddress
-                              : isEnglish
-                                ? "(Not set)"
-                                : "（未设置）"}
-                          </p>
-                        </div>
-                      </div>
-
-                      {ephemeralAddresses.map((address) => (
-                        <div
-                          key={address.id}
-                          className="p-2 bg-amber-50 rounded border border-amber-100 flex items-center gap-3"
-                        >
-                          <input
-                            checked={selectedAddressId === address.id}
-                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 shrink-0"
-                            name="address"
-                            type="radio"
-                            value={address.id}
-                            onChange={() => handleAddressSelect(address.id)}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs text-gray-600 whitespace-pre-wrap break-words">
-                              {address.address}
-                            </p>
-                            <p className="text-xs text-amber-800 mt-1">
-                              {isEnglish ? "Not saved — this order only" : "未保存 — 仅本订单"}
-                            </p>
-                          </div>
-                          <button
-                            className="text-red-600 hover:text-red-800 text-xs px-2 py-1 shrink-0"
-                            title={isEnglish ? "Remove" : "移除"}
-                            type="button"
-                            onClick={() => handleDeleteAddress(address.id)}
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      ))}
-
-                      {addresses.map((address) => (
-                        <div
-                          key={address.id}
-                          className="p-2 bg-gray-50 rounded border flex items-center gap-3"
-                        >
-                          <input
-                            checked={selectedAddressId === address.id}
-                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 shrink-0"
-                            name="address"
-                            type="radio"
-                            value={address.id}
-                            onChange={() => handleAddressSelect(address.id)}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-medium text-sm">{address.name}</span>
-                              {address.isDefault && (
-                                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                                  {isEnglish ? "Default" : "默认"}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs text-gray-600 mt-1 whitespace-pre-wrap break-words">
-                              {address.address}
-                            </p>
-                          </div>
-                          <div className="flex gap-1 shrink-0">
-                            <button
-                              className="text-blue-600 hover:text-blue-800 text-xs px-2 py-1"
-                              title={isEnglish ? "Edit" : "编辑"}
-                              type="button"
-                              onClick={() => handleEditAddress(address)}
-                            >
-                              ✏️
-                            </button>
-                            {!address.isDefault && (
-                              <button
-                                className="text-yellow-600 hover:text-yellow-800 text-xs px-2 py-1"
-                                title={isEnglish ? "Set as default" : "设为默认"}
-                                type="button"
-                                onClick={() => handleSetDefaultAddress(address.id)}
-                              >
-                                ⭐
-                              </button>
-                            )}
-                            <button
-                              className="text-red-600 hover:text-red-800 text-xs px-2 py-1"
-                              title={isEnglish ? "Delete" : "删除"}
-                              type="button"
-                              onClick={() => handleDeleteAddress(address.id)}
-                            >
-                              🗑️
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <button
-                      className="mt-2 text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                      type="button"
-                      onClick={() => {
-                        setEditingAddress(null);
-                        setNewAddress({ name: "", address: "" });
-                        setShowAddAddress(true);
-                      }}
-                    >
-                      <Plus className="w-3 h-3" />
-                      {isEnglish ? "Add another address" : "添加另一个地址"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {selectedProducts.length > 0 && (
-                <div className="mb-4 space-y-2">
-                  <h3 className="font-semibold mb-2">
-                    {isEnglish ? "Selected Products" : "已选产品"}
-                  </h3>
-                  {selectedProducts.map(({ product, quantity }) => {
-                    const variation = getVariationLabel(product);
-                    const origin = getOriginLabel(product);
-                    const weight = getWeightLabel(product);
-
-                    return (
-                      <div key={product.id} className="p-3 bg-gray-50 rounded-lg">
-                        <div className="flex justify-between items-start mb-1">
-                          <p className="text-sm font-medium">
-                            {isEnglish ? product.Product : product.Product_CH}
-                          </p>
-                          <span className="text-sm text-gray-600">
-                            ${product.price.toFixed(2)}/{product.UOM}
-                          </span>
-                        </div>
-                        {(variation || origin || weight) && (
-                          <div className="text-xs text-gray-500 space-y-0.5">
-                            {variation && (
-                              <p>
-                                {isEnglish ? "Variation:" : "规格:"} {variation}
-                              </p>
-                            )}
-                            {origin && (
-                              <p>
-                                {isEnglish ? "Origin:" : "产地:"} {origin}
-                              </p>
-                            )}
-                            {weight && (
-                              <p>
-                                {isEnglish ? "Weight:" : "重量:"} {weight}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                        <div className="flex items-center justify-between mt-2">
-                          <div className="flex items-center gap-2">
-                            <button
-                              className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm"
-                              onClick={() => onUpdateQuantity(product.id, quantity - 1)}
-                            >
-                              -
-                            </button>
-                            <span className="text-sm">{quantity}</span>
-                            <button
-                              className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm"
-                              onClick={() => onUpdateQuantity(product.id, quantity + 1)}
-                            >
-                              +
-                            </button>
-                          </div>
-                          <button
-                            className="text-red-500 hover:text-red-700 text-sm"
-                            onClick={() => onUpdateQuantity(product.id, 0)}
-                          >
-                            {isEnglish ? "Remove" : "移除"}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <div className="text-right space-y-1 mt-2">
-                    <div className="text-sm">
-                      {isEnglish ? "Subtotal:" : "小计:"} ${subtotal.toFixed(2)}
-                    </div>
-                    <div className="text-sm">
-                      {isEnglish ? "GST (9%):" : "消费税 (9%):"} ${gstAmount.toFixed(2)}
-                    </div>
-                    <div className="font-semibold border-t pt-1">
-                      {isEnglish ? "Total:" : "总计:"} ${totalAmount.toFixed(2)}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <button
-                className="w-full py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-300 flex items-center justify-center gap-2"
-                disabled={selectedProducts.length === 0 || isSubmitting}
-                onClick={() => setShowReview(true)}
+              <nav
+                aria-label={isEnglish ? "Checkout steps" : "结账步骤"}
+                className="mb-4 flex items-center gap-2 select-none"
               >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    {isEnglish ? "Submitting..." : "提交中..."}
-                  </>
-                ) : (
-                  <>{isEnglish ? "Review Order" : "审核订单"}</>
-                )}
-              </button>
+                <div
+                  className={`flex flex-1 items-center gap-2 min-w-0 ${
+                    checkoutStep === 0 ? "text-blue-600" : "text-emerald-600"
+                  }`}
+                >
+                  <span
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+                      checkoutStep === 0 ? "bg-blue-600 text-white" : "bg-emerald-600 text-white"
+                    }`}
+                  >
+                    1
+                  </span>
+                  <span className="text-xs font-medium truncate">
+                    {isEnglish ? "Details" : "详情"}
+                  </span>
+                </div>
+                <div aria-hidden className="h-px min-w-[0.75rem] flex-1 bg-gray-200" />
+                <div
+                  className={`flex flex-1 items-center gap-2 min-w-0 justify-end ${
+                    checkoutStep === 1 ? "text-blue-600" : "text-gray-400"
+                  }`}
+                >
+                  <span className="text-xs font-medium truncate text-right">
+                    {isEnglish ? "Review" : "审核"}
+                  </span>
+                  <span
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+                      checkoutStep === 1 ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-600"
+                    }`}
+                  >
+                    2
+                  </span>
+                </div>
+              </nav>
+
+              {checkoutStep === 0 && (
+                <>
+                  <div className="mb-4 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <h3 className="font-semibold">
+                        {isEnglish ? "Customer Information" : "客户信息"}
+                      </h3>
+                    </div>
+                    <div className="space-y-2">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          {isEnglish ? "Customer Name" : "客户姓名"}
+                        </label>
+                        <input
+                          required
+                          className="w-full p-2 border rounded-md"
+                          placeholder={isEnglish ? "Enter customer name" : "输入客户姓名"}
+                          type="text"
+                          value={customerName}
+                          onChange={(e) => onCustomerNameChange(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          {isEnglish ? "Mobile Number" : "电话号码"}
+                        </label>
+                        <input
+                          required
+                          className="w-full p-2 border rounded-md"
+                          placeholder={isEnglish ? "Enter mobile number" : "输入电话号码"}
+                          type="tel"
+                          value={customerPhone}
+                          onChange={(e) => onCustomerPhoneChange(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          {isEnglish ? "Delivery Address" : "配送地址"}
+                        </label>
+
+                        <div className="mb-2 space-y-2">
+                          <div
+                            className={`p-2 bg-gray-50 rounded border flex items-center gap-3 ${
+                              !profileDeliveryAddress.trim() ? "opacity-60" : ""
+                            }`}
+                          >
+                            <input
+                              checked={selectedAddressId === PROFILE_DELIVERY_ID}
+                              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 shrink-0"
+                              disabled={!profileDeliveryAddress.trim()}
+                              name="address"
+                              type="radio"
+                              value={PROFILE_DELIVERY_ID}
+                              onChange={() => handleAddressSelect(PROFILE_DELIVERY_ID)}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <span className="font-medium text-sm">
+                                {isEnglish ? "Delivery address" : "配送地址"}
+                              </span>
+                              <p className="text-xs text-gray-600 mt-1 whitespace-pre-wrap break-words">
+                                {profileDeliveryAddress.trim()
+                                  ? profileDeliveryAddress
+                                  : isEnglish
+                                    ? "(Not set)"
+                                    : "（未设置）"}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div
+                            className={`p-2 bg-gray-50 rounded border flex items-center gap-3 ${
+                              !profileCurrentAddress.trim() ? "opacity-60" : ""
+                            }`}
+                          >
+                            <input
+                              checked={selectedAddressId === PROFILE_CURRENT_ID}
+                              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 shrink-0"
+                              disabled={!profileCurrentAddress.trim()}
+                              name="address"
+                              type="radio"
+                              value={PROFILE_CURRENT_ID}
+                              onChange={() => handleAddressSelect(PROFILE_CURRENT_ID)}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <span className="font-medium text-sm">
+                                {isEnglish ? "Current address" : "当前地址"}
+                              </span>
+                              <p className="text-xs text-gray-600 mt-1 whitespace-pre-wrap break-words">
+                                {profileCurrentAddress.trim()
+                                  ? profileCurrentAddress
+                                  : isEnglish
+                                    ? "(Not set)"
+                                    : "（未设置）"}
+                              </p>
+                            </div>
+                          </div>
+
+                          {ephemeralAddresses.map((address) => (
+                            <div
+                              key={address.id}
+                              className="p-2 bg-amber-50 rounded border border-amber-100 flex items-center gap-3"
+                            >
+                              <input
+                                checked={selectedAddressId === address.id}
+                                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 shrink-0"
+                                name="address"
+                                type="radio"
+                                value={address.id}
+                                onChange={() => handleAddressSelect(address.id)}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs text-gray-600 whitespace-pre-wrap break-words">
+                                  {address.address}
+                                </p>
+                                <p className="text-xs text-amber-800 mt-1">
+                                  {isEnglish ? "Not saved — this order only" : "未保存 — 仅本订单"}
+                                </p>
+                              </div>
+                              <button
+                                className="text-red-600 hover:text-red-800 text-xs px-2 py-1 shrink-0"
+                                title={isEnglish ? "Remove" : "移除"}
+                                type="button"
+                                onClick={() => handleDeleteAddress(address.id)}
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          ))}
+
+                          {addresses.map((address) => (
+                            <div
+                              key={address.id}
+                              className="p-2 bg-gray-50 rounded border flex items-center gap-3"
+                            >
+                              <input
+                                checked={selectedAddressId === address.id}
+                                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 shrink-0"
+                                name="address"
+                                type="radio"
+                                value={address.id}
+                                onChange={() => handleAddressSelect(address.id)}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-medium text-sm">{address.name}</span>
+                                  {address.isDefault && (
+                                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                      {isEnglish ? "Default" : "默认"}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-gray-600 mt-1 whitespace-pre-wrap break-words">
+                                  {address.address}
+                                </p>
+                              </div>
+                              <div className="flex gap-1 shrink-0">
+                                <button
+                                  className="text-blue-600 hover:text-blue-800 text-xs px-2 py-1"
+                                  title={isEnglish ? "Edit" : "编辑"}
+                                  type="button"
+                                  onClick={() => handleEditAddress(address)}
+                                >
+                                  ✏️
+                                </button>
+                                {!address.isDefault && (
+                                  <button
+                                    className="text-yellow-600 hover:text-yellow-800 text-xs px-2 py-1"
+                                    title={isEnglish ? "Set as default" : "设为默认"}
+                                    type="button"
+                                    onClick={() => handleSetDefaultAddress(address.id)}
+                                  >
+                                    ⭐
+                                  </button>
+                                )}
+                                <button
+                                  className="text-red-600 hover:text-red-800 text-xs px-2 py-1"
+                                  title={isEnglish ? "Delete" : "删除"}
+                                  type="button"
+                                  onClick={() => handleDeleteAddress(address.id)}
+                                >
+                                  🗑️
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <button
+                          className="mt-2 text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                          type="button"
+                          onClick={() => {
+                            setEditingAddress(null);
+                            setNewAddress({ name: "", address: "" });
+                            setShowAddAddress(true);
+                          }}
+                        >
+                          <Plus className="w-3 h-3" />
+                          {isEnglish ? "Add another address" : "添加另一个地址"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {selectedProducts.length > 0 && (
+                    <div className="mb-4 space-y-2">
+                      <h3 className="font-semibold mb-2">
+                        {isEnglish ? "Selected Products" : "已选产品"}
+                      </h3>
+                      {selectedProducts.map(({ product, quantity }) => {
+                        const variation = getVariationLabel(product);
+                        const origin = getOriginLabel(product);
+                        const weight = getWeightLabel(product);
+
+                        return (
+                          <div key={product.id} className="p-3 bg-gray-50 rounded-lg">
+                            <div className="flex justify-between items-start mb-1">
+                              <p className="text-sm font-medium">
+                                {isEnglish ? product.Product : product.Product_CH}
+                              </p>
+                              <span className="text-sm text-gray-600">
+                                ${product.price.toFixed(2)}/{product.UOM}
+                              </span>
+                            </div>
+                            {(variation || origin || weight) && (
+                              <div className="text-xs text-gray-500 space-y-0.5">
+                                {variation && (
+                                  <p>
+                                    {isEnglish ? "Variation:" : "规格:"} {variation}
+                                  </p>
+                                )}
+                                {origin && (
+                                  <p>
+                                    {isEnglish ? "Origin:" : "产地:"} {origin}
+                                  </p>
+                                )}
+                                {weight && (
+                                  <p>
+                                    {isEnglish ? "Weight:" : "重量:"} {weight}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between mt-2">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm"
+                                  onClick={() => onUpdateQuantity(product.id, quantity - 1)}
+                                >
+                                  -
+                                </button>
+                                <span className="text-sm">{quantity}</span>
+                                <button
+                                  className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm"
+                                  onClick={() => onUpdateQuantity(product.id, quantity + 1)}
+                                >
+                                  +
+                                </button>
+                              </div>
+                              <button
+                                className="text-red-500 hover:text-red-700 text-sm"
+                                onClick={() => onUpdateQuantity(product.id, 0)}
+                              >
+                                {isEnglish ? "Remove" : "移除"}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <div className="text-right space-y-1 mt-2">
+                        <div className="text-sm">
+                          {isEnglish ? "Subtotal:" : "小计:"} ${subtotal.toFixed(2)}
+                        </div>
+                        <div className="text-sm">
+                          {isEnglish ? "GST (9%):" : "消费税 (9%):"} ${gstAmount.toFixed(2)}
+                        </div>
+                        <div className="font-semibold border-t pt-1">
+                          {isEnglish ? "Total:" : "总计:"} ${totalAmount.toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    className="w-full py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-300 flex items-center justify-center gap-2"
+                    disabled={selectedProducts.length === 0 || isSubmitting}
+                    onClick={() => setCheckoutStep(1)}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        {isEnglish ? "Submitting..." : "提交中..."}
+                      </>
+                    ) : (
+                      <>{isEnglish ? "Review Order" : "审核订单"}</>
+                    )}
+                  </button>
+                </>
+              )}
 
               {showAddAddress && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-60 flex items-center justify-center p-4">
@@ -1004,24 +1069,27 @@ export const OrderPanel = memo<OrderPanelProps>(
                 </div>
               )}
 
-              <OrderReview
-                countryMap={countryMap}
-                customerAddress={customerAddress}
-                customerName={customerName}
-                customerPhone={customerPhone}
-                isEnglish={isEnglish}
-                isOpen={showReview}
-                isSubmitting={isSubmitting}
-                selectedProducts={selectedProducts}
-                onBackToEdit={() => setShowReview(false)}
-                onClose={() => setShowReview(false)}
-                onConfirmOrder={(data) => {
-                  setShowReview(false);
-                  if (typeof onSubmitOrder === "function") {
-                    onSubmitOrder(data);
-                  }
-                }}
-              />
+              {checkoutStep === 1 && (
+                <OrderReview
+                  embedded
+                  isOpen
+                  countryMap={countryMap}
+                  customerAddress={customerAddress}
+                  customerName={customerName}
+                  customerPhone={customerPhone}
+                  isEnglish={isEnglish}
+                  isSubmitting={isSubmitting}
+                  selectedProducts={selectedProducts}
+                  onBackToEdit={() => setCheckoutStep(0)}
+                  onClose={() => setCheckoutStep(0)}
+                  onConfirmOrder={(data) => {
+                    setCheckoutStep(0);
+                    if (typeof onSubmitOrder === "function") {
+                      onSubmitOrder(data);
+                    }
+                  }}
+                />
+              )}
             </motion.div>
           </motion.div>
         )}
