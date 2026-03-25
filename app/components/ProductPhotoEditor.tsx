@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X, Trash2 } from "@/app/lib/icons";
 import { CldImage, getCloudinaryCloudName, getCloudinaryUploadPreset } from "@/app/lib/cloudinary";
 import { supabase } from "@/app/lib/supabaseClient";
-import ImageCropEditor from "@/components/ImageCropEditor";
+import ImageCropEditor from "@/app/components/ImageCropEditor";
 
 type ProductImageRow = {
   id: number;

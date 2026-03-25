@@ -1,5 +1,5 @@
 import { LoadingSkeleton } from "@/app/components/LoadingSkeleton";
 
-export default function CustomerSegmentLoading() {
+export default function ManagementLoading() {
   return <LoadingSkeleton />;
 }

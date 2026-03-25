@@ -6,7 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import TopBarLogin from "./TopBarLogin";
-import { supabase } from "../app/lib/supabaseClient";
+import { supabase } from "@/app/lib/supabaseClient";
 
 const isAbortError = (error: unknown): boolean => {
   if (!error) return false;

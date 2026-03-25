@@ -3,7 +3,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { CldImage } from "next-cloudinary";
-import EditUserModal from "@/components/EditUserModal";
+import EditUserModal from "@/app/components/EditUserModal";
 import type { User } from "../../types";
 
 export type UsersTabProps = {

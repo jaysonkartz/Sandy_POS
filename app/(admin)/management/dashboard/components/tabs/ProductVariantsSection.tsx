@@ -3,8 +3,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Autocomplete, AutocompleteItem } from "@heroui/react";
 import { supabase } from "@/app/lib/supabaseClient";
-import VariantManager from "@/components/VariantManager";
-import VariantExtractor from "@/components/VariantExtractor";
+import VariantManager from "@/app/components/VariantManager";
+import VariantExtractor from "@/app/components/VariantExtractor";
 import { ProductVariant } from "@/app/types/product";
 import type { Category, Product } from "../../types";
 

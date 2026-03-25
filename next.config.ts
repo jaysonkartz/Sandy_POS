@@ -1,5 +1,6 @@
-// next.config.mjs
-export default {
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "hongguanmp.com.sg", pathname: "/**" },
@@ -7,7 +8,8 @@ export default {
       { protocol: "https", hostname: "res.cloudinary.com", pathname: "/**" },
     ],
   },
-  typedRoutes: false,
-  // Disable server-side features that might cause permission issues
+  typedRoutes: true,
   serverExternalPackages: [],
 };
+
+export default nextConfig;

@@ -4,8 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import CustomerLoginModal from "./CustomerLoginModal";
 import { useRouter } from "next/navigation";
-import { supabase } from "../app/lib/supabaseClient";
-import { performLogoutWithReload } from "../app/utils/logout";
+import { supabase } from "@/app/lib/supabaseClient";
+import { performLogoutWithReload } from "@/app/utils/logout";
 
 interface TopBarLoginProps {
   session?: Session | null;

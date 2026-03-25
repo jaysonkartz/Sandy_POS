@@ -1,4 +1,4 @@
-import OrderHistoryCharts from "@/components/OrderHistoryCharts";
+import OrderHistoryCharts from "@/app/components/OrderHistoryCharts";
 
 interface Order {
   id: string;

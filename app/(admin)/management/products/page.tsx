@@ -1,6 +1,6 @@
 "use client";
 
-import ProductManagement from "@/components/ProductManagement";
+import ProductManagement from "@/app/components/ProductManagement";
 
 export default function ProductsPage() {
   return (
