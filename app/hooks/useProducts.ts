@@ -1,37 +1,10 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { supabasePublic, isSupabaseConfigured } from "@/app/lib/supabaseClient";
 import { CATEGORY_ID_NAME_MAP } from "@/app/(admin)/const/category";
 import type { Session } from "@/app/types/common";
-
-interface ProductImageRow {
-  id: number;
-  product_id: number;
-  image_url: string;
-  sort_order: number;
-  is_cover: boolean;
-}
-
-interface Product {
-  id: number;
-  "Item Code": string;
-  Product: string;
-  Category: string;
-  weight: string;
-  UOM: string;
-  Country: string;
-  Product_CH?: string;
-  Category_CH?: string;
-  Country_CH?: string;
-  Variation?: string;
-  Variation_CH?: string;
-  price: number;
-  uom: string;
-  stock_quantity: number;
-  image_url?: string;
-  product_images?: ProductImageRow[];
-}
+import type { Product, ProductImageRow } from "@/app/types/product";
 
 interface ProductGroup {
   groupKey: string;
@@ -53,13 +26,21 @@ interface UseProductsReturn {
   refetchProducts: () => Promise<void>;
 }
 
+export type UseProductsOptions = {
+  /** When set, hydrates the "all categories" view without an immediate duplicate fetch. */
+  initialProducts?: Product[];
+};
+
 export const useProducts = (
   selectedCategory: string,
   isEnglish: boolean,
-  session: Session | null
+  session: Session | null,
+  options?: UseProductsOptions
 ): UseProductsReturn => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const initialProducts = options?.initialProducts;
+  const [products, setProducts] = useState<Product[]>(() => initialProducts ?? []);
+  const [loading, setLoading] = useState(() => initialProducts === undefined);
+  const skipInitialClientFetch = useRef(initialProducts !== undefined);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -306,15 +287,21 @@ export const useProducts = (
   }, [fetchProducts]);
 
   useEffect(() => {
+    if (skipInitialClientFetch.current && selectedCategory === "all") {
+      skipInitialClientFetch.current = false;
+      return;
+    }
+    skipInitialClientFetch.current = false;
+
     const loadProducts = async () => {
       try {
         await fetchProducts();
-      } catch (error) {
+      } catch {
         setLoading(false);
       }
     };
 
-    loadProducts();
+    void loadProducts();
   }, [selectedCategory, fetchProducts]);
 
   return {

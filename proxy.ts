@@ -1,30 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/app/utils/supabase/middleware";
-
-const ADMIN_PREFIXES = ["/dashboard", "/management", "/admin", "/pricing-management"];
-
-const AUTH_EXCLUDED_PREFIXES = [
-  "/login",
-  "/signup",
-  "/forgot-password",
-  "/reset-password",
-  "/pending-approval",
-  "/unauthorized",
-  "/403",
-  "/api",
-  "/_next",
-  "/favicon.ico",
-];
-
-const isExcludedPath = (pathname: string): boolean => {
-  return AUTH_EXCLUDED_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
-  );
-};
-
-const isAdminPath = (pathname: string): boolean => {
-  return ADMIN_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
-};
+import { isAdminRoutePath, isProxyAuthExcludedPath } from "@/app/lib/admin-route-prefixes";
 
 const copyCookies = (from: NextResponse, to: NextResponse): NextResponse => {
   from.cookies.getAll().forEach((cookie) => {
@@ -38,11 +14,11 @@ export async function proxy(request: NextRequest) {
 
   const { response, user, supabase } = await updateSession(request);
 
-  if (isExcludedPath(pathname)) {
+  if (isProxyAuthExcludedPath(pathname)) {
     return response;
   }
 
-  if (!isAdminPath(pathname)) {
+  if (!isAdminRoutePath(pathname)) {
     return response;
   }
 

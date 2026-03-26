@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { SignInLogger } from "@/app/lib/signin-logger";
-import { Database } from "@/types/supabase";
+import { Database } from "@/app/types/supabase";
 
 type SignInRecord = Database["public"]["Tables"]["sign_in_records"]["Row"];
 

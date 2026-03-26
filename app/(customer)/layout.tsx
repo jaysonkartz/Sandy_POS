@@ -1,14 +1,7 @@
-import NavLinks from "../ui/customer_dashboard/nav-links";
+import CustomerChrome from "./CustomerChrome";
 
 export const experimental_ppr = true;
 
-export default function Layout({ children }: { children: React.ReactNode }) {
-  return (
-    <>
-      <div className="flex flex-wrap items-stretch">
-        <NavLinks />
-      </div>
-      {children}
-    </>
-  );
+export default function CustomerGroupLayout({ children }: { children: React.ReactNode }) {
+  return <CustomerChrome>{children}</CustomerChrome>;
 }
