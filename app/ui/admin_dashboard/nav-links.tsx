@@ -13,27 +13,27 @@ import clsx from "clsx";
 
 const links = [
   {
-    name: "Payment Approvals",
-    href: "/dashboard/approvals",
+    name: "Pricing",
+    href: "/pricing-management",
     icon: CurrencyDollarIcon,
   },
   {
-    name: "Event Log & Orders",
-    href: "/dashboard/events",
+    name: "Orders",
+    href: "/management/orders",
     icon: CalendarDaysIcon,
   },
   {
-    name: "Plan Log & Orders",
-    href: "/dashboard/plans",
+    name: "Management",
+    href: "/management/dashboard",
     icon: LightBulbIcon,
   },
   {
-    name: "Item Details",
-    href: "/dashboard/invoices",
+    name: "Products",
+    href: "/management/products",
     icon: PuzzlePieceIcon,
   },
-  { name: "Customer Details", href: "/dashboard/people", icon: UserGroupIcon },
-];
+  { name: "Countries", href: "/management/countries", icon: UserGroupIcon },
+] as const;
 
 export default function NavLinks() {
   const pathname = usePathname();

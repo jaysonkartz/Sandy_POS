@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Header from "@/components/Header";
-import { CartProvider } from "@/context/CartContext";
-import ApprovalGate from "@/components/ApprovalGate";
-import BottomNav from "@/components/BottomNav";
+import Header from "@/app/components/Header";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -17,21 +14,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={inter.className}>
-        <CartProvider>
-          <ApprovalGate>
-            <div className="min-h-screen bg-gray-50">
-              <Header />
+        <div className="min-h-screen bg-gray-50">
+          <Header />
 
-              <main className="mx-auto w-full max-w-7xl px-3 sm:px-6 lg:px-8 py-3 sm:py-6 pb-24 sm:pb-6">
-                {children}
-              </main>
-
-              <div className="block sm:hidden">
-                <BottomNav />
-              </div>
-            </div>
-          </ApprovalGate>
-        </CartProvider>
+          <main className="mx-auto w-full max-w-7xl px-3 sm:px-6 lg:px-8 py-3 sm:py-6 pb-24 sm:pb-6">
+            {children}
+          </main>
+        </div>
       </body>
     </html>
   );

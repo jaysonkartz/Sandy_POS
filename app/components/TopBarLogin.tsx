@@ -1,0 +1,178 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import { Session, User } from "@supabase/supabase-js";
+import CustomerLoginModal from "./CustomerLoginModal";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/app/lib/supabaseClient";
+import { performLogoutWithReload } from "@/app/utils/logout";
+
+interface TopBarLoginProps {
+  session?: Session | null;
+  userRole?: string;
+  onLoginSuccess?: () => void;
+}
+
+export default function TopBarLogin({
+  session,
+  userRole: propUserRole,
+  onLoginSuccess,
+}: TopBarLoginProps) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [userRole, setUserRole] = useState<string>("");
+  const [customerName, setCustomerName] = useState<string>("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (session?.user) {
+      setUser(session.user);
+      setUserRole(propUserRole || "");
+
+      const checkCustomer = async () => {
+        const { data: customerData } = await supabase
+          .from("customers")
+          .select("*")
+          .eq("email", session.user.email)
+          .single();
+
+        if (customerData) {
+          setCustomerName(customerData.name);
+        } else {
+          setCustomerName(session.user.email?.split("@")[0] || "User");
+        }
+      };
+
+      checkCustomer();
+    } else {
+      setUser(null);
+      setUserRole("");
+      setCustomerName("");
+    }
+  }, [session, propUserRole]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const handleSignOut = async () => {
+    try {
+      setUser(null);
+      setUserRole("");
+      setCustomerName("");
+      setIsDropdownOpen(false);
+
+      await performLogoutWithReload();
+    } catch (error) {
+      console.error("Error during sign out:", error);
+      setUser(null);
+      setUserRole("");
+      setCustomerName("");
+      setIsDropdownOpen(false);
+      router.replace("/");
+    }
+  };
+
+  return (
+    <div ref={dropdownRef} className="relative">
+      {user ? (
+        <>
+          <button
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+          >
+            <span className="mr-2">{user.email?.split("@")[0]}</span>
+            <svg
+              className={`h-4 w-4 transition-transform duration-200 ${isDropdownOpen ? "rotate-180" : ""}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M19 9l-7 7-7-7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+              />
+            </svg>
+          </button>
+
+          {isDropdownOpen && (
+            <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+              <div className="py-1">
+                <div className="px-4 py-2 text-sm text-gray-700 border-b border-gray-200">
+                  Welcome
+                  <br />
+                  <span className="font-medium">{customerName || user?.email?.split("@")[0]}</span>
+                </div>
+                {userRole === "ADMIN" && (
+                  <button
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => {
+                      router.push("/management/dashboard");
+                      setIsDropdownOpen(false);
+                    }}
+                  >
+                    Management Portal
+                  </button>
+                )}
+                <button
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  onClick={() => {
+                    router.push("/customer-details");
+                    setIsDropdownOpen(false);
+                  }}
+                >
+                  View Profile
+                </button>
+                <button
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  onClick={() => {
+                    router.push("/order-history");
+                    setIsDropdownOpen(false);
+                  }}
+                >
+                  Order History
+                </button>
+                <button
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  onClick={handleSignOut}
+                >
+                  Sign out
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <button
+          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          onClick={() => setIsModalOpen(true)}
+        >
+          Login
+        </button>
+      )}
+
+      <CustomerLoginModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onLoginSuccess={() => {
+          onLoginSuccess?.();
+          setIsModalOpen(false);
+        }}
+      />
+    </div>
+  );
+}

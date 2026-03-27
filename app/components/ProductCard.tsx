@@ -2,7 +2,7 @@
 
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { Camera } from "lucide-react";
-import ProductImage from "@/components/ProductImage";
+import ProductImage from "@/app/components/ProductImage";
 import { WhatsAppIcon } from "./WhatsAppIcon";
 import { CATEGORY_ID_NAME_MAP } from "@/app/(admin)/const/category";
 

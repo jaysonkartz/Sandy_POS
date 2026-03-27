@@ -1,3 +1,11 @@
+export interface ProductImageRow {
+  id: number;
+  product_id: number;
+  image_url: string;
+  sort_order: number;
+  is_cover: boolean;
+}
+
 export interface ProductVariant {
   id?: number;
   product_id: number;
@@ -29,6 +37,7 @@ export interface Product {
   uom: string;
   stock_quantity: number;
   image_url?: string;
+  product_images?: ProductImageRow[];
   variants?: ProductVariant[];
 }
 

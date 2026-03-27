@@ -1,7 +1,10 @@
+import { unstable_noStore as noStore } from "next/cache";
 import { createSupabaseServerClient } from "@/app/lib/supabase/server";
 import { redirect } from "next/navigation";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  noStore();
+
   const supabase = await createSupabaseServerClient();
 
   const {
