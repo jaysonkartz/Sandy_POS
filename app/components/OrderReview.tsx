@@ -258,33 +258,48 @@ export const OrderReview = ({
         )}
       </div>
 
-      <div className="flex gap-2 mt-6">
-        <button
-          className="flex-1 py-2 px-4 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-          onClick={onBackToEdit}
-        >
-          {isEnglish ? "Back to Edit" : "返回编辑"}
-        </button>
-        <button
-          className="flex-1 py-2 px-4 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-300 flex items-center justify-center gap-2"
-          disabled={isSubmitting}
-          onClick={() =>
-            onConfirmOrder({
-              remarks,
-              purchaseOrder,
-              uploadedFiles,
-            })
-          }
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              {isEnglish ? "Confirming..." : "确认中..."}
-            </>
-          ) : (
-            <>{isEnglish ? "Confirm Order" : "确认订单"}</>
-          )}
-        </button>
+      <div className="mt-6 space-y-3">
+        {/* WhatsApp Notice */}
+        <div className="flex items-start gap-2 rounded-md bg-yellow-50 border border-yellow-200 px-3 py-2 text-xs text-yellow-800">
+          <MessageSquare className="w-4 h-4 mt-0.5" />
+          <span>
+            {isEnglish
+              ? "Your order will be processed via WhatsApp. Please ensure that the WhatsApp receipt is sent to "
+              : "您的订单将通过 WhatsApp 处理。请确保将收据发送至 "}
+            <span className="font-semibold">HongGuan Pte Ltd.</span>
+          </span>
+        </div>
+
+        {/* Buttons */}
+        <div className="flex gap-2">
+          <button
+            className="flex-1 py-2 px-4 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            onClick={onBackToEdit}
+          >
+            {isEnglish ? "Back to Edit" : "返回编辑"}
+          </button>
+
+          <button
+            className="flex-1 py-2 px-4 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-300 flex items-center justify-center gap-2"
+            disabled={isSubmitting}
+            onClick={() =>
+              onConfirmOrder({
+                remarks,
+                purchaseOrder,
+                uploadedFiles,
+              })
+            }
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {isEnglish ? "Confirming..." : "确认中..."}
+              </>
+            ) : (
+              <>{isEnglish ? "Confirm Order" : "确认订单"}</>
+            )}
+          </button>
+        </div>
       </div>
     </>
   );
