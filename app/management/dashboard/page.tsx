@@ -1093,7 +1093,7 @@ export default function ManagementDashboard() {
 
     {
       id: "history",
-      title: "History",
+      title: "Purchase",
       description: "",
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1123,7 +1123,7 @@ export default function ManagementDashboard() {
     },
     {
       id: "pending-approvals",
-      title: "Pending Approvals",
+      title: "Registration",
       description: "",
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

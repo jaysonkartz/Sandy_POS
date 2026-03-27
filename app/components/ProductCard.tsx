@@ -254,67 +254,64 @@ const ProductCardContent = memo<ProductCardProps>(
           </h3>
           <p className="mb-3 text-xs text-gray-400">{product["Item Code"]}</p>
 
-          <div className="mb-4 space-y-2">
+          <div className="mb-4 space-y-3">
+            {/* Variation */}
             {variations.length > 1 ? (
-              <select
-                className="w-full rounded border p-2 text-sm"
-                value={product.Variation || variations[0]}
-                onChange={(e) => handleOptionChange("variation", e.target.value)}
-              >
-                {variations.map((v) => (
-                  <option key={v} value={v}>
-                    {isEnglish ? v : products.find((p) => p.Variation === v)?.Variation_CH || v}
-                  </option>
-                ))}
-              </select>
-            ) : variations.length === 1 ? (
-              <div className="text-sm text-gray-600">
-                {isEnglish ? "Variation" : "规格"}:
-                <span className="ml-2 rounded bg-gray-100 px-2 py-0.5">
-                  {isEnglish ? variations[0] : products[0].Variation_CH || variations[0]}
+              <div className="flex items-center gap-2">
+                <span className="min-w-[70px] text-[11px] text-gray-400 uppercase tracking-wide">
+                  {isEnglish ? "Type" : "规格"}
                 </span>
+                <select
+                  className="flex-1 rounded border p-2 text-sm"
+                  value={product.Variation || variations[0]}
+                  onChange={(e) => handleOptionChange("variation", e.target.value)}
+                >
+                  {variations.map((v) => (
+                    <option key={v} value={v}>
+                      {isEnglish ? v : products.find((p) => p.Variation === v)?.Variation_CH || v}
+                    </option>
+                  ))}
+                </select>
               </div>
             ) : null}
 
+            {/* Origin */}
             {origins.length > 1 ? (
-              <select
-                className="w-full rounded border p-2 text-sm"
-                value={product.Country || origins[0]}
-                onChange={(e) => handleOptionChange("countryId", e.target.value)}
-              >
-                {origins.map((o) => (
-                  <option key={o} value={o}>
-                    {isEnglish ? countryMap[o]?.name || o : countryMap[o]?.chineseName || o}
-                  </option>
-                ))}
-              </select>
-            ) : origins.length === 1 ? (
-              <div className="text-sm text-gray-600">
-                {isEnglish ? "Origin" : "产地"}:
-                <span className="ml-2 rounded bg-gray-100 px-2 py-0.5">
-                  {isEnglish
-                    ? countryMap[origins[0]]?.name || origins[0]
-                    : countryMap[origins[0]]?.chineseName || origins[0]}
+              <div className="flex items-center gap-2">
+                <span className="min-w-[70px] text-[11px] text-gray-400 uppercase tracking-wide">
+                  {isEnglish ? "Origin" : "产地"}
                 </span>
+                <select
+                  className="flex-1 rounded border p-2 text-sm"
+                  value={product.Country || origins[0]}
+                  onChange={(e) => handleOptionChange("countryId", e.target.value)}
+                >
+                  {origins.map((o) => (
+                    <option key={o} value={o}>
+                      {isEnglish ? countryMap[o]?.name || o : countryMap[o]?.chineseName || o}
+                    </option>
+                  ))}
+                </select>
               </div>
             ) : null}
 
+            {/* Weight */}
             {weights.length > 1 ? (
-              <select
-                className="w-full rounded border p-2 text-sm"
-                value={product.weight || weights[0]}
-                onChange={(e) => handleOptionChange("weight", e.target.value)}
-              >
-                {weights.map((w) => (
-                  <option key={w} value={w}>
-                    {w}
-                  </option>
-                ))}
-              </select>
-            ) : weights.length === 1 ? (
-              <div className="text-sm text-gray-600">
-                {isEnglish ? "Weight" : "重量"}:
-                <span className="ml-2 rounded bg-gray-100 px-2 py-0.5">{weights[0]}</span>
+              <div className="flex items-center gap-2">
+                <span className="min-w-[70px] text-[11px] text-gray-400 uppercase tracking-wide">
+                  {isEnglish ? "Weight" : "重量"}
+                </span>
+                <select
+                  className="flex-1 rounded border p-2 text-sm"
+                  value={product.weight || weights[0]}
+                  onChange={(e) => handleOptionChange("weight", e.target.value)}
+                >
+                  {weights.map((w) => (
+                    <option key={w} value={w}>
+                      {w}
+                    </option>
+                  ))}
+                </select>
               </div>
             ) : null}
           </div>
