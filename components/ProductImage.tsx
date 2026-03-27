@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { CldImage as CloudinaryImage } from "../lib/cloudinary";
+import { CldImage as CloudinaryImage } from "../app/lib/cloudinary";
 
 interface ProductImageProps {
   src?: string | null;
