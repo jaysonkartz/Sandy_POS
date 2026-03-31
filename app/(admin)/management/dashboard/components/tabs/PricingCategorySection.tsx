@@ -405,28 +405,34 @@ function PricingCategorySectionInner(props: PricingCategorySectionProps) {
                         </div>
                       </td>
                       <td className="px-4 py-2">
-                        {(() => {
-                          if (product.priceHistory && product.priceHistory.length > 0) {
-                            return (
-                              <div className="flex flex-col space-y-1">
-                                {product.priceHistory.map((ph, idx) => (
-                                  <span key={idx} className="text-xs text-gray-500">
-                                    ${ph.previous_price?.toFixed(2)}{" "}
-                                    <span className="text-gray-400">
-                                      (
-                                      {ph.last_price_update
-                                        ? new Date(ph.last_price_update).toLocaleDateString()
-                                        : "No date"}
-                                      )
-                                    </span>
-                                  </span>
-                                ))}
-                              </div>
-                            );
-                          } else {
-                            return <span className="text-xs text-gray-400">No history</span>;
-                          }
-                        })()}
+                      {(() => {
+  if (product.priceHistory && product.priceHistory.length > 0) {
+    return (
+      <div className="flex flex-col space-y-1">
+        {[...(product.priceHistory || [])]
+          .sort((a, b) => {
+            const dateA = new Date(a.last_price_update || 0).getTime();
+            const dateB = new Date(b.last_price_update || 0).getTime();
+            return dateB - dateA; // latest → oldest
+          })
+          .map((ph, idx) => (
+            <span key={idx} className="text-xs text-gray-500">
+              ${ph.previous_price?.toFixed(2)}{" "}
+              <span className="text-gray-400">
+                (
+                {ph.last_price_update
+                  ? new Date(ph.last_price_update).toLocaleDateString()
+                  : "No date"}
+                )
+              </span>
+            </span>
+          ))}
+      </div>
+    );
+  } else {
+    return <span className="text-xs text-gray-400">No history</span>;
+  }
+})()}
                       </td>
                     </tr>
                     {selectedProduct === product.id && (
@@ -663,7 +669,7 @@ function PricingCategorySectionInner(props: PricingCategorySectionProps) {
                                                 }}
                                               />
                                             </div>
-                                            <div className="max-h-72 overflow-auto">
+                                            <div className="max-h-72 overflow-y-auto overflow-x-hidden">
                                               {(() => {
                                                 const selectedIds = new Set(
                                                   selectedCustomersForOffer[product.id] || []
