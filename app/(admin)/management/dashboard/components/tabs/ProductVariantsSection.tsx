@@ -186,53 +186,56 @@ export function ProductVariantsSection({
         </label>
       </div>
 
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Select product to manage variants
-        </label>
-        <Autocomplete
-          aria-label="Select product to manage variants"
-          className="w-full max-w-md"
-          classNames={{
-            popoverContent: "bg-white/100",
-            listboxWrapper: "bg-white/100",
-          }}
-          items={productVariantOptions}
-          listboxProps={{
-            itemClasses: {
-              base: "h-auto min-h-12 py-2 data-[hover=true]:bg-blue-50 data-[hover=true]:text-blue-700",
-              wrapper: "h-auto",
-              title: "whitespace-normal break-words leading-5",
-            },
-          }}
-          placeholder="-- Select a Product --"
-          selectedKey={
-            selectedProductForVariants !== null ? String(selectedProductForVariants) : null
-          }
-          onSelectionChange={(key) => {
-            if (!key) {
-              setSelectedProductForVariants(null);
-              return;
-            }
-            const newProductId = Number(key);
-            if (Number.isNaN(newProductId)) return;
-            setSelectedProductForVariants(newProductId);
-          }}
-        >
-          {(item) => (
-            <AutocompleteItem
-              key={String(item.id)}
-              className="h-auto py-2"
-              textValue={`${item.Product} ${item.Variation || ""} ${item.countryName || ""} ${
-                item.weight || ""
-              } ${item.categoryName || ""}`}
-            >
-              {item.Product} {item.categoryName ? `(${item.categoryName})` : ""}
-            </AutocompleteItem>
-          )}
-        </Autocomplete>
-      </div>
-
+      <Autocomplete
+  aria-label="Select product to manage variants"
+  className="w-full"
+  classNames={{
+    base: "w-full",
+    popoverContent: "bg-white overflow-hidden",
+    listboxWrapper: "p-0 overflow-hidden max-h-[280px]",
+    listbox: "max-h-[280px] overflow-y-auto",
+    selectorButton: "h-auto min-h-12",
+  }}
+  inputProps={{
+    classNames: {
+      inputWrapper: "min-h-12 h-auto py-2",
+      input: "truncate",
+    },
+  }}
+  items={productVariantOptions}
+  listboxProps={{
+    itemClasses: {
+      base: "h-auto min-h-12 py-2 data-[hover=true]:bg-blue-50 data-[hover=true]:text-blue-700",
+      wrapper: "h-auto",
+      title: "whitespace-normal break-words leading-5",
+    },
+  }}
+  placeholder="-- Select a Product --"
+  selectedKey={
+    selectedProductForVariants !== null ? String(selectedProductForVariants) : null
+  }
+  onSelectionChange={(key) => {
+    if (!key) {
+      setSelectedProductForVariants(null);
+      return;
+    }
+    const newProductId = Number(key);
+    if (Number.isNaN(newProductId)) return;
+    setSelectedProductForVariants(newProductId);
+  }}
+>
+  {(item) => (
+    <AutocompleteItem
+      key={String(item.id)}
+      className="h-auto py-2"
+      textValue={`${item.Product} ${item.Variation || ""} ${item.countryName || ""} ${
+        item.weight || ""
+      } ${item.categoryName || ""}`}
+    >
+      {item.Product} {item.categoryName ? `(${item.categoryName})` : ""}
+    </AutocompleteItem>
+  )}
+</Autocomplete>
       {(() => {
         if (!selectedProductForVariants) return null;
 
