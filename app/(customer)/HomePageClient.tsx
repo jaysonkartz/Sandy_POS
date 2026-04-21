@@ -24,7 +24,6 @@ import { useCountries } from "@/app/hooks/useCountries";
 import { usePhotoEditor } from "@/app/hooks/usePhotoEditor";
 import { useScroll } from "@/app/hooks/useScroll";
 import { useWhatsApp } from "@/app/hooks/useWhatsApp";
-import { useCart } from "@/app/context/CartContext";
 import { revalidateCustomerHome } from "@/app/actions/revalidate-customer";
 import { FORCE_LOADING_RESET_DELAY } from "@/app/constants/app-constants";
 
@@ -439,8 +438,6 @@ export default function HomePageClient({ initialProducts }: { initialProducts?: 
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [isEnglish, setIsEnglish] = useState(true);
 
-  const { isOrderPanelOpen, setIsOrderPanelOpen } = useCart();
-
   const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [selectedOptions, setSelectedOptions] = useState<SelectedOptions>({});
@@ -485,6 +482,8 @@ export default function HomePageClient({ initialProducts }: { initialProducts?: 
   } = usePhotoEditor();
 
   const {
+    isOrderPanelOpen,
+    setIsOrderPanelOpen,
     selectedProducts,
     customerName,
     customerPhone,
