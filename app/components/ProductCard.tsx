@@ -6,49 +6,13 @@ import ProductImage from "@/app/components/ProductImage";
 import { WhatsAppIcon } from "./WhatsAppIcon";
 import { CATEGORY_ID_NAME_MAP } from "@/app/(admin)/const/category";
 import { IMAGE_PLACEHOLDER, resolveImageSrc } from "@/app/lib/image";
-
-interface ProductImageRow {
-  id: number;
-  product_id: number;
-  image_url: string | null;
-  public_id?: string | null;
-  sort_order: number;
-  is_cover: boolean;
-}
+import type { Product, ProductGroup } from "@/app/types/product";
 
 interface GalleryImage {
   image_url: string;
   public_id: string;
   is_cover: boolean;
   sort_order: number;
-}
-
-interface Product {
-  id: number;
-  "Item Code": string;
-  Product: string;
-  Category: string;
-  weight: string;
-  UOM: string;
-  Country: string;
-  Product_CH?: string;
-  Category_CH?: string;
-  Country_CH?: string;
-  Variation?: string;
-  Variation_CH?: string;
-  price: number;
-  uom: string;
-  stock_quantity: number;
-  image_url?: string;
-  public_id?: string;
-  product_images?: ProductImageRow[];
-}
-
-interface ProductGroup {
-  groupKey: string;
-  title: string;
-  products: Product[];
-  category: string;
 }
 
 interface ProductCardProps {

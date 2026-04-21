@@ -2,7 +2,8 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X, Trash2 } from "@/app/lib/icons";
-import { CldImage, getCloudinaryCloudName, getCloudinaryUploadPreset } from "@/app/lib/cloudinary";
+import { getCloudinaryCloudName, getCloudinaryUploadPreset } from "@/app/lib/cloudinary";
+import { CldImage } from "next-cloudinary";
 import { supabase } from "@/app/lib/supabaseClient";
 import ImageCropEditor from "@/app/components/ImageCropEditor";
 
