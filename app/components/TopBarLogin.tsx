@@ -86,75 +86,80 @@ export default function TopBarLogin({
   };
 
   return (
-    <div ref={dropdownRef} className="relative">
+    <div className="flex items-center gap-3">
       {user ? (
         <>
           <button
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            className="inline-flex items-center px-4 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+            onClick={() => router.push("/order-history")}
           >
-            <span className="mr-2">{user.email?.split("@")[0]}</span>
-            <svg
-              className={`h-4 w-4 transition-transform duration-200 ${isDropdownOpen ? "rotate-180" : ""}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                d="M19 9l-7 7-7-7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-              />
-            </svg>
+            Order History
           </button>
 
-          {isDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
-              <div className="py-1">
-                <div className="px-4 py-2 text-sm text-gray-700 border-b border-gray-200">
-                  Welcome
-                  <br />
-                  <span className="font-medium">{customerName || user?.email?.split("@")[0]}</span>
-                </div>
-                {userRole === "ADMIN" && (
+          <div ref={dropdownRef} className="relative">
+            <button
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            >
+              <span className="mr-2">{user.email?.split("@")[0]}</span>
+              <svg
+                className={`h-4 w-4 transition-transform duration-200 ${isDropdownOpen ? "rotate-180" : ""}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M19 9l-7 7-7-7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                />
+              </svg>
+            </button>
+
+            {isDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+                <div className="py-1">
+                  <div className="px-4 py-2 text-sm text-gray-700 border-b border-gray-200">
+                    Welcome
+                    <br />
+                    <span className="font-medium">
+                      {customerName || user?.email?.split("@")[0]}
+                    </span>
+                  </div>
+
+                  {userRole === "ADMIN" && (
+                    <button
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => {
+                        router.push("/management/dashboard");
+                        setIsDropdownOpen(false);
+                      }}
+                    >
+                      Management Portal
+                    </button>
+                  )}
+
                   <button
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     onClick={() => {
-                      router.push("/management/dashboard");
+                      router.push("/customer-details");
                       setIsDropdownOpen(false);
                     }}
                   >
-                    Management Portal
+                    View Profile
                   </button>
-                )}
-                <button
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  onClick={() => {
-                    router.push("/customer-details");
-                    setIsDropdownOpen(false);
-                  }}
-                >
-                  View Profile
-                </button>
-                <button
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  onClick={() => {
-                    router.push("/order-history");
-                    setIsDropdownOpen(false);
-                  }}
-                >
-                  Order History
-                </button>
-                <button
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  onClick={handleSignOut}
-                >
-                  Sign out
-                </button>
+
+                  <button
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={handleSignOut}
+                  >
+                    Sign out
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </>
       ) : (
         <button
