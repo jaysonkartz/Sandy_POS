@@ -250,114 +250,129 @@ export default function OrderHistory() {
       {hasChartsData && <OrderHistoryAnalytics orders={chartOrders} />}
 
       <div className="space-y-6">
-        {orders.length === 0 && !loading ? (
-          <div className="py-8 text-center">
-            <p className="text-gray-500">No orders found</p>
-          </div>
-        ) : (
-          orders.map(
-            (order: {
-              id: string | number;
-              created_at: string;
-              total_amount: number;
-              status: string;
-              customer_name?: string;
-              customer_phone?: string;
-              customer_address?: string;
-            }) => (
-              <div key={order.id} className="overflow-hidden rounded-lg bg-white shadow-xl">
-                <div className="p-6">
-                  <div className="mb-4 flex items-start justify-between">
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-900">Order #{order.id}</h3>
-                      <p className="text-sm text-gray-500">
-                        {new Date(order.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
+  {orders.length === 0 && !loading ? (
+    <div className="py-8 text-center">
+      <p className="text-gray-500">No orders found</p>
+    </div>
+  ) : (
+    orders.map(
+      (order: {
+        id: string | number;
+        created_at: string;
+        total_amount: number;
+        status?: string;
+        customer_name?: string;
+        customer_phone?: string;
+        customer_address?: string;
+      }) => {
+        const status = (order?.status ?? "").toLowerCase();
 
-                    <div className="flex items-center space-x-4">
-                      <span
-                        className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${
-                          order.status === "completed"
-                            ? "bg-green-100 text-green-800"
-                            : order.status === "pending"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                      </span>
-
-                      <span className="text-lg font-medium text-gray-900">
-                        ${Number(order.total_amount || 0).toFixed(2)}
-                      </span>
-
-                      <button
-                        className={`ml-4 inline-flex items-center rounded-md px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                          reorderingId === String(order.id)
-                            ? "cursor-not-allowed bg-gray-200 text-gray-500"
-                            : "bg-green-500 text-white shadow hover:-translate-y-0.5 hover:bg-green-600 hover:shadow-md"
-                        }`}
-                        disabled={reorderingId === String(order.id)}
-                        onClick={() => handleReorder(order.id)}
-                      >
-                        <ShoppingBag className="mr-2 h-4 w-4" />
-                        {reorderingId === String(order.id) ? "Preparing..." : "Reorder"}
-                      </button>
-                    </div>
+        return (
+          <div
+            key={order.id}
+            className="overflow-visible rounded-lg bg-white shadow-xl"
+          >
+            <div className="p-6">
+              <div className="mb-4 flex flex-col gap-3">
+                {/* top row: order no + price */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="text-lg font-medium text-gray-900">
+                      Order #{order.id}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      {new Date(order.created_at).toLocaleDateString()}
+                    </p>
                   </div>
 
-                  {orderItems[String(order.id)] && (
-                    <div className="mt-4">
-                      <h4 className="mb-2 text-sm font-medium text-gray-500">Items</h4>
-                      <div className="space-y-2">
-                        {orderItems[String(order.id)].map(
-                          (
-                            item: { product_name: string; quantity: number; price: number },
-                            index: number
-                          ) => (
-                            <div key={index} className="flex justify-between text-sm">
-                              <span className="text-gray-900">
-                                {item.product_name} x {item.quantity}
-                              </span>
-                              <span className="text-gray-500">
-                                ${(item.price * item.quantity).toFixed(2)}
-                              </span>
-                            </div>
-                          )
-                        )}
-                      </div>
-                    </div>
-                  )}
+                  <span className="shrink-0 text-lg font-medium text-gray-900">
+                    ${Number(order.total_amount || 0).toFixed(2)}
+                  </span>
+                </div>
+
+                {/* second row: status + reorder */}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <span
+                    className={`inline-flex w-fit items-center rounded-full px-3 py-1 text-sm font-medium ${
+                      status === "completed"
+                        ? "bg-green-100 text-green-800"
+                        : status === "pending"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {status
+                      ? status.charAt(0).toUpperCase() + status.slice(1)
+                      : "Unknown"}
+                  </span>
+
+                  <button
+                    className={`inline-flex w-full shrink-0 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-all duration-200 sm:w-auto ${
+                      reorderingId === String(order.id)
+                        ? "cursor-not-allowed bg-gray-200 text-gray-500"
+                        : "bg-green-500 text-white shadow hover:-translate-y-0.5 hover:bg-green-600 hover:shadow-md"
+                    }`}
+                    disabled={reorderingId === String(order.id)}
+                    onClick={() => handleReorder(order.id)}
+                  >
+                    <ShoppingBag className="mr-2 h-4 w-4" />
+                    {reorderingId === String(order.id) ? "Preparing..." : "Reorder"}
+                  </button>
                 </div>
               </div>
-            )
-          )
-        )}
 
-        {hasMore && (
-          <div className="mt-8 flex justify-center">
-            <button
-              className={`rounded-md px-6 py-3 text-sm font-medium transition-colors ${
-                loadingMore
-                  ? "cursor-not-allowed bg-gray-200 text-gray-500"
-                  : "bg-blue-500 text-white hover:bg-blue-600"
-              }`}
-              disabled={loadingMore}
-              onClick={loadMore}
-            >
-              {loadingMore ? (
-                <div className="flex items-center">
-                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
-                  Loading...
+              {orderItems[String(order.id)] && (
+                <div className="mt-4">
+                  <h4 className="mb-2 text-sm font-medium text-gray-500">Items</h4>
+                  <div className="space-y-2">
+                    {orderItems[String(order.id)].map(
+                      (
+                        item: { product_name: string; quantity: number; price: number },
+                        index: number
+                      ) => (
+                        <div key={index} className="flex justify-between gap-3 text-sm">
+                          <span className="text-gray-900">
+                            {item.product_name} x {item.quantity}
+                          </span>
+                          <span className="shrink-0 text-gray-500">
+                            ${(item.price * item.quantity).toFixed(2)}
+                          </span>
+                        </div>
+                      )
+                    )}
+                  </div>
                 </div>
-              ) : (
-                "Load More Orders"
               )}
-            </button>
+            </div>
           </div>
+        );
+      }
+    )
+  )}
+
+  {hasMore && (
+    <div className="mt-8 flex justify-center">
+      <button
+        className={`rounded-md px-6 py-3 text-sm font-medium transition-colors ${
+          loadingMore
+            ? "cursor-not-allowed bg-gray-200 text-gray-500"
+            : "bg-blue-500 text-white hover:bg-blue-600"
+        }`}
+        disabled={loadingMore}
+        onClick={loadMore}
+      >
+        {loadingMore ? (
+          <div className="flex items-center">
+            <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
+            Loading...
+          </div>
+        ) : (
+          "Load More Orders"
         )}
-      </div>
+      </button>
+    </div>
+  )}
+</div>
     </div>
   );
 }

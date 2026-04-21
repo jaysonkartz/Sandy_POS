@@ -1,165 +1,343 @@
 "use client";
 
-import React, { createContext, useContext, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { Session } from "@supabase/supabase-js";
+import { supabase } from "@/app/lib/supabaseClient";
+import { OrderDetails, OrderReviewData, isAuthenticatedSession } from "@/app/types/common";
+import { STORAGE_KEYS } from "@/app/constants/app-constants";
+import type { Product } from "@/app/types/product";
 
-export type CartItem = {
-  id: number | string;
-  cartItemKey?: string;
-  name?: string;
-  price?: number;
-  quantity: number;
-  [key: string]: any;
-};
+export type OrderCartItem = { product: Product; quantity: number };
 
-const normalizeForKey = (value: unknown) =>
-  String(value ?? "")
-    .trim()
-    .toLowerCase();
-
-const getVariationValue = (item: Partial<CartItem>) =>
-  item.variation ?? item.Variation ?? item.variation_name ?? item.variationName;
-
-const getOriginValue = (item: Partial<CartItem>) =>
-  item.origin ??
-  item.Origin ??
-  item.country ??
-  item.Country ??
-  item.country_of_origin ??
-  item.Country_of_origin;
-
-export const resolveCartItemKey = (item: Partial<CartItem>) => {
-  if (item.cartItemKey) return item.cartItemKey;
-
-  const baseId = String(item.id ?? "");
-  const variation = normalizeForKey(getVariationValue(item));
-  const origin = normalizeForKey(getOriginValue(item));
-
-  return [baseId, variation, origin].join("::");
-};
-
-type CartContextValue = {
-  cart: CartItem[];
-  setCart: React.Dispatch<React.SetStateAction<CartItem[]>>;
-
-  cartCount: number;
-  getCartTotal: () => number;
-
-  addItem: (item: Omit<CartItem, "quantity">, qty?: number) => void;
-  addToCart: (item: CartItem) => void;
-  updateQty: (id: CartItem["id"], qty: number, cartItemKey?: string) => void;
-  updateQuantity: (id: CartItem["id"], qty: number, cartItemKey?: string) => void;
-  removeItem: (id: CartItem["id"], cartItemKey?: string) => void;
-  removeFromCart: (id: CartItem["id"], cartItemKey?: string) => void;
-  clearCart: () => void;
-  resolveCartItemKey: (item: Partial<CartItem>) => string;
-
+export type UseOrderReturn = {
+  selectedProducts: OrderCartItem[];
+  customerName: string;
+  customerPhone: string;
+  customerAddress: string;
+  isSubmitting: boolean;
   isOrderPanelOpen: boolean;
   setIsOrderPanelOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  openOrderPanel: () => void;
-  closeOrderPanel: () => void;
-  toggleOrderPanel: () => void;
+  setCustomerName: (name: string) => void;
+  setCustomerPhone: (phone: string) => void;
+  setCustomerAddress: (address: string) => void;
+  addToOrder: (product: Product) => void;
+  updateQuantity: (productId: number, newQuantity: number) => void;
+  clearOrder: () => void;
+  replaceOrder: (payload: {
+    selectedProducts: OrderCartItem[];
+    customerName?: string;
+    customerPhone?: string;
+    customerAddress?: string;
+  }) => void;
+  submitOrder: (
+    session: Session | null,
+    isEnglish: boolean,
+    sendWhatsAppNotification: (orderDetails: OrderDetails) => void,
+    reviewData?: OrderReviewData
+  ) => Promise<boolean>;
 };
 
-const CartContext = createContext<CartContextValue | null>(null);
+type CartContextType = UseOrderReturn;
 
-export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [cart, setCart] = useState<CartItem[]>([]);
+const OrderContext = createContext<CartContextType | undefined>(undefined);
 
+const STORAGE_KEY = STORAGE_KEYS.PENDING_ORDER;
+
+type StoredOrder = {
+  selectedProducts: OrderCartItem[];
+  customerName: string;
+  customerPhone: string;
+  customerAddress: string;
+};
+
+const readStored = (): StoredOrder | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as StoredOrder) : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeStored = (data: StoredOrder) => {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+};
+
+const clearStored = () => {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(STORAGE_KEY);
+};
+
+export default function CartProvider({ children }: { children: React.ReactNode }) {
+  const stored = readStored();
+
+  const [selectedProducts, setSelectedProducts] = useState<OrderCartItem[]>(
+    stored?.selectedProducts ?? []
+  );
+  const [customerName, setCustomerName] = useState(stored?.customerName ?? "");
+  const [customerPhone, setCustomerPhone] = useState(stored?.customerPhone ?? "");
+  const [customerAddress, setCustomerAddress] = useState(stored?.customerAddress ?? "");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOrderPanelOpen, setIsOrderPanelOpen] = useState(false);
 
-  const cartCount = useMemo(
-    () => cart.reduce((sum, item) => sum + (item.quantity || 0), 0),
-    [cart]
-  );
-  const getCartTotal = useMemo(
-    () => () => cart.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 0), 0),
-    [cart]
-  );
-
-  const addItem = (item: Omit<CartItem, "quantity">, qty = 1) => {
-    setCart((prev) => {
-      const itemKey = resolveCartItemKey(item);
-      const idx = prev.findIndex((x) => resolveCartItemKey(x) === itemKey);
-      if (idx >= 0) {
-        const copy = [...prev];
-        copy[idx] = { ...copy[idx], quantity: (copy[idx].quantity || 0) + qty };
-        return copy;
-      }
-      const nextItem: CartItem = { id: item.id, ...item, cartItemKey: itemKey, quantity: qty };
-      return [...prev, nextItem];
-    });
-  };
-  const addToCart: CartContextValue["addToCart"] = (item) => {
-    const { quantity, ...rest } = item;
-    addItem(rest, quantity ?? 1);
-  };
-
-  const updateQty: CartContextValue["updateQty"] = (id, qty, cartItemKey) => {
-    setCart((prev) => {
-      const hasExplicitKey = Boolean(cartItemKey);
-      if (qty <= 0) {
-        return prev.filter((x) => {
-          if (hasExplicitKey) return resolveCartItemKey(x) !== cartItemKey;
-          return x.id !== id;
-        });
-      }
-
-      return prev.map((x) => {
-        if (hasExplicitKey) {
-          return resolveCartItemKey(x) === cartItemKey ? { ...x, quantity: qty } : x;
-        }
-        return x.id === id ? { ...x, quantity: qty } : x;
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      writeStored({
+        selectedProducts,
+        customerName,
+        customerPhone,
+        customerAddress,
       });
+    }, 120);
+
+    return () => clearTimeout(timeout);
+  }, [selectedProducts, customerName, customerPhone, customerAddress]);
+
+  const addToOrder = useCallback((product: Product) => {
+    setSelectedProducts((prev) => {
+      const existingProduct = prev.find((item) => item.product.id === product.id);
+      if (existingProduct) {
+        return prev.map((item) =>
+          item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+        );
+      }
+      return [...prev, { product, quantity: 1 }];
     });
-  };
-  const updateQuantity: CartContextValue["updateQuantity"] = (id, qty, cartItemKey) => {
-    updateQty(id, qty, cartItemKey);
-  };
+  }, []);
 
-  const removeItem: CartContextValue["removeItem"] = (id, cartItemKey) => {
-    setCart((prev) =>
-      prev.filter((x) => {
-        if (cartItemKey) return resolveCartItemKey(x) !== cartItemKey;
-        return x.id !== id;
-      })
-    );
-  };
-  const removeFromCart: CartContextValue["removeFromCart"] = (id, cartItemKey) => {
-    removeItem(id, cartItemKey);
-  };
+  const updateQuantity = useCallback((productId: number, newQuantity: number) => {
+    if (newQuantity < 1) {
+      setSelectedProducts((prev) => prev.filter((item) => item.product.id !== productId));
+    } else {
+      setSelectedProducts((prev) =>
+        prev.map((item) =>
+          item.product.id === productId ? { ...item, quantity: newQuantity } : item
+        )
+      );
+    }
+  }, []);
 
-  const clearCart = () => setCart([]);
+  const clearOrder = useCallback(() => {
+    setSelectedProducts([]);
+    setCustomerName("");
+    setCustomerPhone("");
+    setCustomerAddress("");
+    clearStored();
+  }, []);
 
-  const openOrderPanel = () => setIsOrderPanelOpen(true);
-  const closeOrderPanel = () => setIsOrderPanelOpen(false);
-  const toggleOrderPanel = () => setIsOrderPanelOpen((v) => !v);
+  const replaceOrder = useCallback(
+    (payload: {
+      selectedProducts: OrderCartItem[];
+      customerName?: string;
+      customerPhone?: string;
+      customerAddress?: string;
+    }) => {
+      setSelectedProducts(payload.selectedProducts || []);
+      setCustomerName(payload.customerName || "");
+      setCustomerPhone(payload.customerPhone || "");
+      setCustomerAddress(payload.customerAddress || "");
 
-  const value: CartContextValue = {
-    cart,
-    setCart,
-    cartCount,
-    getCartTotal,
-    addItem,
-    addToCart,
-    updateQty,
-    updateQuantity,
-    removeItem,
-    removeFromCart,
-    clearCart,
-    resolveCartItemKey,
+      writeStored({
+        selectedProducts: payload.selectedProducts || [],
+        customerName: payload.customerName || "",
+        customerPhone: payload.customerPhone || "",
+        customerAddress: payload.customerAddress || "",
+      });
+    },
+    []
+  );
 
-    isOrderPanelOpen,
-    setIsOrderPanelOpen,
-    openOrderPanel,
-    closeOrderPanel,
-    toggleOrderPanel,
-  };
+  const submitOrder = useCallback(
+    async (
+      session: Session | null,
+      isEnglish: boolean,
+      sendWhatsAppNotification: (orderDetails: OrderDetails) => void,
+      reviewData?: OrderReviewData
+    ): Promise<boolean> => {
+      if (!isAuthenticatedSession(session)) {
+        alert(isEnglish ? "Please log in to submit an order" : "请登录以提交订单");
+        return false;
+      }
 
-  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+      if (selectedProducts.length === 0) {
+        alert(
+          isEnglish ? "Please add at least one product to the order" : "请至少添加一个产品到订单"
+        );
+        return false;
+      }
+
+      if (!customerName || !customerPhone || !customerAddress) {
+        alert(
+          isEnglish
+            ? "Please provide customer name, Mobile number, and address"
+            : "请提供客户姓名、电话号码和地址"
+        );
+        return false;
+      }
+
+      setIsSubmitting(true);
+
+      try {
+        const totalAmount = selectedProducts.reduce(
+          (sum, item) => sum + item.product.price * item.quantity,
+          0
+        );
+
+        let uploadedFileUrls: string[] = [];
+        if (reviewData?.uploadedFiles && reviewData.uploadedFiles.length > 0) {
+          const uploadPromises = reviewData.uploadedFiles.map(async (file) => {
+            const fileExt = file.name.split(".").pop();
+            const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+            const filePath = `orders/${session!.user.id}/${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+              .from("order-files")
+              .upload(filePath, file);
+
+            if (uploadError) return null;
+
+            const {
+              data: { publicUrl },
+            } = supabase.storage.from("order-files").getPublicUrl(filePath);
+
+            return publicUrl;
+          });
+
+          const uploadResults = await Promise.all(uploadPromises);
+          uploadedFileUrls = uploadResults.filter((url): url is string => !!url);
+        }
+
+        const { data: order, error: orderError } = await supabase
+          .from("orders")
+          .insert([
+            {
+              status: "pending",
+              total_amount: totalAmount,
+              user_id: session!.user.id,
+              customer_name: customerName,
+              customer_phone: customerPhone,
+              customer_address: customerAddress,
+              remarks: reviewData?.remarks || null,
+              purchase_order: reviewData?.purchaseOrder || null,
+              uploaded_files: uploadedFileUrls.length > 0 ? uploadedFileUrls : null,
+            },
+          ])
+          .select()
+          .single();
+
+        if (orderError) throw orderError;
+
+        const orderItems = selectedProducts.map((item) => ({
+          order_id: order.id,
+          product_id: item.product.id,
+          quantity: item.quantity,
+          price: item.product.price,
+          total_price: item.product.price * item.quantity,
+          product_name: isEnglish ? item.product.Product : item.product.Product_CH,
+          product_code: item.product["Item Code"] || "N/A",
+          created_at: new Date().toISOString(),
+        }));
+
+        const { error: itemsError } = await supabase.from("order_items").insert(orderItems);
+        if (itemsError) throw itemsError;
+
+        sendWhatsAppNotification({
+          orderId: order.id,
+          customerName,
+          totalAmount,
+          items: selectedProducts.map((item) => ({
+            productName: isEnglish
+              ? item.product.Product
+              : item.product.Product_CH || item.product.Product,
+            quantity: item.quantity,
+            price: item.product.price,
+          })),
+        });
+
+        clearOrder();
+        alert(isEnglish ? "Order submitted successfully!" : "订单提交成功！");
+        return true;
+      } catch {
+        alert(isEnglish ? "Error submitting order. Please try again." : "提交订单时出错，请重试。");
+        return false;
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [selectedProducts, customerName, customerPhone, customerAddress, clearOrder]
+  );
+
+  const value: CartContextType = useMemo(
+    () => ({
+      selectedProducts,
+      customerName,
+      customerPhone,
+      customerAddress,
+      isSubmitting,
+      isOrderPanelOpen,
+      setIsOrderPanelOpen,
+      setCustomerName,
+      setCustomerPhone,
+      setCustomerAddress,
+      addToOrder,
+      updateQuantity,
+      clearOrder,
+      replaceOrder,
+      submitOrder,
+    }),
+    [
+      selectedProducts,
+      customerName,
+      customerPhone,
+      customerAddress,
+      isSubmitting,
+      isOrderPanelOpen,
+      addToOrder,
+      updateQuantity,
+      clearOrder,
+      replaceOrder,
+      submitOrder,
+    ]
+  );
+
+  return <OrderContext.Provider value={value}>{children}</OrderContext.Provider>;
 }
 
-export function useCart() {
-  const ctx = useContext(CartContext);
-  if (!ctx) throw new Error("useCart must be used within CartProvider");
-  return ctx;
+export function useOrder(): UseOrderReturn {
+  const context = useContext(OrderContext);
+  if (!context) {
+    throw new Error("useOrder must be used within a CartProvider");
+  }
+  return context;
+}
+
+type CartNavContext = {
+  cartCount: number;
+  isOrderPanelOpen: boolean;
+  setIsOrderPanelOpen: React.Dispatch<React.SetStateAction<boolean>>;
+};
+
+export function useCart(): CartNavContext {
+  const ctx = useContext(OrderContext);
+  if (!ctx) {
+    throw new Error("useCart must be used within a CartProvider");
+  }
+  const cartCount = useMemo(
+    () => ctx.selectedProducts.reduce((sum, item) => sum + item.quantity, 0),
+    [ctx.selectedProducts]
+  );
+  return {
+    cartCount,
+    isOrderPanelOpen: ctx.isOrderPanelOpen,
+    setIsOrderPanelOpen: ctx.setIsOrderPanelOpen,
+  };
 }

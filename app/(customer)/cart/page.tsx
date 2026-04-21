@@ -1,13 +1,12 @@
 "use client";
 
-import { useCart } from "@/app/context/CartContext";
-import { useState } from "react";
+import { useOrder, type OrderCartItem } from "@/app/hooks/useOrder";
+import { useState, useCallback } from "react";
 import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 export default function CartPage() {
-  const { cart, removeFromCart, updateQuantity, getCartTotal, clearCart, resolveCartItemKey } =
-    useCart();
+  const { selectedProducts, updateQuantity, clearOrder } = useOrder();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [removingItem, setRemovingItem] = useState<null | string | number>(null);
 
@@ -24,22 +23,30 @@ export default function CartPage() {
     }
   };
 
-  const getVariationLabel = (item: (typeof cart)[number]) => item.Variation ?? item.variation;
-  const getOriginLabel = (item: (typeof cart)[number]) =>
-    item.Country_of_origin ?? item.country_of_origin ?? item.origin;
+  const getCartTotal = useCallback(
+    () =>
+      selectedProducts.reduce((sum, { product, quantity }) => sum + product.price * quantity, 0),
+    [selectedProducts]
+  );
 
-  const handleRemoveCartItem = async (item: (typeof cart)[number]) => {
-    const itemKey = resolveCartItemKey(item);
+  const getVariationLabel = (line: OrderCartItem) => line.product.Variation;
+  const getOriginLabel = (line: OrderCartItem) =>
+    line.product.Country_CH || line.product.Country;
+
+  const resolveCartItemKey = (line: OrderCartItem) => String(line.product.id);
+
+  const handleRemoveCartItem = async (line: OrderCartItem) => {
+    const itemKey = resolveCartItemKey(line);
     setRemovingItem(itemKey);
     try {
       await new Promise((resolve) => setTimeout(resolve, 300));
-      removeFromCart(item.id, itemKey);
+      updateQuantity(line.product.id, 0);
     } finally {
       setRemovingItem(null);
     }
   };
 
-  if (cart.length === 0) {
+  if (!selectedProducts.length) {
     return (
       <div className="container mx-auto p-4 min-h-[60vh] flex flex-col items-center justify-center">
         <div className="text-center">
@@ -66,11 +73,11 @@ export default function CartPage() {
         <h1 className="text-3xl font-bold text-gray-800">Shopping Cart</h1>
         <div className="flex items-center gap-4">
           <span className="text-gray-600">
-            {cart.length} {cart.length === 1 ? "item" : "items"}
+            {selectedProducts.length} {selectedProducts.length === 1 ? "item" : "items"}
           </span>
           <button
             className="px-4 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-            onClick={clearCart}
+            onClick={clearOrder}
           >
             Clear Cart
           </button>
@@ -79,119 +86,119 @@ export default function CartPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-4">
-          {cart.map((item) => (
-            <div
-              key={resolveCartItemKey(item)}
-              className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow"
-            >
-              <div className="p-6">
-                <div className="flex gap-4">
-                  {item.imagesUrl && (
-                    <div className="flex-shrink-0">
-                      <img
-                        alt={item.title}
-                        className="w-24 h-24 object-cover rounded-lg"
-                        height={96}
-                        src={item.imagesUrl}
-                        width={96}
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = "/product-placeholder.png";
-                        }}
-                      />
-                    </div>
-                  )}
+          {selectedProducts.map(({ product, quantity }) => {
+            const line: OrderCartItem = { product, quantity };
+            const maxQuantity = product.stock_quantity ?? 999;
 
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-lg text-gray-800 mb-2">{item.title}</h3>
-                    {(getVariationLabel(item) || getOriginLabel(item)) && (
-                      <div className="mb-3 space-y-1 text-sm text-gray-600">
-                        {getVariationLabel(item) && (
-                          <p>
-                            Variation:{" "}
-                            <span className="font-medium text-gray-800">
-                              {getVariationLabel(item)}
-                            </span>
-                          </p>
-                        )}
-                        {getOriginLabel(item) && (
-                          <p>
-                            Origin:{" "}
-                            <span className="font-medium text-gray-800">
-                              {getOriginLabel(item)}
-                            </span>
-                          </p>
-                        )}
+            return (
+              <div
+                key={resolveCartItemKey(line)}
+                className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow"
+              >
+                <div className="p-6">
+                  <div className="flex gap-4">
+                    {product.image_url && (
+                      <div className="flex-shrink-0">
+                        <img
+                          alt={product.Product}
+                          className="w-24 h-24 object-cover rounded-lg"
+                          height={96}
+                          src={product.image_url}
+                          width={96}
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = "/product-placeholder.png";
+                          }}
+                        />
                       </div>
                     )}
-                    <div className="text-2xl font-bold text-blue-600 mb-4">
-                      ${(item.price ?? 0).toFixed(2)}/kg
-                    </div>
 
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="text-gray-600 font-medium">Quantity:</span>
-                        <div className="flex items-center border border-gray-300 rounded-lg">
-                          <button
-                            className="p-2 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            disabled={item.quantity <= 1}
-                            onClick={() =>
-                              updateQuantity(
-                                item.id,
-                                Math.max(0, item.quantity - 1),
-                                resolveCartItemKey(item)
-                              )
-                            }
-                          >
-                            <Minus className="w-4 h-4" />
-                          </button>
-                          <span className="px-4 py-2 min-w-[3rem] text-center font-medium">
-                            {item.quantity}
-                          </span>
-                          <button
-                            className="p-2 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            disabled={item.quantity >= item.maxQuantity}
-                            onClick={() =>
-                              updateQuantity(
-                                item.id,
-                                Math.min(item.maxQuantity, item.quantity + 1),
-                                resolveCartItemKey(item)
-                              )
-                            }
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-lg text-gray-800 mb-2">{product.Product}</h3>
+                      {(getVariationLabel(line) || getOriginLabel(line)) && (
+                        <div className="mb-3 space-y-1 text-sm text-gray-600">
+                          {getVariationLabel(line) && (
+                            <p>
+                              Variation:{" "}
+                              <span className="font-medium text-gray-800">
+                                {getVariationLabel(line)}
+                              </span>
+                            </p>
+                          )}
+                          {getOriginLabel(line) && (
+                            <p>
+                              Origin:{" "}
+                              <span className="font-medium text-gray-800">
+                                {getOriginLabel(line)}
+                              </span>
+                            </p>
+                          )}
                         </div>
-                        <span className="text-sm text-gray-500">Max: {item.maxQuantity}</span>
+                      )}
+                      <div className="text-2xl font-bold text-blue-600 mb-4">
+                        ${product.price.toFixed(2)}/{product.UOM}
                       </div>
 
-                      <button
-                        className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                        disabled={removingItem === resolveCartItemKey(item)}
-                        title="Remove item"
-                        onClick={() => handleRemoveCartItem(item)}
-                      >
-                        {removingItem === resolveCartItemKey(item) ? (
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-5 h-5" />
-                        )}
-                      </button>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-gray-600 font-medium">Quantity:</span>
+                          <div className="flex items-center border border-gray-300 rounded-lg">
+                            <button
+                              className="p-2 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              disabled={quantity <= 1}
+                              onClick={() =>
+                                updateQuantity(product.id, Math.max(0, quantity - 1))
+                              }
+                            >
+                              <Minus className="w-4 h-4" />
+                            </button>
+                            <span className="px-4 py-2 min-w-[3rem] text-center font-medium">
+                              {quantity}
+                            </span>
+                            <button
+                              className="p-2 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              disabled={quantity >= maxQuantity}
+                              onClick={() =>
+                                updateQuantity(
+                                  product.id,
+                                  Math.min(maxQuantity, quantity + 1)
+                                )
+                              }
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <span className="text-sm text-gray-500">Max: {maxQuantity}</span>
+                        </div>
+
+                        <button
+                          className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                          disabled={removingItem === resolveCartItemKey(line)}
+                          title="Remove item"
+                          onClick={() => handleRemoveCartItem(line)}
+                        >
+                          {removingItem === resolveCartItemKey(line) ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-5 h-5" />
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Item Total:</span>
-                    <span className="text-xl font-bold text-gray-800">
-                      ${((item.price ?? 0) * item.quantity).toFixed(2)}
-                    </span>
+                  <div className="mt-4 pt-4 border-t border-gray-100">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Item Total:</span>
+                      <span className="text-xl font-bold text-gray-800">
+                        ${(product.price * quantity).toFixed(2)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="lg:col-span-1">
@@ -200,28 +207,32 @@ export default function CartPage() {
 
             <div className="space-y-3 mb-6">
               <div className="max-h-48 overflow-auto pr-1 space-y-2">
-                {cart.map((item) => (
-                  <div
-                    key={`summary-${resolveCartItemKey(item)}`}
-                    className="text-sm text-gray-700"
-                  >
-                    <div className="flex justify-between gap-2">
-                      <span className="truncate">{item.title}</span>
-                      <span>x{item.quantity}</span>
+                {selectedProducts.map(({ product, quantity }) => {
+                  const line: OrderCartItem = { product, quantity };
+                  return (
+                    <div
+                      key={`summary-${resolveCartItemKey(line)}`}
+                      className="text-sm text-gray-700"
+                    >
+                      <div className="flex justify-between gap-2">
+                        <span className="truncate">{product.Product}</span>
+                        <span>x{quantity}</span>
+                      </div>
+                      {(getVariationLabel(line) || getOriginLabel(line)) && (
+                        <p className="text-xs text-gray-500 truncate">
+                          {getVariationLabel(line) ? `Variation: ${getVariationLabel(line)}` : ""}
+                          {getVariationLabel(line) && getOriginLabel(line) ? " | " : ""}
+                          {getOriginLabel(line) ? `Origin: ${getOriginLabel(line)}` : ""}
+                        </p>
+                      )}
                     </div>
-                    {(getVariationLabel(item) || getOriginLabel(item)) && (
-                      <p className="text-xs text-gray-500 truncate">
-                        {getVariationLabel(item) ? `Variation: ${getVariationLabel(item)}` : ""}
-                        {getVariationLabel(item) && getOriginLabel(item) ? " | " : ""}
-                        {getOriginLabel(item) ? `Origin: ${getOriginLabel(item)}` : ""}
-                      </p>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               <div className="flex justify-between text-gray-600">
                 <span>
-                  Subtotal ({cart.length} {cart.length === 1 ? "item" : "items"})
+                  Subtotal ({selectedProducts.length}{" "}
+                  {selectedProducts.length === 1 ? "item" : "items"})
                 </span>
                 <span>${getCartTotal().toFixed(2)}</span>
               </div>
