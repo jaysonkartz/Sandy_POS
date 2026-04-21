@@ -2,14 +2,18 @@
 
 import ApprovalGate from "@/app/components/ApprovalGate";
 import BottomNav from "@/app/components/BottomNav";
-import { CartProvider } from "@/app/context/CartContext";
+import CartProvider from "@/app/context/CartContext";
 
-export default function CustomerChrome({ children }: { children: React.ReactNode }) {
+export default function CustomerChrome({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <CartProvider>
       <ApprovalGate>
-        {children}
-        <div className="block sm:hidden">
+        <div className="min-h-screen bg-gray-50 pb-20">
+          {children}
           <BottomNav />
         </div>
       </ApprovalGate>

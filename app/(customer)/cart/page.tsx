@@ -39,7 +39,7 @@ export default function CartPage() {
     }
   };
 
-  if (cart.length === 0) {
+  if (!cart || cart.length === 0) {
     return (
       <div className="container mx-auto p-4 min-h-[60vh] flex flex-col items-center justify-center">
         <div className="text-center">
