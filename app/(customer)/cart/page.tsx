@@ -4,7 +4,6 @@ import { useCart } from "@/app/context/CartContext";
 import { useState } from "react";
 import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { CldImage } from "next-cloudinary";
 
 export default function CartPage() {
   const { cart, removeFromCart, updateQuantity, getCartTotal, clearCart, resolveCartItemKey } =
@@ -89,7 +88,7 @@ export default function CartPage() {
                 <div className="flex gap-4">
                   {item.imagesUrl && (
                     <div className="flex-shrink-0">
-                      <CldImage
+                      <img
                         alt={item.title}
                         className="w-24 h-24 object-cover rounded-lg"
                         height={96}

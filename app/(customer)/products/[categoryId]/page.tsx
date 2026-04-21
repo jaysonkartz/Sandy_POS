@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
-import { CldImage } from "next-cloudinary";
+import { IMAGE_PLACEHOLDER, resolveImageSrc } from "@/app/lib/image";
 
 interface ProductImageRow {
   id: number;
   product_id: number;
   image_url: string;
+  public_id?: string | null;
   sort_order: number;
   is_cover: boolean;
 }
@@ -24,6 +25,7 @@ interface Product {
   Variation?: string;
   Country_of_origin?: string;
   image_url?: string;
+  public_id?: string | null;
   product_images?: ProductImageRow[];
 }
 
@@ -69,6 +71,7 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
             id,
             product_id,
             image_url,
+            public_id,
             sort_order,
             is_cover
           )
@@ -288,11 +291,13 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
 
               {activeImage && (
                 <div className="my-2">
-                  <CldImage
+                  <img
                     alt={selectedProduct.title}
                     className="h-48 w-full rounded object-cover"
-                    src={activeImage}
-                    width={640}
+                    src={resolveImageSrc(activeImage, selectedProduct.public_id)}
+                    onError={(e) => {
+                      e.currentTarget.src = IMAGE_PLACEHOLDER;
+                    }}
                   />
                 </div>
               )}
@@ -316,7 +321,10 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
                       <img
                         alt={`${selectedProduct.title} ${index + 1}`}
                         className="h-14 w-14 object-cover"
-                        src={img}
+                        src={resolveImageSrc(img, selectedProduct.public_id)}
+                        onError={(e) => {
+                          e.currentTarget.src = IMAGE_PLACEHOLDER;
+                        }}
                       />
                     </button>
                   ))}

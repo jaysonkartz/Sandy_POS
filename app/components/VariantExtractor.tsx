@@ -246,14 +246,16 @@ export default function VariantExtractor({
                 <div className="flex items-center gap-4">
                   <div className="relative">
                     {variant.image_url ? (
-                      <CldImage
-                        unoptimized
-                        alt={variant.Variation}
-                        className="w-16 h-16 object-cover rounded-lg border"
-                        height={64}
-                        src={variant.image_url}
-                        width={64}
-                      />
+                      <img
+  alt={variant.Variation}
+  className="w-16 h-16 object-cover rounded-lg border"
+  height={64}
+  src={variant.image_url || "/product-placeholder.svg"}
+  width={64}
+  onError={(e) => {
+    e.currentTarget.src = "/product-placeholder.svg";
+  }}
+/>
                     ) : (
                       <div className="w-16 h-16 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
                         <ImageIcon className="w-6 h-6 text-gray-400" />

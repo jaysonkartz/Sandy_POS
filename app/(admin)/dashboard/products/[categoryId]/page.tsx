@@ -3,14 +3,15 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
-import { CldImage } from "next-cloudinary";
+import ProductImage from "@/app/components/ProductImage";
+import { IMAGE_PLACEHOLDER } from "@/app/lib/image";
 
 interface Product {
   id: number;
   title: string;
   price: number;
-  heroImage?: string;
-  imagesUrl: string;
+  heroImage?: string | null;
+  imagesUrl?: string | null;
   maxQuantity: number;
   category: number;
 }
@@ -40,7 +41,7 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
       if (error) throw error;
       setProducts(data || []);
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error fetching products:", error);
     } finally {
       setIsLoading(false);
     }
@@ -56,7 +57,7 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
 
   return (
     <div className="container mx-auto p-4">
-      <div className="flex justify-between items-center mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <h1 className="text-3xl font-bold">Products</h1>
         <button
           className="text-blue-500 hover:text-blue-700"
@@ -66,21 +67,37 @@ export default function ProductsPage({ params }: { params: { categoryId: string 
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {products.map((product) => (
-          <div key={product.id} className="border rounded-lg p-4">
-            <CldImage
-              alt={product.title}
-              className="w-full h-48 object-cover rounded mb-2"
-              height={384}
-              src={product.heroImage || product.imagesUrl}
-              width={640}
-            />
-            <h3 className="font-semibold">{product.title}</h3>
-            <p className="text-gray-600">S${product.price}</p>
-            <p className="text-sm text-gray-500">Max Quantity: {product.maxQuantity}</p>
-          </div>
-        ))}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {products.map((product) => {
+          const hasFullUrl = !!product.imagesUrl?.trim();
+          const hasPublicId = !!product.heroImage?.trim();
+
+          return (
+            <div key={product.id} className="rounded-lg border p-4">
+              <div className="mb-2 h-48 overflow-hidden rounded bg-gray-100">
+                {hasFullUrl || hasPublicId ? (
+                  <ProductImage
+                    src={product.imagesUrl || ""}
+                    publicId={hasFullUrl ? "" : product.heroImage || ""}
+                    alt={product.title}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <img
+                    src={IMAGE_PLACEHOLDER}
+                    alt={product.title}
+                    className="h-full w-full object-cover"
+                  />
+                )}
+              </div>
+
+              <h3 className="font-semibold">{product.title}</h3>
+              <p className="text-gray-600">S${product.price}</p>
+              <p className="text-sm text-gray-500">Max Quantity: {product.maxQuantity}</p>
+            </div>
+          );
+        })}
+
         {products.length === 0 && (
           <div className="col-span-full text-center text-gray-500">
             No products found in this category
