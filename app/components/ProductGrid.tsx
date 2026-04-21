@@ -1,40 +1,6 @@
 import React, { memo, useMemo } from "react";
+import type { Product, ProductGroup } from "@/app/types/product";
 import { ProductCard } from "./ProductCard";
-
-interface ProductImageRow {
-  id: number;
-  product_id: number;
-  image_url: string;
-  sort_order: number;
-  is_cover: boolean;
-}
-
-interface Product {
-  id: number;
-  "Item Code": string;
-  Product: string;
-  Category: string;
-  weight: string;
-  UOM: string;
-  Country: string;
-  Product_CH?: string;
-  Category_CH?: string;
-  Country_CH?: string;
-  Variation?: string;
-  Variation_CH?: string;
-  price: number;
-  uom: string;
-  stock_quantity: number;
-  image_url?: string;
-  product_images?: ProductImageRow[];
-}
-
-interface ProductGroup {
-  groupKey: string;
-  title: string;
-  products: Product[];
-  category: string;
-}
 
 interface ProductGridProps {
   productGroups: ProductGroup[];

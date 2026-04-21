@@ -3,19 +3,21 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
-import { CldImage } from "next-cloudinary";
+import { IMAGE_PLACEHOLDER, resolveImageSrc } from "@/app/lib/image";
 
 interface Product {
   id: number;
   title: string;
   price: number;
   imageUrl: string;
+  public_id?: string | null;
 }
 
 interface Category {
   id: number;
   name: string;
   imageUrl: string;
+  public_id?: string | null;
 }
 
 export default function CategoryPage({ params }: { params: { id: string } }) {
@@ -78,28 +80,34 @@ export default function CategoryPage({ params }: { params: { id: string } }) {
             ← Back to Categories
           </button>
           <div className="relative w-[100px] h-[200px] rounded-lg overflow-hidden mb-4">
-            <CldImage
+            <img
               alt={category.name}
               className="w-full h-full object-cover"
               height={200}
-              src={category.imageUrl}
+              src={resolveImageSrc(category.imageUrl, category.public_id)}
               width={100}
+              onError={(e) => {
+                e.currentTarget.src = IMAGE_PLACEHOLDER;
+              }}
             />
           </div>
           <h1 className="text-3xl font-bold mb-4">{category.name}</h1>
         </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
         {products.map((product) => (
           <div key={product.id} className="border rounded-lg overflow-hidden shadow-md">
             <div className="relative w-full h-[150px]">
-              <CldImage
+              <img
                 alt={product.title}
                 className="w-full h-full object-cover"
                 height={150}
-                src={product.imageUrl}
+                src={resolveImageSrc(product.imageUrl, product.public_id)}
                 width={600}
+                onError={(e) => {
+                  e.currentTarget.src = IMAGE_PLACEHOLDER;
+                }}
               />
             </div>
             <div className="p-4">

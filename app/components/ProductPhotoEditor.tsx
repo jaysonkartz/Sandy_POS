@@ -2,7 +2,8 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X, Trash2 } from "@/app/lib/icons";
-import { CldImage, getCloudinaryCloudName, getCloudinaryUploadPreset } from "@/app/lib/cloudinary";
+import { getCloudinaryCloudName, getCloudinaryUploadPreset } from "@/app/lib/cloudinary";
+import { CldImage } from "next-cloudinary";
 import { supabase } from "@/app/lib/supabaseClient";
 import ImageCropEditor from "@/app/components/ImageCropEditor";
 
@@ -311,7 +312,7 @@ export default function ProductPhotoEditor({
             <div className="rounded-lg border bg-gray-50 p-3">
               <div className="mb-2 text-sm font-medium">Cover</div>
               {coverUrl ? (
-                <CldImage
+                <img
                   alt={`${productName} cover image`}
                   className="h-56 w-full rounded bg-white object-contain"
                   height={560}
@@ -370,7 +371,7 @@ export default function ProductPhotoEditor({
                       }
                     }}
                   >
-                    <CldImage
+                    <img
                       alt={`${productName} thumbnail`}
                       className="h-24 w-full object-cover"
                       height={192}

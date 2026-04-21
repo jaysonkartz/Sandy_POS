@@ -5,40 +5,14 @@ import { Camera } from "lucide-react";
 import ProductImage from "@/app/components/ProductImage";
 import { WhatsAppIcon } from "./WhatsAppIcon";
 import { CATEGORY_ID_NAME_MAP } from "@/app/(admin)/const/category";
+import { IMAGE_PLACEHOLDER, resolveImageSrc } from "@/app/lib/image";
+import type { Product, ProductGroup } from "@/app/types/product";
 
-interface ProductImageRow {
-  id: number;
-  product_id: number;
+interface GalleryImage {
   image_url: string;
-  sort_order: number;
+  public_id: string;
   is_cover: boolean;
-}
-
-interface Product {
-  id: number;
-  "Item Code": string;
-  Product: string;
-  Category: string;
-  weight: string;
-  UOM: string;
-  Country: string;
-  Product_CH?: string;
-  Category_CH?: string;
-  Country_CH?: string;
-  Variation?: string;
-  Variation_CH?: string;
-  price: number;
-  uom: string;
-  stock_quantity: number;
-  image_url?: string;
-  product_images?: ProductImageRow[];
-}
-
-interface ProductGroup {
-  groupKey: string;
-  title: string;
-  products: Product[];
-  category: string;
+  sort_order: number;
 }
 
 interface ProductCardProps {
@@ -87,7 +61,9 @@ const ProductCardContent = memo<ProductCardProps>(
     onOpenSignupModal,
   }) => {
     const { groupKey, products } = group;
-    const IMAGE_PLACEHOLDER = "/product-placeholder.svg";
+
+    const uniq = (arr: Array<string | undefined | null>) =>
+      Array.from(new Set(arr.filter(Boolean).map((v) => String(v).trim()))).filter(Boolean);
 
     const getMatchingProduct = useCallback(
       (
@@ -126,9 +102,6 @@ const ProductCardContent = memo<ProductCardProps>(
     const currentQuantity = currentQuantityByProductId[product.id] ?? 0;
     const isReordered = reorderedProductIds.includes(product.id);
 
-    const uniq = (arr: Array<string | undefined | null>) =>
-      Array.from(new Set(arr.filter(Boolean).map((v) => String(v).trim()))).filter(Boolean);
-
     const variations = uniq(products.map((p) => p.Variation));
     const origins = uniq(products.map((p) => p.Country));
     const weights = uniq(products.map((p) => p.weight));
@@ -155,41 +128,60 @@ const ProductCardContent = memo<ProductCardProps>(
       product.Variation ? ` (${product.Variation})` : ""
     }.png`;
 
-    const galleryImages = useMemo(() => {
-      const productImages = [...(product.product_images || [])].sort((a, b) => {
-        if (a.is_cover !== b.is_cover) return a.is_cover ? -1 : 1;
-        return (a.sort_order ?? 0) - (b.sort_order ?? 0);
-      });
+    const galleryImages = useMemo<GalleryImage[]>(() => {
+      const productImages = (product.product_images || [])
+        .map((img) => ({
+          image_url: img.image_url?.trim() || "",
+          public_id: img.public_id?.trim() || "",
+          is_cover: !!img.is_cover,
+          sort_order: img.sort_order ?? 0,
+        }))
+        .filter((img) => img.image_url || img.public_id)
+        .sort((a, b) => {
+          if (a.is_cover !== b.is_cover) return a.is_cover ? -1 : 1;
+          return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+        });
 
-      const urls = productImages
-        .map((img) => img.image_url?.trim())
-        .filter((url): url is string => Boolean(url));
+      if (productImages.length > 0) return productImages;
 
-      if (product.image_url && product.image_url.trim() !== "") {
-        const productImageUrl = product.image_url.trim();
-        if (!urls.includes(productImageUrl)) {
-          urls.unshift(productImageUrl);
-        }
+      if (product.image_url?.trim() || product.public_id?.trim()) {
+        return [
+          {
+            image_url: product.image_url?.trim() || "",
+            public_id: product.public_id?.trim() || "",
+            is_cover: true,
+            sort_order: 0,
+          },
+        ];
       }
 
-      const uniqueUrls = Array.from(new Set(urls));
-      if (uniqueUrls.length > 0) return uniqueUrls;
-      return [fallbackImage];
-    }, [product.product_images, product.image_url, fallbackImage]);
+      return [
+        {
+          image_url: fallbackImage,
+          public_id: "",
+          is_cover: true,
+          sort_order: 0,
+        },
+      ];
+    }, [product.product_images, product.image_url, product.public_id, fallbackImage]);
 
-    const [selectedImage, setSelectedImage] = useState(galleryImages[0]);
+    const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
 
     useEffect(() => {
-      setSelectedImage(galleryImages[0]);
+      setSelectedImage(galleryImages[0] || null);
     }, [galleryImages, product.id]);
+
+    const mainImageSrc = selectedImage
+      ? resolveImageSrc(selectedImage.image_url, selectedImage.public_id)
+      : IMAGE_PLACEHOLDER;
 
     return (
       <div
+        role="article"
         aria-label={isEnglish ? product.Product : product.Product_CH}
         className={`relative flex flex-col overflow-hidden rounded-xl bg-white shadow-sm transition-all duration-300 hover:shadow-md ${
-          isReordered ? "ring-2 ring-green-400 shadow-lg animate-[pulse_1.6s_ease-in-out_3]" : ""
+          isReordered ? "animate-[pulse_1.6s_ease-in-out_3] ring-2 ring-green-400 shadow-lg" : ""
         }`}
-        role="article"
       >
         {isReordered && (
           <div className="absolute left-2 top-2 z-10 rounded-full bg-green-500 px-2 py-1 text-xs font-semibold text-white shadow">
@@ -200,14 +192,16 @@ const ProductCardContent = memo<ProductCardProps>(
         <div className="relative bg-gray-100">
           <div className="relative h-24 bg-gray-100 sm:h-48">
             <ProductImage
-              key={`${product.id}-${selectedImage}`}
+              key={`${product.id}-${selectedImage?.public_id || selectedImage?.image_url || "placeholder"}`}
+              src={mainImageSrc}
+              publicId=""
               alt={isEnglish ? product.Product : product.Product_CH || product.Product}
-              className="h-full w-full"
-              src={selectedImage}
+              className="h-full w-full object-cover"
             />
 
             {isSessionValid && userRole === "ADMIN" && (
               <button
+                type="button"
                 className="absolute right-2 top-2 rounded-full bg-blue-500 p-2 text-white"
                 onClick={() => onOpenPhotoEditor(product)}
               >
@@ -218,26 +212,32 @@ const ProductCardContent = memo<ProductCardProps>(
 
           {galleryImages.length > 1 && (
             <div className="flex gap-2 overflow-x-auto border-t bg-white px-2 py-2">
-              {galleryImages.slice(0, 5).map((img, index) => (
-                <button
-                  key={`${img}-${index}`}
-                  className={`shrink-0 overflow-hidden rounded border-2 transition ${
-                    selectedImage === img ? "border-blue-500" : "border-gray-200"
-                  }`}
-                  type="button"
-                  onClick={() => setSelectedImage(img)}
-                >
-                  <img
-                    alt={`${product.Product} ${index + 1}`}
-                    className="h-12 w-12 object-cover sm:h-14 sm:w-14"
-                    src={img}
-                    onError={(e) => {
-                      if (e.currentTarget.src.endsWith(IMAGE_PLACEHOLDER)) return;
-                      e.currentTarget.src = IMAGE_PLACEHOLDER;
-                    }}
-                  />
-                </button>
-              ))}
+              {galleryImages.slice(0, 5).map((img, index) => {
+                const thumbKey = img.public_id || img.image_url || `thumb-${index}`;
+                const thumbSelected =
+                  selectedImage?.public_id === img.public_id &&
+                  selectedImage?.image_url === img.image_url;
+
+                return (
+                  <button
+                    key={`${thumbKey}-${index}`}
+                    type="button"
+                    className={`shrink-0 overflow-hidden rounded border-2 transition ${
+                      thumbSelected ? "border-blue-500" : "border-gray-200"
+                    }`}
+                    onClick={() => setSelectedImage(img)}
+                  >
+                    <img
+                      alt={`${product.Product} ${index + 1}`}
+                      className="h-12 w-12 object-cover sm:h-14 sm:w-14"
+                      src={resolveImageSrc(img.image_url, img.public_id)}
+                      onError={(e) => {
+                        e.currentTarget.src = IMAGE_PLACEHOLDER;
+                      }}
+                    />
+                  </button>
+                );
+              })}
 
               {galleryImages.length > 5 && (
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded border bg-gray-50 text-xs text-gray-500 sm:h-14 sm:w-14">
@@ -255,10 +255,9 @@ const ProductCardContent = memo<ProductCardProps>(
           <p className="mb-3 text-xs text-gray-400">{product["Item Code"]}</p>
 
           <div className="mb-4 space-y-3">
-            {/* Variation */}
             {variations.length > 1 ? (
               <div className="flex items-center gap-2">
-                <span className="min-w-[70px] text-[11px] text-gray-400 uppercase tracking-wide">
+                <span className="min-w-[70px] text-[11px] uppercase tracking-wide text-gray-400">
                   {isEnglish ? "Type" : "规格"}
                 </span>
                 <select
@@ -275,10 +274,9 @@ const ProductCardContent = memo<ProductCardProps>(
               </div>
             ) : null}
 
-            {/* Origin */}
             {origins.length > 1 ? (
               <div className="flex items-center gap-2">
-                <span className="min-w-[70px] text-[11px] text-gray-400 uppercase tracking-wide">
+                <span className="min-w-[70px] text-[11px] uppercase tracking-wide text-gray-400">
                   {isEnglish ? "Origin" : "产地"}
                 </span>
                 <select
@@ -295,10 +293,9 @@ const ProductCardContent = memo<ProductCardProps>(
               </div>
             ) : null}
 
-            {/* Weight */}
             {weights.length > 1 ? (
               <div className="flex items-center gap-2">
-                <span className="min-w-[70px] text-[11px] text-gray-400 uppercase tracking-wide">
+                <span className="min-w-[70px] text-[11px] uppercase tracking-wide text-gray-400">
                   {isEnglish ? "Weight" : "重量"}
                 </span>
                 <select
@@ -326,8 +323,8 @@ const ProductCardContent = memo<ProductCardProps>(
           <div className="mt-auto border-t border-gray-100 pt-4">
             {!isSessionValid ? (
               <button
-                className="w-full text-center font-semibold text-blue-600 transition-colors hover:text-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={isLoggingIn}
+                className="w-full text-center font-semibold text-blue-600 transition-colors hover:text-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
                 onClick={onOpenSignupModal}
               >
                 {isLoggingIn
@@ -343,6 +340,7 @@ const ProductCardContent = memo<ProductCardProps>(
                 <div className="flex items-center">
                   <div className="flex w-fit items-stretch overflow-hidden rounded-md border bg-white">
                     <button
+                      type="button"
                       className="flex h-10 w-10 items-center justify-center bg-gray-100 text-base font-semibold hover:bg-gray-200"
                       onClick={() => {
                         if (currentQuantity > 1) onUpdateQuantity(product.id, currentQuantity - 1);
@@ -353,11 +351,11 @@ const ProductCardContent = memo<ProductCardProps>(
                     </button>
 
                     <input
-                      className="w-12 bg-white text-center text-base font-semibold outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                      inputMode="numeric"
-                      min={0}
                       type="number"
+                      min={0}
+                      inputMode="numeric"
                       value={currentQuantity}
+                      className="w-12 bg-white text-center text-base font-semibold outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                       onChange={(e) => {
                         const newQuantity = parseInt(e.target.value) || 0;
                         if (newQuantity > 0) {
@@ -370,6 +368,7 @@ const ProductCardContent = memo<ProductCardProps>(
                     />
 
                     <button
+                      type="button"
                       className="flex h-10 w-10 items-center justify-center bg-gray-100 text-base font-semibold hover:bg-gray-200"
                       onClick={() => {
                         if (currentQuantity > 0) onUpdateQuantity(product.id, currentQuantity + 1);
@@ -382,8 +381,9 @@ const ProductCardContent = memo<ProductCardProps>(
                 </div>
 
                 <button
-                  className="flex h-10 w-10 items-center justify-center rounded-md bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200"
+                  type="button"
                   title={isEnglish ? "Inquire via WhatsApp" : "通过WhatsApp询价"}
+                  className="flex h-10 w-10 items-center justify-center rounded-md bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200"
                   onClick={onCustomerService}
                 >
                   <WhatsAppIcon className="h-4 w-4" />

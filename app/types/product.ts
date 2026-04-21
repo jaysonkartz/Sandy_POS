@@ -1,7 +1,8 @@
 export interface ProductImageRow {
   id: number;
   product_id: number;
-  image_url: string;
+  image_url: string | null;
+  public_id?: string | null;
   sort_order: number;
   is_cover: boolean;
 }
@@ -37,6 +38,7 @@ export interface Product {
   uom: string;
   stock_quantity: number;
   image_url?: string;
+  public_id?: string;
   product_images?: ProductImageRow[];
   variants?: ProductVariant[];
 }

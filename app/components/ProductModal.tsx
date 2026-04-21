@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
-import { CldImage } from "next-cloudinary";
 
 interface Product {
   id: number;
@@ -78,7 +77,7 @@ export default function ProductModal({ isOpen, onClose, categoryId }: ProductMod
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {products.map((product) => (
                 <div key={product.id} className="border rounded-lg p-4">
-                  <CldImage
+                  <img
                     alt={product.title}
                     className="w-full h-48 object-cover rounded mb-2"
                     height={384}
