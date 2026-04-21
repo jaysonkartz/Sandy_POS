@@ -45,21 +45,23 @@ export const useWhatsApp = () => {
   }, []);
 
   const sendWhatsAppNotification = useCallback((orderDetails: OrderDetails) => {
-    const message = `
-🛍️ New Order Notification
-Order ID: ${orderDetails.orderId}
-Customer: ${orderDetails.customerName}
-Total Amount: $${orderDetails.totalAmount.toFixed(2)}
-
-Order Items:
-${orderDetails.items
-  .map((item) => `- ${item.productName} x ${item.quantity} @ $${item.price.toFixed(2)}`)
-  .join("\n")}
-
-Please check the admin panel for more details.
-    `.trim();
-
-    const whatsappUrl = `https://wa.me/${WHATSAPP_PHONE_NUMBER}?text=${encodeURIComponent(message)}`;
+    const lines = [
+      "🛍️ *New Order Notification*",
+      `Order ID: ${orderDetails.orderId}`,
+      `Customer: ${orderDetails.customerName}`,
+      `Total Amount: $${orderDetails.totalAmount.toFixed(2)}`,
+      "",
+      "Order Items:",
+      ...orderDetails.items.map(
+        (item) => `- ${item.productName} x ${item.quantity} @ $${item.price.toFixed(2)}`
+      ),
+      "",
+      "Please check the admin panel for more details.",
+    ];
+  
+    const message = lines.join("\n");
+  
+    const whatsappUrl = `https://api.whatsapp.com/send?phone=${WHATSAPP_PHONE_NUMBER}&text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, "_blank");
   }, []);
 

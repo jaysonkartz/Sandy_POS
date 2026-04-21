@@ -28,17 +28,16 @@ export default function BottomNav() {
     Icon: typeof Home;
     badge?: number;
   }> = [
-    { href: "/", label: "Home", Icon: Home },
-    { href: "/", label: "Categories", Icon: LayoutGrid },
+    { href: "/", label: "Products", Icon: Home },
     { href: "/cart", label: "Cart", Icon: ShoppingCart, badge: cartCount },
     { href: "/order-history", label: "Orders", Icon: Package },
     { href: "/customer-details", label: "Me", Icon: User },
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 h-16 border-t bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
-      <div className="mx-auto w-full max-w-7xl px-3 h-full">
-        <div className="grid grid-cols-5 h-full items-center">
+    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 z-50 h-16 w-full max-w-md border-t bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 rounded-t-2xl shadow-lg">
+      <div className="w-full px-3 h-full">
+        <div className="grid grid-cols-4 h-full items-center">
           {items.map(({ href, label, Icon, badge }) => {
             const active =
               label === "Cart"
