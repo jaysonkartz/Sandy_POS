@@ -52,25 +52,30 @@ export const ProductGrid = memo<ProductGridProps>(
       return result;
     }, [selectedProducts]);
 
-    const categoryDisplayGroups: { [category: string]: typeof productGroups } = {};
-    productGroups.forEach((group) => {
-      if (!categoryDisplayGroups[group.category]) {
-        categoryDisplayGroups[group.category] = [];
-      }
-      categoryDisplayGroups[group.category].push(group);
-    });
+    const categoryDisplayGroups: Record<string, ProductGroup[]> = useMemo(() => {
+      const grouped: Record<string, ProductGroup[]> = {};
+
+      productGroups.forEach((group) => {
+        if (!grouped[group.category]) {
+          grouped[group.category] = [];
+        }
+        grouped[group.category].push(group);
+      });
+
+      return grouped;
+    }, [productGroups]);
 
     return (
       <div className="space-y-8">
         {Object.entries(categoryDisplayGroups).map(([category, groups]) => (
-          <div key={category} className="space-y-4">
+          <section key={category} className="space-y-4">
             <div className="border-b border-gray-200 pb-2">
               <h2 className="text-xl font-bold text-gray-800 sm:text-2xl">
                 {isEnglish ? category : groups[0]?.products[0]?.Category_CH || category}
               </h2>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 [@media(min-width:480px)]:grid-cols-4 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {groups.map((group) => (
                 <ProductCard
                   key={group.groupKey}
@@ -92,7 +97,7 @@ export const ProductGrid = memo<ProductGridProps>(
                 />
               ))}
             </div>
-          </div>
+          </section>
         ))}
       </div>
     );
