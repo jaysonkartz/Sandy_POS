@@ -175,77 +175,102 @@ export const ProductCard = ({
         </div>
 
         <div className="mt-4 space-y-3">
-          {allVariations.length > 1 && (
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-              <span className="text-[11px] uppercase tracking-wide text-gray-400 sm:min-w-[70px]">
-                {isEnglish ? "Type" : "规格"}
-              </span>
-              <select
-                className="w-full rounded-lg border border-gray-300 p-2 text-sm sm:flex-1"
-                value={selectedVariation}
-                onChange={(e) => handleChange("variation", e.target.value)}
-              >
-                {allVariations.map((variation) => {
-                  const match = group.products.find((p) => p.Variation === variation);
-                  const label = isEnglish
-                    ? variation
-                    : match?.Variation_CH || variation;
+  {(allVariations.length > 0 || product.Variation) && (
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:gap-2">
+      <span className="text-[11px] uppercase tracking-wide text-gray-400 sm:min-w-[70px]">
+        {isEnglish ? "Type" : "规格"}
+      </span>
 
-                  return (
-                    <option key={variation} value={variation}>
-                      {label}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-          )}
+      {allVariations.length > 1 ? (
+        <select
+          className="w-full rounded-lg border border-gray-300 p-2 text-sm sm:flex-1"
+          value={selectedVariation || product.Variation || ""}
+          onChange={(e) => handleChange("variation", e.target.value)}
+        >
+          {allVariations.map((variation) => {
+            const match = group.products.find((p) => p.Variation === variation);
+            const label = isEnglish
+              ? variation
+              : match?.Variation_CH || variation;
 
-          {allCountries.length > 1 && (
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-              <span className="text-[11px] uppercase tracking-wide text-gray-400 sm:min-w-[70px]">
-                {isEnglish ? "Origin" : "产地"}
-              </span>
-              <select
-                className="w-full rounded-lg border border-gray-300 p-2 text-sm sm:flex-1"
-                value={selectedCountry}
-                onChange={(e) => handleChange("countryId", e.target.value)}
-              >
-                {allCountries.map((country) => (
-                  <option key={country} value={country}>
-                    {isEnglish
-                      ? countryMap[country]?.name || country
-                      : countryMap[country]?.chineseName || country}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {allWeights.length > 1 && (
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-              <span className="text-[11px] uppercase tracking-wide text-gray-400 sm:min-w-[70px]">
-                {isEnglish ? "Weight" : "重量"}
-              </span>
-              <select
-                className="w-full rounded-lg border border-gray-300 p-2 text-sm sm:flex-1"
-                value={selectedWeight}
-                onChange={(e) => handleChange("weight", e.target.value)}
-              >
-                {allWeights.map((weight) => (
-                  <option key={weight} value={weight}>
-                    {weight}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+            return (
+              <option key={variation} value={variation}>
+                {label}
+              </option>
+            );
+          })}
+        </select>
+      ) : (
+        <div className="text-sm text-gray-700 sm:flex-1">
+          {isEnglish
+            ? product.Variation || "-"
+            : product.Variation_CH || product.Variation || "-"}
         </div>
+      )}
+    </div>
+  )}
 
-        <div className="mt-4 text-sm text-gray-500">
-          {displayVariation ? <div>{displayVariation}</div> : null}
-          {displayCountry ? <div>{displayCountry}</div> : null}
+  {(allCountries.length > 0 || product.Country) && (
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:gap-2">
+      <span className="text-[11px] uppercase tracking-wide text-gray-400 sm:min-w-[70px]">
+        {isEnglish ? "Origin" : "产地"}
+      </span>
+
+      {allCountries.length > 1 ? (
+        <select
+          className="w-full rounded-lg border border-gray-300 p-2 text-sm sm:flex-1"
+          value={selectedCountry || product.Country || ""}
+          onChange={(e) => handleChange("countryId", e.target.value)}
+        >
+          {allCountries.map((country) => (
+            <option key={country} value={country}>
+              {isEnglish
+                ? countryMap[country]?.name || country
+                : countryMap[country]?.chineseName || country}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <div className="text-sm text-gray-700 sm:flex-1">
+          {isEnglish
+            ? countryMap[product.Country]?.name || product.Country || "-"
+            : countryMap[product.Country]?.chineseName ||
+              product.Country_CH ||
+              product.Country ||
+              "-"}
         </div>
+      )}
+    </div>
+  )}
+
+  {(allWeights.length > 0 || product.weight) && (
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:gap-2">
+      <span className="text-[11px] uppercase tracking-wide text-gray-400 sm:min-w-[70px]">
+        {isEnglish ? "Weight" : "重量"}
+      </span>
+
+      {allWeights.length > 1 ? (
+        <select
+          className="w-full rounded-lg border border-gray-300 p-2 text-sm sm:flex-1"
+          value={selectedWeight || product.weight || ""}
+          onChange={(e) => handleChange("weight", e.target.value)}
+        >
+          {allWeights.map((weight) => (
+            <option key={weight} value={weight}>
+              {weight}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <div className="text-sm text-gray-700 sm:flex-1">
+          {product.weight || "-"}
+        </div>
+      )}
+    </div>
+  )}
+</div>
+
+
 
         <div className="mt-auto pt-4">
           {!canOrder ? (
